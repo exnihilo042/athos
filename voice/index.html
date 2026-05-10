@@ -1237,12 +1237,18 @@ function startListening(auto = false) {
     }
     if (e.error === 'not-allowed') {
       addBubble('athos', "Micro bloqué — autorise le micro dans les préférences Chrome.");
+      setState('idle');
     } else if (e.error === 'audio-capture') {
       addBubble('athos', "Aucun micro détecté.");
+      setState('idle');
+    } else if (e.error === 'network') {
+      // Chrome STT passe par Google — retry silencieux après 800ms
+      setState('idle');
+      setTimeout(() => { if (state === 'idle') startListening(auto); }, 800);
     } else {
       addBubble('athos', `Erreur micro : ${e.error}`);
+      setState('idle');
     }
-    setState('idle');
   };
   recognition.onend = () => {
     if (state === 'listening') setState('idle');
