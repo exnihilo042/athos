@@ -759,7 +759,7 @@ const TOOL_ICONS = {
   shell: '⬡', applescript: '◈', network_scan: '◎',
   http_request: '↗', write_file: '▤', memory_write: '◆',
   memory_read: '◇', notify: '◉', ollama: '○',
-  quality: '◌', grok: 'G', chatgpt: 'C', failover: '↺',
+  quality: '◌', grok: 'G', chatgpt: 'C', chatgpt_plus: 'C', claude_code: 'K', failover: '↺',
   wikipedia: 'W', youtube: 'Y', send_email: '@',
   take_screenshot: '□', take_note: '✎'
 };
@@ -1129,7 +1129,7 @@ function updateStatus() {
       const budget = document.getElementById('budget-indicator');
       if (badge && label) {
         badge.className = d.engine || '';
-        const names = { claude: 'Claude', grok: 'Grok', chatgpt: 'ChatGPT', ollama: 'Ollama', none: '—' };
+        const names = { chatgpt_plus: 'ChatGPT+', claude_code: 'Claude Code', anthropic_api: 'Anthropic API', claude: 'Claude', grok: 'Grok', chatgpt: 'ChatGPT API', ollama: 'Ollama', none: '—' };
         label.textContent = names[d.engine] || d.engine || '—';
       }
       if (budget && d.budget_eur > 0) {

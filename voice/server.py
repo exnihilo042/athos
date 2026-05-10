@@ -13,6 +13,7 @@ from memory_extractor import extract_and_save_async
 
 ANTHROPIC_KEY = config.ANTHROPIC_KEY
 OPENAI_KEY = config.OPENAI_KEY
+OPENAI_ENABLED = config.OPENAI_ENABLED
 GROK_KEY = config.GROK_KEY
 OPENAI_MODEL = config.OPENAI_MODEL
 GROK_MODEL = config.GROK_MODEL
@@ -88,8 +89,11 @@ def _available_engines() -> list[str]:
     return engine_router.available_engines(
         anthropic_key=ANTHROPIC_KEY,
         openai_key=OPENAI_KEY,
+        openai_enabled=OPENAI_ENABLED,
         grok_key=GROK_KEY,
         has_ollama=lambda: bool(_ollama_models()),
+        has_chatgpt_plus=engine_router.chatgpt_plus_available,
+        has_claude_code=engine_router.claude_code_available,
     )
 
 _engine["current"] = _detect()
@@ -224,6 +228,40 @@ def ollama_stream(msg: str, send):
     return full
 
 # ── Grok streaming ────────────────────────────────────────────────────────────
+def chatgpt_plus_stream(msg: str, send):
+    ctx = load_context()
+    prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
+    result = subprocess.run(
+        ["codex", "exec", "--ask-for-approval", "never", "--sandbox", "read-only", "-C", str(config.ATHOS_PATH), prompt],
+        capture_output=True, text=True, timeout=180
+    )
+    full = (result.stdout or result.stderr).strip()
+    if result.returncode != 0 and not full:
+        full = "ChatGPT Plus CLI indisponible ou non authentifié."
+    send(full)
+    return full
+
+
+def claude_code_stream(msg: str, send):
+    ctx = load_context()
+    prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
+    result = subprocess.run(
+        [
+            "claude", "-p", prompt,
+            "--permission-mode", "plan",
+            "--tools", "",
+            "--max-budget-usd", "0",
+        ],
+        cwd=str(config.ATHOS_PATH), capture_output=True, text=True, timeout=180
+    )
+    full = (result.stdout or result.stderr).strip()
+    if result.returncode != 0 and not full:
+        full = "Claude Code indisponible ou non authentifié."
+    send(full)
+    return full
+
+
+# ── Grok streaming ────────────────────────────────────────────────────────────
 def grok_stream(msg: str, send):
     ctx      = load_context()
     from agent import SYSTEM
@@ -349,6 +387,9 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/status":
             b = load_budget()
             model = {
+                "chatgpt_plus": "ChatGPT Plus via ChatGPT Plus CLI",
+                "claude_code": "Claude Code Pro",
+                "anthropic_api": "claude-sonnet-4-6",
                 "claude": "claude-sonnet-4-6",
                 "grok": GROK_MODEL,
                 "chatgpt": OPENAI_MODEL,
@@ -360,6 +401,7 @@ class Handler(BaseHTTPRequestHandler):
                         "model": model,
                         "engine_order": engine_router.configured_order(),
                         "available_engines": _available_engines(),
+                        "openai_enabled": OPENAI_ENABLED,
                         "session_events": kernel["events"],
                         "session_file": kernel["file"],
                         "budget_eur": round(b.get("total_eur", 0), 2)}); return
@@ -389,7 +431,25 @@ class Handler(BaseHTTPRequestHandler):
                     engine = _engine["current"]
                     attempted.add(engine)
 
-                    if engine == "claude":
+                    if engine == "chatgpt_plus":
+                        sse({"action": "chatgpt_plus", "label": "ChatGPT Plus — ChatGPT Plus CLI", "result": ""})
+                        reply = chatgpt_plus_stream(msg, lambda t: sse({"t": t}))
+                        push("user", msg); push("assistant", reply)
+                        save_exchange(msg, reply)
+                        log_exchange(msg, reply, "chatgpt_plus")
+                        session_kernel.record_exchange(msg, reply, "chatgpt_plus")
+                        break
+
+                    elif engine == "claude_code":
+                        sse({"action": "claude_code", "label": "Claude Code Pro — subscription", "result": ""})
+                        reply = claude_code_stream(msg, lambda t: sse({"t": t}))
+                        push("user", msg); push("assistant", reply)
+                        save_exchange(msg, reply)
+                        log_exchange(msg, reply, "claude_code")
+                        session_kernel.record_exchange(msg, reply, "claude_code")
+                        break
+
+                    elif engine in ("anthropic_api", "claude"):
                         try:
                             from agent import run_agent, SYSTEM
                             ctx     = load_context()
@@ -398,7 +458,7 @@ class Handler(BaseHTTPRequestHandler):
                             def on_action(name, inputs, result):
                                 label = (inputs.get("command") or inputs.get("script","")
                                          or inputs.get("query","") or name)[:60]
-                                session_kernel.record_action(name, label, result[:200], engine="claude")
+                                session_kernel.record_action(name, label, result[:200], engine=engine)
                                 sse({"action": name, "label": label, "result": result[:200]})
 
                             draft = run_agent(msg, system, get_history(), ANTHROPIC_KEY, on_action)
@@ -415,8 +475,8 @@ class Handler(BaseHTTPRequestHandler):
                             sse({"t": reply})
                             push("user", msg); push("assistant", reply)
                             save_exchange(msg, reply)
-                            log_exchange(msg, reply, "claude")
-                            session_kernel.record_exchange(msg, reply, "claude")
+                            log_exchange(msg, reply, engine)
+                            session_kernel.record_exchange(msg, reply, engine)
                             extract_and_save_async(msg, reply)
                             track_usage(len(msg)//4 + 300, len(reply)//4)
                             break
@@ -485,6 +545,9 @@ if __name__ == "__main__":
     b    = load_budget()
     eng  = _engine["current"]
     model = {
+        "chatgpt_plus": "ChatGPT Plus via ChatGPT Plus CLI",
+        "claude_code": "Claude Code Pro",
+        "anthropic_api": "claude-sonnet-4-6",
         "claude": "claude-sonnet-4-6",
         "grok": GROK_MODEL,
         "chatgpt": OPENAI_MODEL,
