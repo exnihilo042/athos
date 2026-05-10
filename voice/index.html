@@ -1175,8 +1175,14 @@ function speak(text, onDone) {
   setState('speaking');
   synth.cancel();
   const utt = buildUtterance(text);
-  utt.onend   = () => { setState('idle'); if (onDone) onDone(); };
-  utt.onerror = () => { setState('idle'); if (onDone) onDone(); };
+  let fired = false;
+  const done = () => { if (fired) return; fired = true; setState('idle'); if (onDone) onDone(); };
+  utt.onend   = done;
+  utt.onerror = done;
+  // Fallback : Chrome/Mac bloque parfois onend — on force après durée estimée
+  const fallback = setTimeout(done, Math.max(3000, text.length * 80));
+  utt.onend = () => { clearTimeout(fallback); done(); };
+  utt.onerror = () => { clearTimeout(fallback); done(); };
   synth.speak(utt);
 }
 
@@ -1224,8 +1230,18 @@ function startListening(auto = false) {
     handleTranscript(text);
   };
   recognition.onerror = (e) => {
-    // no-speech en mode auto → re-listen silencieusement
-    if (e.error === 'no-speech' && convActive) { setState('idle'); autoListen(); return; }
+    if (e.error === 'no-speech') {
+      setState('idle');
+      if (convActive) autoListen();
+      return;
+    }
+    if (e.error === 'not-allowed') {
+      addBubble('athos', "Micro bloqué — autorise le micro dans les préférences Chrome.");
+    } else if (e.error === 'audio-capture') {
+      addBubble('athos', "Aucun micro détecté.");
+    } else {
+      addBubble('athos', `Erreur micro : ${e.error}`);
+    }
     setState('idle');
   };
   recognition.onend = () => {
@@ -1311,21 +1327,23 @@ const orb = document.getElementById('orb-wrapper');
 
 function orbTap() {
   if (!convActive) {
-    // Première interaction — démarre la conversation
     startConversation();
     return;
   }
   if (state === 'speaking') {
-    // Interrompre ATHOS et ré-écouter
     synth.cancel();
     setState('idle');
     clearTimeout(autoTimer);
-    autoListen();
+    startListening();
     return;
   }
   if (state === 'listening') {
-    // Forcer la fin d'écoute
     if (recognition) recognition.stop();
+    return;
+  }
+  if (state === 'idle') {
+    // Manuel : tap pour parler
+    startListening();
   }
 }
 
