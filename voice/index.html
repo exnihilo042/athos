@@ -1213,12 +1213,56 @@ function stopConversation() {
 }
 
 // ── STT ───────────────────────────────────────────────────────────────────────
+let _sttNetworkFails = 0;  // compteur d'échecs réseau → bascule sur MediaRecorder
+let _mediaRecorder  = null;
+
+async function startListeningMediaRecorder() {
+  if (state !== 'idle') return;
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e) {
+    addBubble('athos', "Micro bloqué — autorise le micro dans Chrome.");
+    setState('idle'); return;
+  }
+  const chunks = [];
+  _mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+  _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  _mediaRecorder.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop());
+    setState('thinking');
+    const blob = new Blob(chunks, { type: 'audio/webm' });
+    try {
+      const res  = await fetch('/api/transcribe', {
+        method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'audio/webm' },
+        body: blob
+      });
+      const data = await res.json();
+      if (data.text && data.text.trim()) {
+        handleTranscript(data.text.trim());
+      } else {
+        setState('idle');
+        if (convActive) autoListen();
+      }
+    } catch(e) {
+      addBubble('athos', `Erreur transcription : ${e.message}`);
+      setState('idle');
+    }
+  };
+  _mediaRecorder.start();
+  setState('listening');
+  // Arrêt automatique après 8s de silence ou tap orbe
+  setTimeout(() => { if (_mediaRecorder?.state === 'recording') _mediaRecorder.stop(); }, 8000);
+}
+
 function startListening(auto = false) {
   if (state !== 'idle') return;
-  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-    addBubble('athos', "Reconnaissance vocale non supportée sur ce navigateur.");
-    return;
+
+  // Si trop d'échecs réseau → passer directement au MediaRecorder
+  if (_sttNetworkFails >= 2 || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    startListeningMediaRecorder(); return;
   }
+
   const SR     = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition  = new SR();
   recognition.lang             = 'fr-FR';
@@ -1226,6 +1270,7 @@ function startListening(auto = false) {
   recognition.maxAlternatives  = 1;
 
   recognition.onresult = (e) => {
+    _sttNetworkFails = 0;
     const text = e.results[0][0].transcript;
     handleTranscript(text);
   };
@@ -1237,18 +1282,25 @@ function startListening(auto = false) {
     }
     if (e.error === 'not-allowed') {
       addBubble('athos', "Micro bloqué — autorise le micro dans les préférences Chrome.");
-      setState('idle');
-    } else if (e.error === 'audio-capture') {
-      addBubble('athos', "Aucun micro détecté.");
-      setState('idle');
-    } else if (e.error === 'network') {
-      // Chrome STT passe par Google — retry silencieux après 800ms
-      setState('idle');
-      setTimeout(() => { if (state === 'idle') startListening(auto); }, 800);
-    } else {
-      addBubble('athos', `Erreur micro : ${e.error}`);
-      setState('idle');
+      setState('idle'); return;
     }
+    if (e.error === 'audio-capture') {
+      addBubble('athos', "Aucun micro détecté.");
+      setState('idle'); return;
+    }
+    if (e.error === 'network') {
+      _sttNetworkFails++;
+      setState('idle');
+      // Après 2 échecs → bascule sur MediaRecorder+Whisper
+      if (_sttNetworkFails >= 2) {
+        startListeningMediaRecorder();
+      } else {
+        setTimeout(() => { if (state === 'idle') startListening(auto); }, 800);
+      }
+      return;
+    }
+    addBubble('athos', `Erreur micro : ${e.error}`);
+    setState('idle');
   };
   recognition.onend = () => {
     if (state === 'listening') setState('idle');
@@ -1344,7 +1396,8 @@ function orbTap() {
     return;
   }
   if (state === 'listening') {
-    if (recognition) recognition.stop();
+    if (_mediaRecorder?.state === 'recording') _mediaRecorder.stop();
+    else if (recognition) recognition.stop();
     return;
   }
   if (state === 'idle') {

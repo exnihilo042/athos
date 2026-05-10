@@ -614,6 +614,43 @@ class Handler(BaseHTTPRequestHandler):
             from agent import list_processes
             self._json({"processes": list_processes()}); return
 
+        if p == "/api/transcribe":
+            length = int(self.headers.get("Content-Length", 0))
+            audio_bytes = self.rfile.read(length)
+            if not audio_bytes:
+                self._json({"error": "no audio"}, 400); return
+            import tempfile, speech_recognition as sr
+            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
+                tmp.write(audio_bytes)
+                tmp_path = tmp.name
+            try:
+                # Convertir webm → wav via ffmpeg (silencieux)
+                wav_path = tmp_path.replace(".webm", ".wav")
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", tmp_path, "-ar", "16000", "-ac", "1", wav_path],
+                    capture_output=True, timeout=30
+                )
+                recognizer = sr.Recognizer()
+                with sr.AudioFile(wav_path) as src:
+                    audio = recognizer.record(src)
+                # Whisper API si clé dispo, sinon Google free
+                if config.OPENAI_KEY:
+                    import openai
+                    client = openai.OpenAI(api_key=config.OPENAI_KEY)
+                    with open(wav_path, "rb") as f:
+                        result = client.audio.transcriptions.create(model="whisper-1", file=f, language="fr")
+                    text = result.text
+                else:
+                    text = recognizer.recognize_google(audio, language="fr-FR")
+                self._json({"text": text})
+            except Exception as e:
+                self._json({"error": str(e)}, 500)
+            finally:
+                for f in [tmp_path, wav_path]:
+                    try: Path(f).unlink()
+                    except: pass
+            return
+
         self.send_response(404); self.end_headers()
 
 
