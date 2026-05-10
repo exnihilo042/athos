@@ -1,0 +1,84 @@
+# ATHOS — Capacités complètes
+# Format §-clé:valeur|pipe|séparés — mis à jour à chaque nouvelle feature
+# Dernière MàJ : 2026-05-10
+
+# ── IDENTITÉ ──────────────────────────────────────────────────────────────────
+§id:A.T.H.O.S.|full:Autonomous.Tactical.Heuristic.Operating.System
+§persona:majordome|direct|posé|humour_sec|jamais_servile|français_only
+§user:Clément|agency:ExNihilo|spécialité:Shopify|objectif:50K€/mois
+
+# ── INFRASTRUCTURE ────────────────────────────────────────────────────────────
+§infra:serveur_python|port:7474|stack:HTTPServer_natif|venv:~/Sites/athos/venv
+§infra:engine_auto|priority:Claude_API>Ollama>none|fallback:transparent
+§infra:cloudflare_tunnel|url:trycloudflare.com|accès:mondial|HTTPS:oui
+§infra:ollama_local|modèles_voix:llama3.2:1b>phi3:mini>mistral|modèles_analyse:mistral>phi3:mini>llama3.2:1b
+§infra:best_model_auto|sélection:premier_disponible_par_priorité
+
+# ── INTERFACE VOCALE PWA (iPhone + tout navigateur) ───────────────────────────
+§pwa:installable_iOS|safari:Partager→Sur_écran_accueil|standalone:oui|offline_shell:oui
+§pwa:dark_UI|bg:#080808|orb_central|4_états:idle/listening/thinking/speaking
+§pwa:orb_idle|couleur:bleu|glow:ambient|hint:Appuyer_pour_démarrer
+§pwa:orb_listening|couleur:rouge|animation:pulse|status:Écoute...
+§pwa:orb_thinking|animation:spinning_border|status:Analyse...
+§pwa:orb_speaking|couleur:vert|animation:pulse|status:ATHOS
+§pwa:bubbles|user:droite_gris|athos:gauche_bleu|max:8_visibles|animation:fadeUp
+
+# ── CONVERSATION CONTINUE ─────────────────────────────────────────────────────
+§conv:démarrage|action:appui_orb|premier_appui_seulement
+§conv:greeting|ATHOS_parle_en_premier|phrases:aléatoires_locales|ex:"Clément. En ligne."
+§conv:boucle_auto|après_réponse_ATHOS→écoute_automatique|sans_interaction_requise
+§conv:silence_détecté|no-speech→ré-écoute_silencieuse|boucle_continue
+§conv:interruption|appui_orb_pendant_parole→coupe_TTS_immédiat→ré-écoute
+§conv:arrêt|bouton_Arrêter_en_bas|coupe_tout:TTS+STT+boucle
+§conv:langue:fr-FR|STT:Web_Speech_API|TTS:SpeechSynthesis
+§conv:voix_préférée|Thomas>Alain>French|rate:0.92|pitch:0.85
+
+# ── MÉMOIRE ───────────────────────────────────────────────────────────────────
+§mem:format:§_compressé|pipe_séparé|machine_readable|low_token
+§mem:drive:GoogleDrive|path:Mon_Drive/CLAUDE_AI/memory/|montage_local:oui
+§mem:fichiers_core|identity+projects+feedback+behaviors+capabilities
+§mem:session_writer|déclenché:Claude_Code_Stop_hook|routing:§préfixe→fichier_cible
+§mem:routing|§behavior/§pattern/§habit→behaviors.mem
+§mem:routing|§proj/§project/§blocker/§milestone→projects.mem
+§mem:routing|§rule/§feedback/§correction/§validated→feedback.mem
+§mem:weekly_consolidator|dimanche_23h|launchd|merge_7_jours_logs
+§mem:daily_brief|7h00|launchd|affiche_projets_actifs+next_actions
+
+# ── CONTEXTE CHARGÉ DANS CHAQUE RÉPONSE ──────────────────────────────────────
+§ctx:athos_identity.mem|600_chars_max|injecté_system_prompt
+§ctx:athos_projects.mem|600_chars_max|injecté_system_prompt
+§ctx:load:à_chaque_requête_/api/chat
+
+# ── INTERFACE MAC (voix locale) ───────────────────────────────────────────────
+§mac:athos-mac.py|sox_requis|brew_install_sox
+§mac:STT|openai_whisper_api>speech_recognition_google_fallback
+§mac:TTS|say_-v_Thomas_-r_175|macOS_natif
+§mac:flow|Entrée→enregistre→transcrit→ATHOS_répond→say→boucle
+
+# ── LANCEMENT ─────────────────────────────────────────────────────────────────
+§launch:start.sh|3_étapes:Ollama+serveur+cloudflare
+§launch:ollama|vérifie_si_actif→sinon_démarre|log:/tmp/athos_ollama.log
+§launch:serveur|kill_port_7474→relance|log:/tmp/athos_server.log
+§launch:log_window|Terminal_dédié_log_serveur|foreground_auto
+§launch:tunnel|cloudflared→URL_publique→pbcopy→Safari_auto
+§launch:terminals|ferme_fenêtres_inutiles_au_démarrage
+
+# ── SÉCURITÉ IDENTITÉ ─────────────────────────────────────────────────────────
+§identity_guard:IDENTITÉ_FIXE_NE_PAS_DÉVIER|system_prompt_renforcé
+§identity_guard:!not_Alexa|!not_NASA|!not_générique|créé_par_Clément_ExNihilo
+
+# ── ROADMAP (pas encore implémenté) ──────────────────────────────────────────
+§todo:ElevenLabs_voix|majordome_grave_pro|remplace_Web_Speech
+§todo:URL_permanente|cloudflare_compte+sous-domaine|ou_VPS
+§todo:Gmail_API|lecture_emails|résumé_quotidien
+§todo:Google_Calendar|agenda|briefing_matin
+§todo:Mac_control|AppleScript+PyAutoGUI|ouvre_apps+clics
+§todo:vision|screenshot_analyse|caméra_feed
+§todo:dashboard|React/Next.js|dark|temps_réel
+§todo:Apple_Watch|complications+Siri_shortcut
+§todo:lunettes_connectées|relay_audio
+§todo:VPS|always-on|URL_fixe|indépendant_Mac
+§todo:interview_Clément|cx_identity_deep.mem|préférences_profondes
+§todo:recap_soir|21h|launchd|résumé_journée
+§todo:drone_camera|insights_environnement
+§todo:robot_corps|contrôle_physique

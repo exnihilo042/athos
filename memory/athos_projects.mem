@@ -1,0 +1,42 @@
+§v:0.2|updated:2026-05-10|src:session_manual
+
+§proj:athos|status:building|priority:0
+§proj:athos|phase:2_voix_iphone|next:PWA+ElevenLabs+majordome_voice
+§proj:athos|done[identity.mem,behaviors.mem,projects.mem,feedback.mem,session_writer,daily_brief,weekly_consolidator,hook_stop,venv,launchd_plists]
+§proj:athos|todo_p1[interview_identité,health.mem,social.mem,finance.mem,feedback_explicit,evening_recap]
+§proj:athos|todo_p2[voix_iphone,voix_mac,wake_word,mémoire_vocale]
+
+§proj:placerr|status:active|priority:1
+§proj:placerr|stack:Next.js(web/)+Pixi.js|EXPO=DEPRECATED_ne_plus_utiliser
+§proj:placerr|local:cd ~/Sites/placerr/web && npm run dev → localhost:3000
+§proj:placerr|state:6_design_variants_v1-v6_à_choisir|next:Clément_choisit_variante
+§proj:placerr|memory:~/Sites/placerr/memory.md|sync:auto_10min
+
+§proj:meetme|status:active|priority:2
+§proj:meetme|stack:Expo/RN(dating-app)+Node.js(api-server)|monorepo:pnpm
+§proj:meetme|local:PORT=3001 pnpm run dev (api) + pnpm run dev (app→8082)
+§proj:meetme|state:auth_JWT+chat_API_done|next:UI_UX_responsive_pass
+§proj:meetme|blocker:no_.env(Supabase_keys_needed)
+§proj:meetme|memory:~/Sites/meetme/memory.md|sync:auto_10min
+
+§proj:nearby|status:active|priority:3
+§proj:nearby|stack:Expo/RN(frontend)+FastAPI(backend)|migration:MongoDB→Supabase
+§proj:nearby|local:cd ~/Sites/nearby && bash start.sh → 8000(api)+8083(frontend)
+§proj:nearby|state:TypeScript_strict_done|designs:v1(ABYSS)v2(PULSE)v3(SOLEIL)v4(SIGNAL)|next:choisir_design+code_pass
+§proj:nearby|memory:~/Sites/nearby/memory.md|sync:auto_10min
+
+§proj:prospection|status:active|priority:4
+§proj:prospection|leads:31+|smtp:OVH|blocker[SMTP_pwd,google_credentials]
+§proj:prospection|next:envoyer_J0_batch
+
+§proj:rouge-pivoine|status:active|priority:5
+§proj:rouge-pivoine|store:rouge-pivoine.myshopify.com
+§proj:rouge-pivoine|theme_live:Kalles_v4.3.6(138183049369)|theme_draft:Rouge_Pivoine_Draft(185968951677)
+§proj:rouge-pivoine|repo:rouge-pivoine-theme|branch:codex/import-rouge-pivoine-theme-20260425
+
+§proj:olivia|status:pending|priority:6
+§proj:olivia|store:ex-nihilo-agency.myshopify.com|theme_live:olivia-16-5-3(194627928406)
+§proj:olivia|todo:push_to_github_branch
+
+§sync:script:~/Sites/sync-all.sh|cron:*/10min|log:/tmp/sync-all.log
+§sync:covers[placerr,meetme,nearby]|marker:AUTO_SYNC:START/END_in_memory.md
