@@ -7,6 +7,8 @@ def test_system_prompt_includes_operating_protocol():
     assert "PROTOCOLE NOYAU ATHOS" in prompt
     assert "Cycle de travail" in prompt
     assert "Autonomie contrôlée" in prompt
+    assert "boîte noire" in prompt
+    assert "visible, nommé, traçable et stoppable" in prompt
     assert prompt == SYSTEM
 
 
