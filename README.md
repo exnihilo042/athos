@@ -1,6 +1,7 @@
 # Athos - AI Assistant
 
 Athos est un assistant IA vocal avec interface web, utilisant Claude (Anthropic) et Ollama comme moteurs de conversation.
+Il conserve aussi une session kernel indépendante du moteur afin de reprendre le même travail après une bascule Claude, Grok, ChatGPT ou Ollama.
 
 ## 📁 Structure du projet
 
@@ -24,6 +25,7 @@ Le cerveau d'Athos est composé de fichiers `.mem` contenant son contexte et app
 - **`memory/athos_capabilities.mem`** - Capacités complètes du système
 - **`memory/athos_projects.mem`** - Suivi des projets actifs
 - **`memory/cx_global.mem`** - Préférences utilisateur générales
+- **`memory/athos_session_kernel.jsonl`** - Session courante indépendante du moteur, utilisée pour reprendre le contexte après failover
 - **`docs/CLAUDE.md`** - Documentation système et contexte agence
 
 Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir la cohérence d'Athos.
@@ -104,6 +106,15 @@ L'application sera accessible via un tunnel Cloudflare temporaire.
 - `./routines/run_brief.sh` - Génération du brief quotidien
 - `./routines/run_weekly.sh` - Consolidation hebdomadaire
 - `.github/workflows/python-app.yml` - tests automatisés sur push/PR
+
+## ✅ Règle de livraison Athos
+
+Toute modification d'Athos doit suivre ce cycle :
+
+1. Implémenter une tranche courte et vérifiable.
+2. Lancer les tests métier et techniques (`pytest`, compilation Python, contrôle API local si serveur touché).
+3. Mettre à jour la mémoire Drive utile.
+4. Commiter proprement et pousser sur GitHub.
 
 ## 📄 Licence
 

@@ -6,6 +6,7 @@ from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
 import config
+import session_kernel
 from memory_extractor import extract_and_save_async
 
 ANTHROPIC_KEY = config.ANTHROPIC_KEY
@@ -129,6 +130,11 @@ _history: list[dict] = []
 
 def load_last_conversation():
     """Charge la dernière conversation depuis athos_conv.mem dans _history"""
+    kernel_messages = session_kernel.latest_messages(limit=12)
+    if kernel_messages:
+        _history.extend(kernel_messages)
+        return
+
     f = DRIVE / "athos_conv.mem"
     if not f.exists(): return
     lines = f.read_text("utf-8").splitlines()
@@ -157,6 +163,9 @@ def get_history() -> list:
 # ── Mémoire contextuelle ──────────────────────────────────────────────────────
 def load_context() -> str:
     parts = []
+    kernel_ctx = session_kernel.context_pack(max_chars=1200)
+    if kernel_ctx:
+        parts.append(kernel_ctx)
     for fname, keys in [
         ("athos_identity.mem",  ["§id:", "§user:", "§agency:"]),
         ("athos_projects.mem",  ["status:active", "next:", "blocker:"]),
@@ -171,7 +180,7 @@ def load_context() -> str:
             selected = [l for l in lines if any(k in l for k in keys)][:6]
         if selected:
             parts.append("\n".join(selected))
-    return "\n".join(parts)[:600]
+    return "\n".join(parts)[:1800]
 
 def save_exchange(user: str, reply: str):
     ts   = datetime.now().strftime("%m-%dT%H:%M")
@@ -302,6 +311,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200); self.cors(); self.end_headers()
 
     def do_GET(self):
+        if self.path.split("?")[0] == "/api/session":
+            self._json(session_kernel.status()); return
+
         routes = {
             "/": "index.html", "/index.html": "index.html",
             "/manifest.json": "manifest.json",
@@ -340,8 +352,11 @@ class Handler(BaseHTTPRequestHandler):
                 "ollama": _best_model(),
                 "none": "none"
             }.get(_engine["current"], "unknown")
+            kernel = session_kernel.status()
             self._json({"engine": _engine["current"], "degraded": _engine["degraded"],
                         "model": model,
+                        "session_events": kernel["events"],
+                        "session_file": kernel["file"],
                         "budget_eur": round(b.get("total_eur", 0), 2)}); return
 
         if p == "/api/budget_alert":
@@ -378,6 +393,7 @@ class Handler(BaseHTTPRequestHandler):
                             def on_action(name, inputs, result):
                                 label = (inputs.get("command") or inputs.get("script","")
                                          or inputs.get("query","") or name)[:60]
+                                session_kernel.record_action(name, label, result[:200], engine="claude")
                                 sse({"action": name, "label": label, "result": result[:200]})
 
                             draft = run_agent(msg, system, get_history(), ANTHROPIC_KEY, on_action)
@@ -395,6 +411,7 @@ class Handler(BaseHTTPRequestHandler):
                             push("user", msg); push("assistant", reply)
                             save_exchange(msg, reply)
                             log_exchange(msg, reply, "claude")
+                            session_kernel.record_exchange(msg, reply, "claude")
                             extract_and_save_async(msg, reply)
                             track_usage(len(msg)//4 + 300, len(reply)//4)
                             break
@@ -403,6 +420,12 @@ class Handler(BaseHTTPRequestHandler):
                             if e.code in (402, 413, 429, 529):
                                 previous = engine
                                 next_engine = degrade_engine(f"HTTP {e.code}")
+                                session_kernel.record_action(
+                                    "failover",
+                                    f"{previous} -> {next_engine}",
+                                    f"HTTP {e.code}",
+                                    engine=previous,
+                                )
                                 sse({"action": "failover", "label": f"{previous} → {next_engine}", "result": f"HTTP {e.code}"})
                                 if next_engine == "none":
                                     sse({"t": "Aucun moteur disponible."})
@@ -417,6 +440,7 @@ class Handler(BaseHTTPRequestHandler):
                         push("user", msg); push("assistant", reply)
                         save_exchange(msg, reply)
                         log_exchange(msg, reply, "grok")
+                        session_kernel.record_exchange(msg, reply, "grok")
                         break
 
                     elif engine == "chatgpt":
@@ -426,6 +450,7 @@ class Handler(BaseHTTPRequestHandler):
                         push("user", msg); push("assistant", reply)
                         save_exchange(msg, reply)
                         log_exchange(msg, reply, "chatgpt")
+                        session_kernel.record_exchange(msg, reply, "chatgpt")
                         break
 
                     elif engine == "ollama":
@@ -435,6 +460,7 @@ class Handler(BaseHTTPRequestHandler):
                         push("user", msg); push("assistant", reply)
                         save_exchange(msg, reply)
                         log_exchange(msg, reply, "ollama")
+                        session_kernel.record_exchange(msg, reply, "ollama")
                         break
 
                     else:
