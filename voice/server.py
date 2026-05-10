@@ -278,17 +278,12 @@ def claude_code_stream(msg: str, send):
     ctx = load_context()
     prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
     result = subprocess.run(
-        [
-            "claude", "-p", prompt,
-            "--permission-mode", "plan",
-            "--tools", "",
-            "--max-budget-usd", "0",
-        ],
+        ["claude", "-p", prompt, "--output-format", "text"],
         cwd=str(config.ATHOS_PATH), capture_output=True, text=True, timeout=180
     )
-    full = (result.stdout or result.stderr).strip()
-    if result.returncode != 0 and not full:
-        full = "Claude Code indisponible ou non authentifié."
+    full = result.stdout.strip()
+    if not full or result.returncode != 0:
+        raise RuntimeError(f"Claude Code échec (code {result.returncode}): {result.stderr[:120]}")
     send(full)
     return full
 
