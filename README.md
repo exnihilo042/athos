@@ -73,6 +73,7 @@ L'application sera accessible via un tunnel Cloudflare temporaire.
 ## 🏗️ Architecture
 
 - `core/` - Logique métier et gestion mémoire
+- `core/operating_protocol.py` - Protocole de travail noyau injecté dans tous les moteurs
 - `voice/` - Interface web et serveur HTTP
 - `routines/` - Tâches automatisées (briefs quotidiens/hebdomadaires)
 - `temp/` - Fichiers temporaires de session

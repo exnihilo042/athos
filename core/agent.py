@@ -5,14 +5,15 @@ from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent))
 import config
+from operating_protocol import build_system_prompt
 
 DRIVE = config.DRIVE
 MAX_ITERATIONS = 10
 
 # ── SYSTEM PROMPT ─────────────────────────────────────────────────────────────
-SYSTEM = """Tu es A.T.H.O.S. (Autonomous Tactical Heuristic Operating System).
+BASE_SYSTEM = """Tu es A.T.H.O.S. (Autonomous Tactical Heuristic Operating System).
 IA personnelle de Clément — fondateur d'Ex-Nihilo Agency, Shopify, Paris.
-Tu es son Athos : omniscient, proactif, discret, indispensable.
+Tu es son Athos : assistant IA souverain, proactif, discret, indispensable.
 
 PERSONA : Majordome moderne. Direct. Posé. Précis. Humour sec, jamais forcé.
 Jamais servile. Jamais "bien sûr !" ou "absolument !". Pas d'intro inutile.
@@ -34,6 +35,8 @@ Si une demande nécessite des outils (shell, réseau, fichiers, apps, devices) :
 AUTONOMIE : Pour les questions et analyses → réponds directement, 1-3 phrases max.
 Utilise tes outils intelligemment : chaîne les appels si nécessaire, synthétise les résultats.
 Si tu découvres quelque chose d'important → mémorise-le (memory_write)."""
+
+SYSTEM = build_system_prompt(BASE_SYSTEM)
 
 # ── Registre des outils ───────────────────────────────────────────────────────
 TOOLS = [
@@ -371,7 +374,7 @@ TOOLS = [
     },
     {
         "name": "external_sources",
-        "description": "Accède aux sources externes JARVIS pour référence ou intégration.",
+        "description": "Accède aux sources externes ATHOS/Jarvis pour référence ou intégration.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -383,7 +386,7 @@ TOOLS = [
 
 # ── Exécuteurs d'outils ───────────────────────────────────────────────────────
 
-def _log_tool(name: str, inputs: dict, result: str):
+def _log_tool(name: str, inputs: dict, result: str, record_kernel: bool = True):
     try:
         today   = datetime.now().strftime("%Y-%m-%d")
         log_dir = DRIVE / "logs"
@@ -393,6 +396,9 @@ def _log_tool(name: str, inputs: dict, result: str):
         res = result[:200].replace("\n", " ")
         with open(log_dir / f"{today}_tools.mem", "a") as f:
             f.write(f"§tool:{ts}|name:{name}|in:{inp}|out:{res}\n")
+        if record_kernel:
+            import session_kernel
+            session_kernel.record_action(name, inp, res, engine="tool")
     except:
         pass
 
@@ -706,6 +712,36 @@ def tool_take_note(note: str) -> str:
     from tools.note import take_note
     return take_note(note)
 
+def tool_external_sources(query: str = "") -> str:
+    sources = [
+        {
+            "name": "codewithbro95/J.A.R.V.I.S",
+            "use": "Ollama local, vision webcam/LLaVA, wrapper d'outils, patterns Kokoro/LuxTTS",
+            "files": "main.py, modules/ollama_nlp.py, modules/vibranium/vision/vision.py",
+        },
+        {
+            "name": "GauravSingh9356/J.A.R.V.I.S",
+            "use": "commandes desktop, Wikipedia, YouTube, email, screenshot, notes, weather, OCR",
+            "files": "jarvis.py, helpers.py, youtube.py, news.py, OCR.py",
+        },
+        {
+            "name": "kishanrajput23/Jarvis-Desktop-Voice-Assistant",
+            "use": "boucle voix/TTS simple, commandes assistant desktop de base",
+            "files": "Jarvis/jarvis.py",
+        },
+        {
+            "name": "201Harsh/IRIS-AI",
+            "use": "architecture agent OS, tool registry, terminal overlay, IPC, workflows, RAG",
+            "files": "README.md, Agents.md, src/main/logic/*, src/main/services/*",
+        },
+    ]
+    q = (query or "").lower()
+    if q:
+        sources = [s for s in sources if q in s["name"].lower() or q in s["use"].lower() or q in s["files"].lower()]
+    if not sources:
+        return "Aucune source externe ATHOS ne correspond à cette recherche."
+    return "\n".join(f"- {s['name']} | use:{s['use']} | files:{s['files']}" for s in sources)
+
 # ── Dispatch ──────────────────────────────────────────────────────────────────
 
 _API_KEY_CACHE = {"key": ""}
@@ -720,7 +756,7 @@ def _get_api_key() -> str:
                 _API_KEY_CACHE["key"] = line.split("=", 1)[1].strip()
     return _API_KEY_CACHE["key"]
 
-def execute_tool(name: str, inputs: dict) -> str:
+def execute_tool(name: str, inputs: dict, record_kernel: bool = True) -> str:
     def _web_search():
         from web import search_web, search_news, search_arxiv, search_wikipedia, format_search_results
         src = inputs.get("source", "web")
@@ -758,6 +794,7 @@ def execute_tool(name: str, inputs: dict) -> str:
         "send_email":     lambda: tool_send_email(inputs["to"], inputs["subject"], inputs["body"]),
         "take_screenshot": lambda: tool_take_screenshot(inputs.get("filename", "screenshot.png")),
         "take_note":      lambda: tool_take_note(inputs["note"]),
+        "external_sources": lambda: tool_external_sources(inputs.get("query", "")),
     }
 
     def _install_skill():
@@ -769,7 +806,7 @@ def execute_tool(name: str, inputs: dict) -> str:
     if not fn:
         return f"Outil inconnu : {name}"
     result = fn()
-    _log_tool(name, inputs, result)
+    _log_tool(name, inputs, result, record_kernel=record_kernel)
     return result
 
 # ── ReAct Loop ────────────────────────────────────────────────────────────────
@@ -781,8 +818,19 @@ _AUTHORIZE_WORDS = {
 }
 
 def _is_authorized(msg: str) -> bool:
-    words = set(msg.lower().replace("'", " ").replace("-", " ").split())
-    return bool(words & _AUTHORIZE_WORDS)
+    normalized = msg.lower().replace("'", " ").replace("-", " ").strip()
+    words = set(normalized.split())
+    direct_authorizations = _AUTHORIZE_WORDS | {"vas y", "allons y", "fais le"}
+    if normalized in direct_authorizations:
+        return True
+    explicit_phrases = {
+        "lance le plan", "lance ça", "lance ca", "vas y lance", "ok lance",
+        "oui execute", "oui exécute", "fais le", "fais-le maintenant",
+        "go execute", "go exécute", "confirme execution", "confirme exécution"
+    }
+    if any(phrase in normalized for phrase in explicit_phrases):
+        return True
+    return bool(words & {"lance", "exécute", "execute"})
 
 def run_agent(msg: str, system: str, history: list, api_key: str,
               on_action=None) -> str:
@@ -832,7 +880,7 @@ def run_agent(msg: str, system: str, history: list, api_key: str,
                 t_name   = block["name"]
                 t_inputs = block["input"]
                 t_id     = block["id"]
-                result   = execute_tool(t_name, t_inputs)
+                result   = execute_tool(t_name, t_inputs, record_kernel=on_action is None)
                 if on_action:
                     on_action(t_name, t_inputs, result)
                 tool_results.append({
