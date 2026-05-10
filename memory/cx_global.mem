@@ -1,0 +1,11 @@
+§user:Clément|agency:Ex-Nihilo|role:founder|collab:Matteo|mail:operations@ex-nihilo.agency
+§lang:FR_default|timezone:Paris
+§style:!terse|!direct|!no_filler|no_emoji_unless_asked|no_trailing_summary
+§workflow:!terminal_visual_always[osascript_auto_open]|!ask_not_assume[moindre_doute=question_first]|!confirm_before_risky_action
+§code:simple>clever|working>perfect|no_over_engineer|no_comments_unless_nonobvious|no_unused_abstractions
+§avoid:long_intros|unsolicited_refactor|verbose_explanations|hedging|assuming_intent
+§mem_boot:1=ALWAYS_cx_global.mem|2=identify_proj|3=load_ONLY_matching_proj_mem|never_load_all
+§mem_write:Drive_canonical|~/.claude/=symlinks_only|update_after_sig_change|compress_not_prose
+§proj_mem_map:prospection>cx_prosp.mem|shopify/rouge-pivoine>tbd|new_proj>none
+§shopify:repos[ex-nihilo-agency-theme(main),rouge-pivoine-theme(codex/import-rouge-pivoine-theme-20260425)]|stores[ex-nihilo-agency.myshopify.com,rouge-pivoine.myshopify.com]
+§drive:~/Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/
