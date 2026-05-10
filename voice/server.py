@@ -1,6 +1,7 @@
 """ATHOS Voice Server — Agent ReAct + confirmation + mémoire Drive"""
-import os, sys, json, urllib.request, urllib.error, subprocess
+import os, sys, json, urllib.request, urllib.error, subprocess, threading, uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 from pathlib import Path
 from datetime import datetime
 
@@ -59,6 +60,30 @@ def _pop_alert(filename: str) -> dict:
     d = json.loads(f.read_text())
     f.unlink()
     return d
+
+# ── Threading HTTP server ─────────────────────────────────────────────────────
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
+# ── Permission prompts (ToolBus → UI → réponse) ───────────────────────────────
+_permits: dict[str, dict] = {}
+_permits_lock = threading.Lock()
+
+def make_permission_checker(sse_fn):
+    """Crée un permission_check bloquant pour cette requête SSE."""
+    def check(tool_name: str, inputs: dict) -> bool:
+        perm_id = uuid.uuid4().hex
+        evt = threading.Event()
+        with _permits_lock:
+            _permits[perm_id] = {"event": evt, "approved": False}
+        safe_inputs = {k: str(v)[:200] for k, v in inputs.items()}
+        sse_fn({"permission_required": True, "id": perm_id,
+                "tool": tool_name, "inputs": safe_inputs})
+        evt.wait(timeout=60)   # 60s pour répondre
+        with _permits_lock:
+            result = _permits.pop(perm_id, {})
+        return result.get("approved", False)
+    return check
 
 # ── Engine ────────────────────────────────────────────────────────────────────
 _engine = {"current": "none", "degraded": False}
@@ -465,10 +490,15 @@ class Handler(BaseHTTPRequestHandler):
                                 session_kernel.record_action(name, label, result[:200], engine=engine)
                                 sse({"action": name, "label": label, "result": result[:200]})
 
-                            draft = run_agent(msg, system, get_history(), ANTHROPIC_KEY, on_action)
+                            def on_stream(event_type, data):
+                                """ToolBus — stdout/stderr/start/done en temps réel vers UI."""
+                                sse({"toolbus": event_type, **data})
 
-                            # Quality pipeline — critique + web si nécessaire
-                            # Seulement pour les réponses textuelles (pas les plans ▶)
+                            permission_check = make_permission_checker(sse)
+
+                            draft = run_agent(msg, system, get_history(), ANTHROPIC_KEY,
+                                             on_action, on_stream, permission_check)
+
                             reply = draft
                             if not draft.startswith("▶") and len(draft) > 80:
                                 from quality import quality_pipeline
@@ -541,6 +571,31 @@ class Handler(BaseHTTPRequestHandler):
 
             sse("[DONE]"); return
 
+        if p == "/api/kill":
+            body = self._body()
+            pid = body.get("pid")
+            if pid:
+                from agent import kill_process
+                result = kill_process(int(pid))
+                self._json({"ok": True, "msg": result}); return
+            self._json({"ok": False, "msg": "pid manquant"}, 400); return
+
+        if p == "/api/permit":
+            body = self._body()
+            perm_id = body.get("id", "")
+            approved = bool(body.get("approved", False))
+            with _permits_lock:
+                entry = _permits.get(perm_id)
+            if entry:
+                entry["approved"] = approved
+                entry["event"].set()
+                self._json({"ok": True, "approved": approved}); return
+            self._json({"ok": False, "msg": "permission introuvable"}, 404); return
+
+        if p == "/api/processes":
+            from agent import list_processes
+            self._json({"processes": list_processes()}); return
+
         self.send_response(404); self.end_headers()
 
 
@@ -564,4 +619,4 @@ if __name__ == "__main__":
     print(f"  Moteur  : {eng.upper()} / {model}")
     print(f"  Budget  : {b.get('total_eur', 0):.2f}€")
     print(f"  Port    : {port}\n")
-    HTTPServer(("0.0.0.0", port), Handler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()

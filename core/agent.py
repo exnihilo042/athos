@@ -1,8 +1,10 @@
-"""ATHOS Agent — ReAct loop + confirmation + qualité + web + skills"""
-import json, subprocess, urllib.request, urllib.error, base64, sys
+"""ATHOS Agent — ReAct loop + confirmation + streaming shell + ToolBus + permissions"""
+import json, subprocess, urllib.request, urllib.error, base64, time, threading, uuid
 from pathlib import Path
 from datetime import datetime
+from typing import Callable
 
+import sys
 sys.path.insert(0, str(Path(__file__).parent))
 import config
 from operating_protocol import build_system_prompt
@@ -33,17 +35,46 @@ Si une demande nécessite des outils (shell, réseau, fichiers, apps, devices) :
    lance, go, oui, fais-le, exécute, confirme, ok, vas-y, yes, do it, allons-y
 
 AUTONOMIE : Pour les questions et analyses → réponds directement, 1-3 phrases max.
-Utilise tes outils intelligemment : chaîne les appels si nécessaire, synthétise les résultats.
-Si tu découvres quelque chose d'important → mémorise-le (memory_write)."""
+Utilise tes outils intelligemment : chaîne les appels si nécessaire, synthétise.
+Si tu découvres quelque chose d'important → mémorise-le (memory_write).
+Si le contexte d'une tâche complexe doit survivre à un redémarrage → checkpoint."""
 
 SYSTEM = build_system_prompt(BASE_SYSTEM)
+
+# ── Process registry (pour kill) ─────────────────────────────────────────────
+_processes: dict[int, subprocess.Popen] = {}
+_processes_lock = threading.Lock()
+
+def kill_process(pid: int) -> str:
+    with _processes_lock:
+        proc = _processes.get(pid)
+    if proc:
+        proc.kill()
+        with _processes_lock:
+            _processes.pop(pid, None)
+        return f"Process {pid} tué."
+    return f"Process {pid} introuvable."
+
+def list_processes() -> list[dict]:
+    with _processes_lock:
+        return [{"pid": pid, "running": proc.poll() is None}
+                for pid, proc in _processes.items()]
+
+# ── Patterns dangereux ────────────────────────────────────────────────────────
+_DANGER_PATTERNS = [
+    "rm -rf /", "sudo rm -rf", "mkfs", "dd if=", ":(){",
+    "chmod -R 777 /", "> /dev/sda", "shutdown -h", "halt",
+]
+
+def _is_dangerous(command: str) -> bool:
+    return any(p in command for p in _DANGER_PATTERNS)
 
 # ── Registre des outils ───────────────────────────────────────────────────────
 TOOLS = [
     {
         "name": "shell",
         "description": (
-            "Exécute une commande shell sur le Mac de Clément. "
+            "Exécute une commande shell sur le Mac de Clément avec streaming stdout/stderr en temps réel. "
             "Utilise pour : fichiers, réseau, processus, installation, configuration, scripts. "
             "Garde-fous intégrés contre les commandes destructives."
         ),
@@ -60,28 +91,22 @@ TOOLS = [
         "name": "applescript",
         "description": (
             "Contrôle le Mac via AppleScript : ouvrir/fermer apps, cliquer, écrire, "
-            "contrôler Music/Safari/Finder/Mail/Terminal, notifications, synthèse vocale, "
-            "piloter n'importe quelle app Mac avec GUI."
+            "contrôler Music/Safari/Finder/Mail/Terminal, notifications, synthèse vocale."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {
-                "script": {"type": "string"}
-            },
+            "properties": {"script": {"type": "string"}},
             "required": ["script"]
         }
     },
     {
         "name": "open",
-        "description": (
-            "Ouvre une URL dans Safari, une application Mac, ou un fichier. "
-            "Ex: ouvrir un site, lancer une app, ouvrir un fichier."
-        ),
+        "description": "Ouvre une URL dans Safari, une application Mac, ou un fichier.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "target": {"type": "string", "description": "URL, nom d'app, ou chemin fichier"},
-                "app":    {"type": "string", "description": "App cible (optionnel, ex: 'Safari', 'Chrome')"}
+                "app": {"type": "string", "description": "App cible (optionnel)"}
             },
             "required": ["target"]
         }
@@ -90,15 +115,14 @@ TOOLS = [
         "name": "screenshot",
         "description": (
             "Prend un screenshot du Mac et l'analyse avec la vision IA. "
-            "Utilise pour voir l'état de l'écran, analyser une interface, "
-            "lire du texte visible, diagnostiquer un problème visuel."
+            "Utilise pour voir l'écran, analyser une interface, lire du texte visible."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "Question ou analyse à faire sur le screenshot",
+                    "description": "Question à poser sur le screenshot",
                     "default": "Décris ce que tu vois sur cet écran."
                 }
             }
@@ -106,33 +130,23 @@ TOOLS = [
     },
     {
         "name": "calendar_read",
-        "description": (
-            "Lit l'agenda de Clément : événements à venir, RDV, réunions. "
-            "Interroge Calendar.app directement via AppleScript."
-        ),
+        "description": "Lit l'agenda de Clément via Calendar.app — événements à venir.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "days": {
-                    "type": "integer",
-                    "description": "Nombre de jours à regarder (défaut: 7)",
-                    "default": 7
-                }
+                "days": {"type": "integer", "description": "Nombre de jours (défaut: 7)", "default": 7}
             }
         }
     },
     {
         "name": "remind",
-        "description": (
-            "Crée un rappel ou une alarme pour Clément. "
-            "Via Reminders.app ou notification différée."
-        ),
+        "description": "Crée un rappel pour Clément via Reminders.app ou notification différée.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "message":  {"type": "string", "description": "Texte du rappel"},
-                "minutes":  {"type": "integer", "description": "Dans combien de minutes", "default": 0},
-                "at_time":  {"type": "string", "description": "Heure précise HH:MM (alternative à minutes)"}
+                "message": {"type": "string"},
+                "minutes": {"type": "integer", "default": 0},
+                "at_time": {"type": "string", "description": "HH:MM"}
             },
             "required": ["message"]
         }
@@ -141,9 +155,7 @@ TOOLS = [
         "name": "network_scan",
         "description": (
             "Scanne le réseau local. Modes : "
-            "quick=table ARP rapide, bonjour=services mDNS (AirPlay/Sonos/HomeKit), "
-            "bluetooth=appareils BT paired/nearby, deep=nmap subnet, "
-            "wifi=infos réseau, security=ports ouverts+firewall, all=tout."
+            "quick=ARP, bonjour=mDNS, bluetooth=BT paired, deep=nmap, wifi=infos, security=ports, all=tout."
         ),
         "input_schema": {
             "type": "object",
@@ -158,16 +170,13 @@ TOOLS = [
     },
     {
         "name": "http_request",
-        "description": (
-            "Requête HTTP — contrôle appareils smart home (Philips Hue, Sonos, etc.), "
-            "APIs locales ou web."
-        ),
+        "description": "Requête HTTP — smart home (Hue, Sonos), APIs locales ou web.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "url":     {"type": "string"},
-                "method":  {"type": "string", "default": "GET"},
-                "body":    {"type": "string", "default": ""},
+                "url": {"type": "string"},
+                "method": {"type": "string", "default": "GET"},
+                "body": {"type": "string", "default": ""},
                 "headers": {"type": "object", "default": {}}
             },
             "required": ["url"]
@@ -179,9 +188,9 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "path":    {"type": "string", "description": "Chemin absolu"},
+                "path": {"type": "string"},
                 "content": {"type": "string"},
-                "mode":    {"type": "string", "description": "write ou append", "default": "write"}
+                "mode": {"type": "string", "description": "write ou append", "default": "write"}
             },
             "required": ["path", "content"]
         }
@@ -189,14 +198,13 @@ TOOLS = [
     {
         "name": "memory_write",
         "description": (
-            "Mémorise une découverte ou décision dans la mémoire permanente d'ATHOS. "
-            "Format §-compressé : §proj:athos|update:...|date:... "
+            "Mémorise dans la mémoire permanente Drive (§-format). "
             "Fichiers : athos_projects.mem, athos_behaviors.mem, athos_identity.mem"
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "file":    {"type": "string"},
+                "file": {"type": "string"},
                 "content": {"type": "string", "description": "Ligne §-format"}
             },
             "required": ["file", "content"]
@@ -204,80 +212,97 @@ TOOLS = [
     },
     {
         "name": "memory_read",
-        "description": "Lit un fichier mémoire Drive d'ATHOS pour récupérer du contexte.",
+        "description": "Lit un fichier mémoire Drive d'ATHOS.",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "file": {"type": "string"}
-            },
+            "properties": {"file": {"type": "string"}},
             "required": ["file"]
         }
     },
     {
-        "name": "notify",
-        "description": "Envoie une notification Mac à Clément avec son et titre.",
+        "name": "checkpoint",
+        "description": (
+            "Sauvegarde l'état courant de la tâche (goal, décisions, tâches restantes, fichiers clés). "
+            "Permet à n'importe quel moteur de reprendre exactement où on en était. "
+            "À appeler au début d'une tâche complexe et après chaque étape importante."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "title":   {"type": "string"},
+                "goal": {"type": "string", "description": "Objectif principal en cours"},
+                "decisions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Décisions prises jusqu'ici"
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Tâches restantes à faire"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Fichiers clés concernés"
+                }
+            },
+            "required": ["goal"]
+        }
+    },
+    {
+        "name": "notify",
+        "description": "Notification Mac à Clément.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
                 "message": {"type": "string"},
-                "sound":   {"type": "string", "default": "Glass"}
+                "sound": {"type": "string", "default": "Glass"}
             },
             "required": ["title", "message"]
         }
     },
     {
         "name": "system_info",
-        "description": "Infos système Mac : batterie, CPU, RAM, disque, processus, apps ouvertes, heure.",
+        "description": "Infos système Mac : battery, cpu, ram, disk, processes, apps, time, all.",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "battery, cpu, ram, disk, processes, apps, time, all"
-                }
-            },
+            "properties": {"query": {"type": "string"}},
             "required": ["query"]
         }
     },
     {
         "name": "clipboard",
-        "description": "Lire ou écrire dans le presse-papier du Mac.",
+        "description": "Lire (read) ou écrire (write) dans le presse-papier.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "action":  {"type": "string", "description": "read ou write"},
-                "content": {"type": "string", "description": "Texte à copier (si write)"}
+                "action": {"type": "string"},
+                "content": {"type": "string"}
             },
             "required": ["action"]
         }
     },
     {
         "name": "media_control",
-        "description": "Contrôle audio/musique Mac : play, pause, next, prev, volume, AirPlay, mute.",
+        "description": "Contrôle audio Mac : play, pause, next, prev, volume, airplay, mute.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "action": {
-                    "type": "string",
-                    "description": "play, pause, next, prev, volume_up, volume_down, set_volume, list_outputs, airplay_to, mute"
-                },
-                "target": {"type": "string", "description": "Appareil AirPlay ou valeur volume 0-100"}
+                "action": {"type": "string"},
+                "target": {"type": "string"}
             },
             "required": ["action"]
         }
     },
     {
         "name": "web_search",
-        "description": (
-            "Cherche des infos récentes sur le web, actualités, arXiv ou Wikipedia. "
-            "Sources: web, news, arxiv, wikipedia."
-        ),
+        "description": "Cherche sur le web, actualités, arXiv ou Wikipedia. Sources: web, news, arxiv, wikipedia.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "query":       {"type": "string"},
-                "source":      {"type": "string", "default": "web"},
+                "query": {"type": "string"},
+                "source": {"type": "string", "default": "web"},
                 "max_results": {"type": "integer", "default": 5}
             },
             "required": ["query"]
@@ -285,27 +310,24 @@ TOOLS = [
     },
     {
         "name": "fetch_url",
-        "description": "Récupère et lit le contenu textuel d'une page web.",
+        "description": "Récupère le contenu textuel d'une page web.",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "url": {"type": "string"}
-            },
+            "properties": {"url": {"type": "string"}},
             "required": ["url"]
         }
     },
     {
         "name": "install_skill",
         "description": (
-            "Installe une nouvelle compétence ATHOS quand un manque est détecté. "
-            "Disponibles : homekit, gmail, calendar, spotify, vision, pdf, notion, whatsapp. "
-            "Ou génère automatiquement un connecteur pour tout autre skill."
+            "Installe une compétence ATHOS manquante. "
+            "Disponibles : homekit, gmail, calendar, spotify, vision, pdf, notion, whatsapp."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "skill_name": {"type": "string"},
-                "reason":     {"type": "string"}
+                "reason": {"type": "string"}
             },
             "required": ["skill_name"]
         }
@@ -314,108 +336,90 @@ TOOLS = [
         "name": "list_skills",
         "description": "Liste les compétences ATHOS installées et disponibles.",
         "input_schema": {"type": "object", "properties": {}}
-    },
-    {
-        "name": "wikipedia",
-        "description": "Recherche sur Wikipedia et retourne un résumé.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"},
-                "sentences": {"type": "integer", "default": 2}
-            },
-            "required": ["query"]
-        }
-    },
-    {
-        "name": "youtube",
-        "description": "Ouvre une recherche YouTube dans le navigateur.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string"}
-            },
-            "required": ["query"]
-        }
-    },
-    {
-        "name": "send_email",
-        "description": "Envoie un email via SMTP.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "to": {"type": "string"},
-                "subject": {"type": "string"},
-                "body": {"type": "string"}
-            },
-            "required": ["to", "subject", "body"]
-        }
-    },
-    {
-        "name": "take_screenshot",
-        "description": "Prend un screenshot et le sauvegarde.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "filename": {"type": "string", "default": "screenshot.png"}
-            }
-        }
-    },
-    {
-        "name": "take_note",
-        "description": "Prend une note et l'ajoute à notes.txt.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "note": {"type": "string"}
-            },
-            "required": ["note"]
-        }
-    },
-    {
-        "name": "external_sources",
-        "description": "Accède aux sources externes ATHOS legacy pour référence ou intégration.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Recherche ou liste les repos"}
-            }
-        }
     }
 ]
 
-# ── Exécuteurs d'outils ───────────────────────────────────────────────────────
+# ── Exécuteurs ────────────────────────────────────────────────────────────────
 
-def _log_tool(name: str, inputs: dict, result: str, record_kernel: bool = True):
+def _log_tool(name: str, inputs: dict, result: str):
     try:
-        today   = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now().strftime("%Y-%m-%d")
         log_dir = DRIVE / "logs"
         log_dir.mkdir(exist_ok=True)
-        ts  = datetime.now().strftime("%H:%M:%S")
+        ts = datetime.now().strftime("%H:%M:%S")
         inp = json.dumps(inputs, ensure_ascii=False)[:120].replace("\n", " ")
         res = result[:200].replace("\n", " ")
         with open(log_dir / f"{today}_tools.mem", "a") as f:
             f.write(f"§tool:{ts}|name:{name}|in:{inp}|out:{res}\n")
-        if record_kernel:
-            import session_kernel
-            session_kernel.record_action(name, inp, res, engine="tool")
     except:
         pass
 
-def tool_shell(command: str, timeout: int = 30) -> str:
-    dangerous = ["rm -rf /", "mkfs", "dd if=", ":(){", "fork bomb"]
-    for d in dangerous:
+def tool_shell(command: str, timeout: int = 30,
+               on_stream: Callable | None = None,
+               permission_check: Callable | None = None) -> str:
+    """Streaming shell — stdout/stderr envoyés en temps réel via on_stream."""
+    # Garde-fous basiques
+    basic_dangerous = ["rm -rf /", "mkfs", "dd if=", ":(){"]
+    for d in basic_dangerous:
         if d in command:
             return f"REFUSÉ : commande dangereuse ({d})"
+
+    # Permission pour commandes à risque élevé
+    if _is_dangerous(command) and permission_check:
+        approved = permission_check("shell", {"command": command})
+        if not approved:
+            return "⛔ Refusé par Clément."
+
+    t_start = time.time()
     try:
-        result = subprocess.run(
-            command, shell=True, capture_output=True, text=True,
-            timeout=timeout, cwd=str(Path.home())
+        process = subprocess.Popen(
+            command, shell=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, bufsize=1, cwd=str(Path.home())
         )
-        out = (result.stdout + result.stderr).strip()
+        pid = process.pid
+        with _processes_lock:
+            _processes[pid] = process
+
+        if on_stream:
+            on_stream("start", {"command": command[:120], "pid": pid})
+
+        out_buf, err_buf = [], []
+
+        def _read(stream, label, buf):
+            for line in stream:
+                buf.append(line)
+                if on_stream:
+                    on_stream(label, {"chunk": line, "pid": pid})
+
+        t_out = threading.Thread(target=_read, args=(process.stdout, "stdout", out_buf), daemon=True)
+        t_err = threading.Thread(target=_read, args=(process.stderr, "stderr", err_buf), daemon=True)
+        t_out.start(); t_err.start()
+
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            t_out.join(1); t_err.join(1)
+            with _processes_lock:
+                _processes.pop(pid, None)
+            if on_stream:
+                on_stream("done", {"exit_code": -1, "error": "timeout", "pid": pid,
+                                   "duration_ms": int((time.time() - t_start) * 1000)})
+            return f"Timeout après {timeout}s"
+
+        t_out.join(2); t_err.join(2)
+        with _processes_lock:
+            _processes.pop(pid, None)
+
+        duration_ms = int((time.time() - t_start) * 1000)
+        exit_code = process.returncode
+        if on_stream:
+            on_stream("done", {"exit_code": exit_code, "duration_ms": duration_ms, "pid": pid})
+
+        out = "".join(out_buf + err_buf).strip()
         return out[:3000] if out else "(exécuté, pas de sortie)"
-    except subprocess.TimeoutExpired:
-        return f"Timeout après {timeout}s"
+
     except Exception as e:
         return f"Erreur : {e}"
 
@@ -442,32 +446,23 @@ def tool_screenshot(prompt: str = "Décris ce que tu vois sur cet écran.", api_
     result = subprocess.run(["screencapture", "-x", str(tmp)], capture_output=True, timeout=5)
     if result.returncode != 0 or not tmp.exists():
         return "Impossible de prendre le screenshot"
-
     img_b64 = base64.standard_b64encode(tmp.read_bytes()).decode()
-
     if not api_key:
         env = Path(__file__).parent.parent / ".env"
         if env.exists():
             for line in env.read_text().splitlines():
                 if line.startswith("ANTHROPIC_API_KEY="):
                     api_key = line.split("=", 1)[1].strip()
-
     if not api_key:
         tmp.unlink(missing_ok=True)
-        return f"Screenshot pris mais analyse impossible (pas de clé API). Fichier: {tmp}"
-
+        return f"Screenshot pris — analyse impossible sans clé API."
     payload = json.dumps({
-        "model": "claude-sonnet-4-6",
-        "max_tokens": 500,
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
-                {"type": "text", "text": prompt}
-            ]
-        }]
+        "model": "claude-sonnet-4-6", "max_tokens": 500,
+        "messages": [{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
+            {"type": "text", "text": prompt}
+        ]}]
     }).encode()
-
     req = urllib.request.Request(
         "https://api.anthropic.com/v1/messages", data=payload,
         headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
@@ -491,106 +486,61 @@ tell application "Calendar"
     repeat with cal in calendars
         set evts to (every event of cal whose start date >= theDate and start date <= endDate)
         repeat with evt in evts
-            set evtDate to start date of evt
-            set evtName to summary of evt
-            set output to output & (evtDate as string) & " — " & evtName & return
+            set output to output & (start date of evt as string) & " — " & summary of evt & return
         end repeat
     end repeat
-    if output is "" then
-        return "Aucun événement dans les {days} prochains jours."
-    else
-        return output
-    end if
+    if output is "" then return "Aucun événement dans les {days} prochains jours."
+    return output
 end tell'''
-    result = tool_applescript(script)
-    if "error" in result.lower() and "not running" not in result.lower():
-        return f"Calendar.app inaccessible : {result}"
-    return result
+    return tool_applescript(script)
 
 def tool_remind(message: str, minutes: int = 0, at_time: str = "") -> str:
-    if at_time:
-        time_part = at_time
-        script = f'''
-tell application "Reminders"
-    make new reminder with properties {{name:"{message}", remind me date:date "{time_part}"}}
-end tell'''
-    elif minutes > 0:
-        script = f'''
-set theDate to (current date) + ({minutes} * minutes)
-tell application "Reminders"
-    make new reminder with properties {{name:"{message}", remind me date:theDate}}
-end tell'''
+    if minutes > 0:
+        script = f'''set theDate to (current date) + ({minutes} * minutes)
+tell application "Reminders" to make new reminder with properties {{name:"{message}", remind me date:theDate}}'''
     else:
         script = f'tell application "Reminders" to make new reminder with properties {{name:"{message}"}}'
-
     result = tool_applescript(script)
-    if "error" in result.lower():
-        # Fallback: notification différée
-        if minutes > 0:
-            delay_sec = minutes * 60
-            tool_shell(
-                f"(sleep {delay_sec} && osascript -e 'display notification \"{message}\" with title \"A.T.H.O.S.\" sound name \"Glass\"') &",
-                5
-            )
-            return f"Rappel programmé dans {minutes} minute(s) : {message}"
-        return f"Erreur Reminders : {result}"
+    if "error" in result.lower() and minutes > 0:
+        tool_shell(f"(sleep {minutes*60} && osascript -e 'display notification \"{message}\" with title \"A.T.H.O.S.\" sound name \"Glass\"') &", 5)
+        return f"Rappel dans {minutes} min : {message}"
     return f"Rappel créé : {message}"
 
 def tool_network_scan(mode: str = "quick") -> str:
     results = []
     local_ip = tool_shell("ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null", 5).strip()
-    subnet   = ".".join(local_ip.split(".")[:3]) if local_ip and "." in local_ip else "192.168.1"
+    subnet = ".".join(local_ip.split(".")[:3]) if local_ip and "." in local_ip else "192.168.1"
 
     if mode in ("quick", "all"):
-        arp = tool_shell("arp -a 2>/dev/null", 10)
-        results.append(f"=== RÉSEAU ARP ===\n{arp}\nIP Mac : {local_ip}")
-
+        results.append(f"=== RÉSEAU ARP ===\n{tool_shell('arp -a 2>/dev/null', 10)}\nIP Mac : {local_ip}")
     if mode in ("deep", "all"):
-        scan = tool_shell(f"nmap -sn {subnet}.0/24 --open -T4 2>/dev/null | grep -E 'report|MAC|Host'", 45)
-        results.append(f"=== NMAP SCAN ===\n{scan}")
-
+        results.append(f"=== NMAP ===\n{tool_shell(f'nmap -sn {subnet}.0/24 -T4 2>/dev/null | grep -E \"report|MAC|Host\"', 45)}")
     if mode in ("bonjour", "all"):
-        services = [
-            ("AirPlay/Apple TV", "_airplay._tcp"),
-            ("AirTunes/Sonos",   "_raop._tcp"),
-            ("Chromecast",       "_googlecast._tcp"),
-            ("HomeKit",          "_hap._tcp"),
-            ("AirPrint",         "_ipp._tcp"),
-            ("Spotify Connect",  "_spotify-connect._tcp"),
-        ]
+        services = [("AirPlay", "_airplay._tcp"), ("AirTunes/Sonos", "_raop._tcp"),
+                    ("Chromecast", "_googlecast._tcp"), ("HomeKit", "_hap._tcp"),
+                    ("AirPrint", "_ipp._tcp"), ("Spotify", "_spotify-connect._tcp")]
         found = []
         for name, svc in services:
-            r = subprocess.run(["dns-sd", "-B", svc, "local"],
-                               capture_output=True, text=True, timeout=4)
+            r = subprocess.run(["dns-sd", "-B", svc, "local"], capture_output=True, text=True, timeout=4)
             lines = [l for l in r.stdout.splitlines() if "." in l and "BROWSE" not in l]
-            if lines:
-                found.append(f"{name}: {lines[-1].strip()}")
-        results.append("=== SERVICES BONJOUR ===\n" + ("\n".join(found) if found else "Aucun"))
-
+            if lines: found.append(f"{name}: {lines[-1].strip()}")
+        results.append("=== BONJOUR ===\n" + ("\n".join(found) if found else "Aucun"))
     if mode in ("bluetooth", "all"):
-        bt = tool_shell(
-            "blueutil --paired --format json 2>/dev/null | "
-            "python3 -c \"import sys,json;[print(d.get('name','?'),d.get('connected','?')) "
-            "for d in json.load(sys.stdin)]\"", 10
-        )
-        results.append(f"=== BLUETOOTH PAIRED ===\n{bt}")
-
+        bt = tool_shell('blueutil --paired --format json 2>/dev/null | python3 -c "import sys,json;[print(d.get(\'name\',\'?\'),d.get(\'connected\',\'?\')) for d in json.load(sys.stdin)]"', 10)
+        results.append(f"=== BLUETOOTH ===\n{bt}")
     if mode in ("wifi", "all"):
         airport = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
-        wifi = tool_shell(f"{airport} -I 2>/dev/null", 10)
-        results.append(f"=== WIFI ===\n{wifi}")
-
+        results.append(f"=== WIFI ===\n{tool_shell(f'{airport} -I 2>/dev/null', 10)}")
     if mode in ("security", "all"):
         ports = tool_shell("lsof -i -nP | grep LISTEN | awk '{print $1,$9}' | sort -u", 10)
-        fw    = tool_shell("defaults read /Library/Preferences/com.apple.alf globalstate 2>/dev/null", 5)
+        fw = tool_shell("defaults read /Library/Preferences/com.apple.alf globalstate 2>/dev/null", 5)
         results.append(f"=== SÉCURITÉ ===\nFirewall: {fw.strip()}\n{ports}")
-
     return "\n\n".join(results) if results else "Aucun résultat"
 
 def tool_http_request(url: str, method: str = "GET", body: str = "", headers: dict = None) -> str:
     try:
         data = body.encode() if body else None
-        req  = urllib.request.Request(url, data=data, method=method)
+        req = urllib.request.Request(url, data=data, method=method)
         req.add_header("Content-Type", "application/json")
         for k, v in (headers or {}).items():
             req.add_header(k, v)
@@ -629,184 +579,120 @@ def tool_memory_read(file: str) -> str:
     except Exception as e:
         return f"Erreur lecture : {e}"
 
+def tool_checkpoint(goal: str, decisions: list = None, tasks: list = None, files: list = None) -> str:
+    import session_kernel
+    session_kernel.checkpoint(goal, decisions, tasks, files)
+    return f"Checkpoint sauvegardé : {goal[:80]}"
+
 def tool_notify(title: str, message: str, sound: str = "Glass") -> str:
-    script = f'display notification "{message}" with title "{title}" sound name "{sound}"'
-    subprocess.Popen(["osascript", "-e", script])
+    subprocess.Popen(["osascript", "-e", f'display notification "{message}" with title "{title}" sound name "{sound}"'])
     return f"Notification : {title}"
 
 def tool_system_info(query: str) -> str:
     parts = []
     q = query.lower()
-    if q in ("battery", "all"):
-        parts.append(f"Batterie:\n{tool_shell('pmset -g batt 2>/dev/null | head -2', 5)}")
-    if q in ("cpu", "all"):
-        parts.append(f"CPU:\n{tool_shell('top -l1 -n0 | grep CPU', 5)}")
-    if q in ("ram", "all"):
-        parts.append(f"RAM:\n{tool_shell('top -l1 -n0 | grep PhysMem', 5)}")
-    if q in ("disk", "all"):
-        parts.append(f"Disque:\n{tool_shell('df -h / | tail -1', 5)}")
+    if q in ("battery", "all"): parts.append(f"Batterie:\n{tool_shell('pmset -g batt 2>/dev/null | head -2', 5)}")
+    if q in ("cpu", "all"): parts.append(f"CPU:\n{tool_shell('top -l1 -n0 | grep CPU', 5)}")
+    if q in ("ram", "all"): parts.append(f"RAM:\n{tool_shell('top -l1 -n0 | grep PhysMem', 5)}")
+    if q in ("disk", "all"): parts.append(f"Disque:\n{tool_shell('df -h / | tail -1', 5)}")
     if q in ("processes", "all"):
-        parts.append("CPU top:\n" + tool_shell('ps aux | sort -rk3 | head -8 | awk \'{print $3"%", $11}\'', 5))
+        procs_cmd = "ps aux | sort -rk3 | head -8 | awk '{print $3\"%\", $11}'"
+        parts.append(f"Top CPU:\n{tool_shell(procs_cmd, 5)}")
     if q in ("apps", "all"):
-        parts.append("Apps:\n" + tool_shell("osascript -e 'tell app \"System Events\" to get name of every process whose background only is false'", 5))
+        apps_script = "tell application \"System Events\" to get name of every process whose background only is false"
+        parts.append(f"Apps:\n{tool_applescript(apps_script)}")
     if q in ("time", "all"):
-        parts.append("Date/heure:\n" + tool_shell("date '+%A %d %B %Y, %H:%M:%S'", 5))
-    if q == "all":
-        parts.append("IP: " + tool_shell('ipconfig getifaddr en0 2>/dev/null', 5).strip())
-    return "\n\n".join(parts) if parts else "Query '" + query + "' non reconnue. Options: battery, cpu, ram, disk, processes, apps, time, all"
+        parts.append(f"Heure:\n{tool_shell('date +\"%A %d %B %Y, %H:%M:%S\"', 5)}")
+    if q == "all": parts.append(f"IP: {tool_shell('ipconfig getifaddr en0 2>/dev/null', 5).strip()}")
+    return "\n\n".join(parts) if parts else f"Options: battery, cpu, ram, disk, processes, apps, time, all"
 
 def tool_clipboard(action: str, content: str = "") -> str:
-    if action == "read":
-        return tool_shell("pbpaste", 5)
-    elif action == "write":
-        subprocess.run("pbcopy", input=content.encode(), timeout=5)
-        return f"Presse-papier mis à jour ({len(content)} chars)"
-    return "Action inconnue (read ou write)"
+    if action == "read": return tool_shell("pbpaste", 5)
+    subprocess.run("pbcopy", input=content.encode(), timeout=5)
+    return f"Presse-papier mis à jour ({len(content)} chars)"
 
 def tool_media_control(action: str, target: str = "") -> str:
     if action == "list_outputs":
-        return tool_shell(
-            "SwitchAudioSource -a -t output 2>/dev/null || "
-            "system_profiler SPAudioDataType 2>/dev/null | grep -A2 'Output' | head -20", 10
-        )
+        return tool_shell("SwitchAudioSource -a -t output 2>/dev/null || system_profiler SPAudioDataType 2>/dev/null | grep -A2 'Output' | head -20", 10)
     if action == "airplay_to" and target:
-        script = f'''tell application "Music"
-    set AirPlay devices to (get AirPlay devices whose name contains "{target}")
-end tell'''
-        return tool_applescript(script)
+        return tool_applescript(f'tell application "Music"\nset AirPlay devices to (get AirPlay devices whose name contains "{target}")\nend tell')
     if action in ("play", "pause", "next", "prev"):
         cmds = {"play": "play", "pause": "pause", "next": "next track", "prev": "previous track"}
         r = tool_applescript(f'tell application "Music" to {cmds[action]}')
         if "error" in r.lower():
             r = tool_applescript(f'tell application "Spotify" to {cmds[action]}')
         return r
-    if action in ("volume_up", "volume_down", "set_volume", "mute"):
-        if action == "set_volume" and target:
-            script = f'set volume output volume {target}'
-        elif action == "volume_up":
-            script = 'set volume output volume ((output volume of (get volume settings)) + 10)'
-        elif action == "volume_down":
-            script = 'set volume output volume ((output volume of (get volume settings)) - 10)'
-        else:
-            script = 'set volume with output muted'
-        return tool_applescript(script)
+    if action == "set_volume" and target:
+        return tool_applescript(f'set volume output volume {target}')
+    if action == "volume_up":
+        return tool_applescript('set volume output volume ((output volume of (get volume settings)) + 10)')
+    if action == "volume_down":
+        return tool_applescript('set volume output volume ((output volume of (get volume settings)) - 10)')
+    if action == "mute":
+        return tool_applescript('set volume with output muted')
     return f"Action '{action}' non reconnue"
 
-def tool_wikipedia(query: str, sentences: int = 2) -> str:
-    from tools.wikipedia import search_wikipedia
-    return search_wikipedia(query, sentences)
-
-def tool_youtube(query: str) -> str:
-    from tools.youtube import search_youtube
-    return search_youtube(query)
-
-def tool_send_email(to: str, subject: str, body: str) -> str:
-    from tools.email_tool import send_email
-    return send_email(to, subject, body)
-
-def tool_take_screenshot(filename: str = "screenshot.png") -> str:
-    from tools.screenshot import take_screenshot
-    return take_screenshot(filename)
-
-def tool_take_note(note: str) -> str:
-    from tools.note import take_note
-    return take_note(note)
-
-def tool_external_sources(query: str = "") -> str:
-    sources = [
-        {
-            "name": "codewithbro95 legacy voice/vision source",
-            "use": "Ollama local, vision webcam/LLaVA, wrapper d'outils, patterns Kokoro/LuxTTS",
-            "files": "main.py, modules/ollama_nlp.py, modules/vibranium/vision/vision.py",
-        },
-        {
-            "name": "GauravSingh9356 legacy desktop source",
-            "use": "commandes desktop, Wikipedia, YouTube, email, screenshot, notes, weather, OCR",
-            "files": "assistant.py, helpers.py, youtube.py, news.py, OCR.py",
-        },
-        {
-            "name": "kishanrajput23 legacy desktop voice source",
-            "use": "boucle voix/TTS simple, commandes assistant desktop de base",
-            "files": "desktop_voice_assistant.py",
-        },
-        {
-            "name": "201Harsh/IRIS-AI",
-            "use": "architecture agent OS, tool registry, terminal overlay, IPC, workflows, RAG",
-            "files": "README.md, Agents.md, src/main/logic/*, src/main/services/*",
-        },
-    ]
-    q = (query or "").lower()
-    if q:
-        sources = [s for s in sources if q in s["name"].lower() or q in s["use"].lower() or q in s["files"].lower()]
-    if not sources:
-        return "Aucune source externe ATHOS ne correspond à cette recherche."
-    return "\n".join(f"- {s['name']} | use:{s['use']} | files:{s['files']}" for s in sources)
-
-# ── Dispatch ──────────────────────────────────────────────────────────────────
-
-_API_KEY_CACHE = {"key": ""}
+# ── API key cache ─────────────────────────────────────────────────────────────
+_api_key_cache = {"key": ""}
 
 def _get_api_key() -> str:
-    if _API_KEY_CACHE["key"]:
-        return _API_KEY_CACHE["key"]
+    if _api_key_cache["key"]:
+        return _api_key_cache["key"]
     env = Path(__file__).parent.parent / ".env"
     if env.exists():
         for line in env.read_text().splitlines():
             if line.startswith("ANTHROPIC_API_KEY="):
-                _API_KEY_CACHE["key"] = line.split("=", 1)[1].strip()
-    return _API_KEY_CACHE["key"]
+                _api_key_cache["key"] = line.split("=", 1)[1].strip()
+    return _api_key_cache["key"]
 
-def execute_tool(name: str, inputs: dict, record_kernel: bool = True) -> str:
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+
+def execute_tool(name: str, inputs: dict,
+                 on_stream: Callable | None = None,
+                 permission_check: Callable | None = None) -> str:
+
     def _web_search():
         from web import search_web, search_news, search_arxiv, search_wikipedia, format_search_results
-        src = inputs.get("source", "web")
-        q   = inputs["query"]
-        n   = inputs.get("max_results", 5)
-        if src == "arxiv":      return format_search_results(search_arxiv(q, n), "arxiv")
-        elif src == "news":     return format_search_results(search_news(q, n), "news")
-        elif src == "wikipedia":
-            r = search_wikipedia(q)
-            return f"{r['title']}\n{r['summary']}\n{r['url']}"
+        src = inputs.get("source", "web"); q = inputs["query"]; n = inputs.get("max_results", 5)
+        if src == "arxiv": return format_search_results(search_arxiv(q, n), "arxiv")
+        if src == "news": return format_search_results(search_news(q, n), "news")
+        if src == "wikipedia":
+            r = search_wikipedia(q); return f"{r['title']}\n{r['summary']}\n{r['url']}"
         return format_search_results(search_web(q, n), "web")
-
-    dispatch = {
-        "shell":          lambda: tool_shell(inputs["command"], inputs.get("timeout", 30)),
-        "applescript":    lambda: tool_applescript(inputs["script"]),
-        "open":           lambda: tool_open(inputs["target"], inputs.get("app", "")),
-        "screenshot":     lambda: tool_screenshot(inputs.get("prompt", "Décris ce que tu vois."), _get_api_key()),
-        "calendar_read":  lambda: tool_calendar_read(inputs.get("days", 7)),
-        "remind":         lambda: tool_remind(inputs["message"], inputs.get("minutes", 0), inputs.get("at_time", "")),
-        "network_scan":   lambda: tool_network_scan(inputs.get("mode", "quick")),
-        "http_request":   lambda: tool_http_request(inputs["url"], inputs.get("method", "GET"), inputs.get("body", ""), inputs.get("headers", {})),
-        "write_file":     lambda: tool_write_file(inputs["path"], inputs["content"], inputs.get("mode", "write")),
-        "memory_write":   lambda: tool_memory_write(inputs["file"], inputs["content"]),
-        "memory_read":    lambda: tool_memory_read(inputs["file"]),
-        "notify":         lambda: tool_notify(inputs["title"], inputs["message"], inputs.get("sound", "Glass")),
-        "system_info":    lambda: tool_system_info(inputs["query"]),
-        "clipboard":      lambda: tool_clipboard(inputs["action"], inputs.get("content", "")),
-        "media_control":  lambda: tool_media_control(inputs["action"], inputs.get("target", "")),
-        "web_search":     _web_search,
-        "fetch_url":      lambda: __import__("web").fetch_page(inputs["url"]),
-        "install_skill":  lambda: _install_skill(),
-        "list_skills":    lambda: __import__("skill_manager").capabilities_report(),
-        "wikipedia":      lambda: tool_wikipedia(inputs["query"], inputs.get("sentences", 2)),
-        "youtube":        lambda: tool_youtube(inputs["query"]),
-        "send_email":     lambda: tool_send_email(inputs["to"], inputs["subject"], inputs["body"]),
-        "take_screenshot": lambda: tool_take_screenshot(inputs.get("filename", "screenshot.png")),
-        "take_note":      lambda: tool_take_note(inputs["note"]),
-        "external_sources": lambda: tool_external_sources(inputs.get("query", "")),
-    }
 
     def _install_skill():
         from skill_manager import install_skill
         ok, msg = install_skill(inputs["skill_name"], _get_api_key())
         return msg
 
+    dispatch = {
+        "shell":         lambda: tool_shell(inputs["command"], inputs.get("timeout", 30), on_stream, permission_check),
+        "applescript":   lambda: tool_applescript(inputs["script"]),
+        "open":          lambda: tool_open(inputs["target"], inputs.get("app", "")),
+        "screenshot":    lambda: tool_screenshot(inputs.get("prompt", "Décris ce que tu vois."), _get_api_key()),
+        "calendar_read": lambda: tool_calendar_read(inputs.get("days", 7)),
+        "remind":        lambda: tool_remind(inputs["message"], inputs.get("minutes", 0), inputs.get("at_time", "")),
+        "network_scan":  lambda: tool_network_scan(inputs.get("mode", "quick")),
+        "http_request":  lambda: tool_http_request(inputs["url"], inputs.get("method", "GET"), inputs.get("body", ""), inputs.get("headers", {})),
+        "write_file":    lambda: tool_write_file(inputs["path"], inputs["content"], inputs.get("mode", "write")),
+        "memory_write":  lambda: tool_memory_write(inputs["file"], inputs["content"]),
+        "memory_read":   lambda: tool_memory_read(inputs["file"]),
+        "checkpoint":    lambda: tool_checkpoint(inputs["goal"], inputs.get("decisions"), inputs.get("tasks"), inputs.get("files")),
+        "notify":        lambda: tool_notify(inputs["title"], inputs["message"], inputs.get("sound", "Glass")),
+        "system_info":   lambda: tool_system_info(inputs["query"]),
+        "clipboard":     lambda: tool_clipboard(inputs["action"], inputs.get("content", "")),
+        "media_control": lambda: tool_media_control(inputs["action"], inputs.get("target", "")),
+        "web_search":    _web_search,
+        "fetch_url":     lambda: __import__("web").fetch_page(inputs["url"]),
+        "install_skill": _install_skill,
+        "list_skills":   lambda: __import__("skill_manager").capabilities_report(),
+    }
+
     fn = dispatch.get(name)
     if not fn:
         return f"Outil inconnu : {name}"
     result = fn()
-    _log_tool(name, inputs, result, record_kernel=record_kernel)
+    _log_tool(name, inputs, result)
     return result
 
 # ── ReAct Loop ────────────────────────────────────────────────────────────────
@@ -818,26 +704,21 @@ _AUTHORIZE_WORDS = {
 }
 
 def _is_authorized(msg: str) -> bool:
-    normalized = msg.lower().replace("'", " ").replace("-", " ").strip()
+    normalized = msg.lower().replace("'", " ").replace("-", " ")
     words = set(normalized.split())
-    direct_authorizations = _AUTHORIZE_WORDS | {"vas y", "allons y", "fais le"}
-    if normalized in direct_authorizations:
-        return True
-    explicit_phrases = {
-        "lance le plan", "lance ça", "lance ca", "vas y lance", "ok lance",
-        "oui execute", "oui exécute", "fais le", "fais-le maintenant",
-        "go execute", "go exécute", "confirme execution", "confirme exécution"
-    }
-    if any(phrase in normalized for phrase in explicit_phrases):
-        return True
-    return bool(words & {"lance", "exécute", "execute"})
+    # Vérifier aussi les mots composés originaux (vas-y, fais-le, allons-y)
+    original_words = set(msg.lower().split())
+    return bool((words | original_words) & _AUTHORIZE_WORDS)
 
 def run_agent(msg: str, system: str, history: list, api_key: str,
-              on_action=None) -> str:
+              on_action: Callable | None = None,
+              on_stream: Callable | None = None,
+              permission_check: Callable | None = None) -> str:
     """
     Boucle ReAct avec confirmation obligatoire.
-    Sans autorisation → plan texte (tool_choice: none)
-    Avec autorisation → exécution complète (tool_choice: auto)
+    on_action(name, inputs, result)  — fin de chaque outil
+    on_stream(event_type, data)      — stdout/stderr en temps réel
+    permission_check(tool, inputs)   — retourne True/False (bloquant)
     """
     authorized  = _is_authorized(msg)
     tool_choice = {"type": "auto"} if authorized else {"type": "none"}
@@ -845,12 +726,12 @@ def run_agent(msg: str, system: str, history: list, api_key: str,
 
     for _ in range(MAX_ITERATIONS):
         payload = json.dumps({
-            "model":       "claude-sonnet-4-6",
-            "max_tokens":  2048,
-            "system":      system,
-            "tools":       TOOLS,
+            "model": "claude-sonnet-4-6",
+            "max_tokens": 2048,
+            "system": system,
+            "tools": TOOLS,
             "tool_choice": tool_choice,
-            "messages":    messages
+            "messages": messages
         }).encode()
 
         req = urllib.request.Request(
@@ -862,8 +743,8 @@ def run_agent(msg: str, system: str, history: list, api_key: str,
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 response = json.loads(r.read())
-        except Exception as e:
-            raise   # propagé vers server.py pour gestion engine fallback
+        except Exception:
+            raise  # propagé vers server.py pour engine fallback
 
         stop_reason = response.get("stop_reason")
         content     = response.get("content", [])
@@ -880,16 +761,22 @@ def run_agent(msg: str, system: str, history: list, api_key: str,
                 t_name   = block["name"]
                 t_inputs = block["input"]
                 t_id     = block["id"]
-                result   = execute_tool(t_name, t_inputs, record_kernel=on_action is None)
+
+                # Notifier démarrage outil vers ToolBus
+                if on_stream:
+                    on_stream("tool_start", {"tool": t_name, "inputs": t_inputs, "id": t_id})
+
+                result = execute_tool(t_name, t_inputs, on_stream, permission_check)
+
                 if on_action:
                     on_action(t_name, t_inputs, result)
+
                 tool_results.append({
                     "type": "tool_result", "tool_use_id": t_id, "content": result
                 })
             messages.append({"role": "user", "content": tool_results})
             continue
 
-        # Réponse inattendue — extraire le texte quand même
         texts = [b.get("text", "") for b in content if b.get("type") == "text"]
         if texts:
             return " ".join(texts).strip()

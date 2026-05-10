@@ -20,7 +20,7 @@ def test_session_kernel_records_exchange_and_context(tmp_path, monkeypatch):
         {"role": "user", "content": "bonjour"},
         {"role": "assistant", "content": "salut Clement"},
     ]
-    assert "§kernel:" in kernel.context_pack()
+    assert "§ex:" in kernel.context_pack()
     assert "bonjour" in kernel.context_pack()
 
     line = kernel.SESSION_FILE.read_text("utf-8").strip()

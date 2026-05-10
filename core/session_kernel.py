@@ -1,8 +1,8 @@
 """Model-neutral Athos session kernel.
 
-The kernel is the handoff layer between engines: it stores conversation turns
-and operational events in Drive as JSONL so any provider can resume the same
-work without depending on an in-memory server process.
+The kernel is the handoff layer between engines: it stores conversation turns,
+tool events, and checkpoints in Drive as JSONL so any provider can resume the
+same work without depending on an in-memory server process.
 """
 from __future__ import annotations
 
@@ -76,6 +76,26 @@ def record_action(name: str, label: str = "", result: str = "", engine: str = ""
     })
 
 
+def checkpoint(goal: str, decisions: list[str] | None = None,
+               tasks: list[str] | None = None, files: list[str] | None = None) -> dict[str, Any]:
+    """Snapshot current work state — any engine can resume from this."""
+    return _append({
+        "type": "checkpoint",
+        "goal": _safe_text(goal, 500),
+        "decisions": [_safe_text(d, 200) for d in (decisions or [])],
+        "tasks": [_safe_text(t, 200) for t in (tasks or [])],
+        "files": [_safe_text(f, 200) for f in (files or [])],
+    })
+
+
+def latest_checkpoint() -> dict[str, Any] | None:
+    """Return the most recent checkpoint event, if any."""
+    for event in reversed(read_events()):
+        if event.get("type") == "checkpoint":
+            return event
+    return None
+
+
 def latest_messages(limit: int = 12) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     for event in read_events():
@@ -92,17 +112,30 @@ def latest_messages(limit: int = 12) -> list[dict[str, str]]:
 
 def context_pack(max_chars: int = MAX_CONTEXT_CHARS) -> str:
     chunks: list[str] = []
+
+    # Latest checkpoint pinned at top — survives engine switch
+    cp = latest_checkpoint()
+    if cp:
+        chunks.append(f"§goal:{cp.get('goal', '')}")
+        for d in (cp.get("decisions") or [])[:3]:
+            chunks.append(f"§decision:{d}")
+        for t in (cp.get("tasks") or [])[:5]:
+            chunks.append(f"§task:{t}")
+        for f in (cp.get("files") or [])[:3]:
+            chunks.append(f"§file:{f}")
+
+    # Recent exchanges and actions
     for event in read_events(limit=40):
         if event.get("type") == "exchange":
             chunks.append(
-                f"§kernel:{event.get('ts')}|engine:{event.get('engine','')}"
-                f"|u:{event.get('user','')[:300]}|a:{event.get('assistant','')[:500]}"
+                f"§ex:{event.get('ts')}|eng:{event.get('engine', '')}"
+                f"|u:{event.get('user', '')[:200]}|a:{event.get('assistant', '')[:400]}"
             )
         elif event.get("type") == "action":
             chunks.append(
-                f"§kernel_action:{event.get('ts')}|engine:{event.get('engine','')}"
-                f"|name:{event.get('name','')}|label:{event.get('label','')[:200]}"
+                f"§act:{event.get('ts')}|{event.get('name', '')}:{event.get('label', '')[:100]}"
             )
+
     pack = "\n".join(chunks)
     return pack[-max_chars:]
 
@@ -110,18 +143,20 @@ def context_pack(max_chars: int = MAX_CONTEXT_CHARS) -> str:
 def status() -> dict[str, Any]:
     events = read_events()
     last = events[-1] if events else None
-    exchanges = sum(1 for event in events if event.get("type") == "exchange")
-    actions = sum(1 for event in events if event.get("type") == "action")
+    cp = latest_checkpoint()
     return {
         "file": str(SESSION_FILE),
         "events": len(events),
-        "exchanges": exchanges,
-        "actions": actions,
+        "exchanges": sum(1 for e in events if e.get("type") == "exchange"),
+        "actions": sum(1 for e in events if e.get("type") == "action"),
+        "checkpoint": {
+            "goal": cp.get("goal", "") if cp else None,
+            "tasks": cp.get("tasks", []) if cp else [],
+        },
         "last_event": {
             "id": last.get("id"),
             "ts": last.get("ts"),
             "type": last.get("type"),
             "engine": last.get("engine", ""),
-            "name": last.get("name", ""),
         } if last else None,
     }

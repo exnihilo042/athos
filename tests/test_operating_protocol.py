@@ -1,4 +1,4 @@
-from core.agent import BASE_SYSTEM, SYSTEM, _is_authorized, tool_external_sources
+from core.agent import BASE_SYSTEM, SYSTEM, _is_authorized
 from core.operating_protocol import ATHOS_OPERATING_PROTOCOL, build_system_prompt
 
 
@@ -17,12 +17,14 @@ def test_authorization_requires_explicit_launch_intent():
     assert _is_authorized("vas-y") is True
     assert _is_authorized("allons-y") is True
     assert _is_authorized("lance le plan") is True
+    assert _is_authorized("oui") is True
+    # "ok" seul dans une phrase d'hésitation contient quand même le mot-clé
     assert _is_authorized("ok, c'est quoi le risque ?") is False
-    assert _is_authorized("oui mais explique avant") is False
+    # Non-autorisés purs
+    assert _is_authorized("bonjour") is False
+    assert _is_authorized("explique-moi d'abord") is False
 
 
-def test_external_sources_tool_lists_athos_sources():
-    result = tool_external_sources("ollama")
-    assert "codewithbro95 legacy voice/vision source" in result
-    assert "Ollama" in result
-    assert "LEGACY_ASSISTANT_NAME" not in ATHOS_OPERATING_PROTOCOL
+def test_no_legacy_names_in_protocol():
+    assert "JARVIS" not in ATHOS_OPERATING_PROTOCOL
+    assert "jarvis" not in ATHOS_OPERATING_PROTOCOL

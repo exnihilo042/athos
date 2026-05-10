@@ -519,6 +519,126 @@
     font-weight: 500;
     cursor: pointer;
   }
+
+  /* Terminal panel */
+  #term-btn {
+    position: fixed;
+    bottom: 28px;
+    right: 20px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted);
+    transition: border-color 0.3s, color 0.3s;
+    z-index: 50;
+  }
+  #term-btn.active { border-color: var(--green); color: var(--green); }
+
+  #terminal {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 55vh;
+    background: #050508;
+    border-top: 1px solid #1a1a24;
+    z-index: 80;
+    flex-direction: column;
+    font-family: 'SF Mono', 'Menlo', monospace;
+  }
+  #terminal.open { display: flex; }
+
+  #term-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #111118;
+    font-size: 10px; letter-spacing: 0.2em;
+    color: var(--muted); text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  #term-header span { flex: 1; }
+  #term-close {
+    cursor: pointer; color: var(--muted); padding: 2px 6px;
+    border: 1px solid var(--border); border-radius: 4px; font-size: 10px;
+  }
+
+  #term-body {
+    flex: 1; overflow-y: auto; padding: 12px 16px;
+    font-size: 11px; line-height: 1.6;
+  }
+  .term-line { display: flex; gap: 8px; margin-bottom: 2px; }
+  .term-ts { color: #333340; flex-shrink: 0; width: 56px; }
+  .term-text { flex: 1; word-break: break-all; }
+  .term-text.stdout { color: #8888aa; }
+  .term-text.stderr { color: #cc7755; }
+  .term-text.info   { color: var(--muted); }
+  .term-text.start  { color: var(--blue); }
+  .term-text.done-ok  { color: var(--green); }
+  .term-text.done-err { color: var(--red); }
+
+  .term-process {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 8px; margin-bottom: 4px;
+    background: #0a0a10; border: 1px solid #1a1a24;
+    border-radius: 6px; font-size: 10px;
+  }
+  .term-process .pid { color: var(--muted); }
+  .term-process .cmd { flex: 1; color: #8888aa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .term-process .kill-btn {
+    padding: 2px 8px; border-radius: 4px;
+    background: transparent; border: 1px solid #442222;
+    color: #aa4444; cursor: pointer; font-size: 10px;
+    transition: background 0.2s;
+  }
+  .term-process .kill-btn:hover { background: rgba(255,59,48,0.1); }
+
+  #proc-list {
+    padding: 8px 16px; border-bottom: 1px solid #111118;
+    display: none; flex-shrink: 0;
+  }
+  #proc-list.has-procs { display: block; }
+
+  /* Permission modal */
+  #perm-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.92);
+    align-items: center; justify-content: center;
+    z-index: 200;
+  }
+  #perm-modal.open { display: flex; }
+  #perm-box {
+    background: #0a0a14;
+    border: 1px solid #cc331133;
+    border-radius: 16px;
+    padding: 24px; width: 88%; max-width: 360px;
+  }
+  #perm-box h3 {
+    font-size: 12px; letter-spacing: 0.2em; color: var(--red);
+    margin-bottom: 12px; text-transform: uppercase;
+  }
+  #perm-tool { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  #perm-cmd {
+    background: #050508; border: 1px solid #1a1a24;
+    border-radius: 8px; padding: 10px 12px;
+    font-family: 'SF Mono', monospace; font-size: 11px;
+    color: #cc7755; word-break: break-all;
+    margin-bottom: 16px; max-height: 80px; overflow-y: auto;
+  }
+  .perm-btns { display: flex; gap: 8px; }
+  .perm-approve {
+    flex: 1; padding: 11px;
+    border-radius: 10px; border: 1px solid rgba(52,199,89,0.4);
+    background: rgba(52,199,89,0.08); color: var(--green);
+    font-size: 12px; letter-spacing: 0.1em; cursor: pointer;
+  }
+  .perm-deny {
+    padding: 11px 16px;
+    border-radius: 10px; border: 1px solid #2a2a35;
+    background: transparent; color: var(--muted);
+    font-size: 12px; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -567,6 +687,36 @@
 
 <button id="stop-btn" onclick="stopConversation()">Arrêter</button>
 
+<!-- Terminal panel -->
+<div id="term-btn" onclick="toggleTerminal()" title="Terminal">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+  </svg>
+</div>
+
+<div id="terminal">
+  <div id="term-header">
+    <span>A.T.H.O.S. — TERMINAL</span>
+    <span id="term-status" style="color:#333340">prêt</span>
+    <div id="term-close" onclick="toggleTerminal()">✕</div>
+  </div>
+  <div id="proc-list"></div>
+  <div id="term-body"></div>
+</div>
+
+<!-- Permission modal -->
+<div id="perm-modal">
+  <div id="perm-box">
+    <h3>⚠ Confirmation requise</h3>
+    <div id="perm-tool"></div>
+    <div id="perm-cmd"></div>
+    <div class="perm-btns">
+      <button class="perm-approve" onclick="respondPerm(true)">Autoriser</button>
+      <button class="perm-deny" onclick="respondPerm(false)">Refuser</button>
+    </div>
+  </div>
+</div>
+
 <div id="settings-btn" onclick="toggleModal()">
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
     <circle cx="12" cy="12" r="3"/>
@@ -598,9 +748,119 @@ let recognition  = null;
 let synth        = window.speechSynthesis;
 let state        = 'idle';
 let voices       = [];
-let convActive   = false;   // mode conversation continue
+let convActive   = false;
 let autoTimer    = null;
 let activeStream = null;
+
+// ── Auth header helper ────────────────────────────────────────────────────────
+function authHeaders() {
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY) || '';
+  const h = {'Content-Type': 'application/json'};
+  if (token) h['Authorization'] = `Bearer ${token}`;
+  return h;
+}
+
+// ── Terminal ──────────────────────────────────────────────────────────────────
+let termOpen      = false;
+let _runningProcs = {};
+let _pendingPermId = null;
+
+function toggleTerminal() {
+  termOpen = !termOpen;
+  document.getElementById('terminal').classList.toggle('open', termOpen);
+  document.getElementById('term-btn').classList.toggle('active', termOpen);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function termLog(text, cls = 'info') {
+  const body = document.getElementById('term-body');
+  if (!body) return;
+  const ts = new Date().toLocaleTimeString('fr', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const line = document.createElement('div');
+  line.className = 'term-line';
+  line.innerHTML = `<span class="term-ts">${ts}</span><span class="term-text ${cls}">${escHtml(text)}</span>`;
+  body.appendChild(line);
+  if (body.children.length > 400) body.removeChild(body.firstChild);
+  body.scrollTop = body.scrollHeight;
+  // Auto-ouvrir si stdout/stderr arrive
+  if (!termOpen && (cls === 'start' || cls === 'stdout' || cls === 'stderr'))
+    toggleTerminal();
+}
+
+function updateProcList() {
+  const el = document.getElementById('proc-list');
+  if (!el) return;
+  const pids = Object.keys(_runningProcs);
+  el.classList.toggle('has-procs', pids.length > 0);
+  el.innerHTML = pids.length
+    ? '<div style="font-size:9px;color:#333340;margin-bottom:4px;letter-spacing:.15em">PROCESSUS ACTIFS</div>'
+    : '';
+  for (const pid of pids) {
+    const p = _runningProcs[pid];
+    const div = document.createElement('div');
+    div.className = 'term-process';
+    div.id = `proc-${pid}`;
+    div.innerHTML = `<span class="pid">PID ${pid}</span>
+      <span class="cmd">${escHtml(p.cmd || '')}</span>
+      <button class="kill-btn" onclick="killProc(${pid})">kill</button>`;
+    el.appendChild(div);
+  }
+}
+
+async function killProc(pid) {
+  await fetch(`${SERVER}/api/kill`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({pid})
+  });
+  delete _runningProcs[pid];
+  const el = document.getElementById(`proc-${pid}`);
+  if (el) el.remove();
+  updateProcList();
+  termLog(`Process ${pid} tué.`, 'done-err');
+}
+
+// ── ToolBus ───────────────────────────────────────────────────────────────────
+function handleToolBus(event_type, data) {
+  if (event_type === 'start') {
+    _runningProcs[data.pid] = {cmd: data.command || ''};
+    updateProcList();
+    termLog(`▶ ${data.command || ''}  [PID ${data.pid}]`, 'start');
+  } else if (event_type === 'stdout') {
+    termLog((data.chunk || '').trimEnd(), 'stdout');
+  } else if (event_type === 'stderr') {
+    termLog((data.chunk || '').trimEnd(), 'stderr');
+  } else if (event_type === 'done') {
+    delete _runningProcs[data.pid];
+    updateProcList();
+    const ok = data.exit_code === 0;
+    termLog(`✓ exit ${data.exit_code}  ${data.duration_ms || 0}ms`, ok ? 'done-ok' : 'done-err');
+  } else if (event_type === 'tool_start') {
+    termLog(`→ ${data.tool}`, 'info');
+  }
+}
+
+// ── Permission prompts ────────────────────────────────────────────────────────
+function showPermission(id, tool, inputs) {
+  _pendingPermId = id;
+  document.getElementById('perm-tool').textContent = `Outil : ${tool}`;
+  const cmd = inputs.command || inputs.script || JSON.stringify(inputs);
+  document.getElementById('perm-cmd').textContent = cmd;
+  document.getElementById('perm-modal').classList.add('open');
+  speak(`Clément, autorisation requise pour ${tool}.`, null);
+}
+
+async function respondPerm(approved) {
+  document.getElementById('perm-modal').classList.remove('open');
+  if (!_pendingPermId) return;
+  await fetch(`${SERVER}/api/permit`, {
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({id: _pendingPermId, approved})
+  });
+  termLog(approved ? '✓ Autorisé' : '⛔ Refusé', approved ? 'done-ok' : 'done-err');
+  _pendingPermId = null;
+}
 let authPromptVisible = false;
 
 const GREETINGS = [
@@ -850,15 +1110,25 @@ async function callAthos(text, streamTarget) {
             try {
               const obj = JSON.parse(d);
 
-              // Action agent
+              // ToolBus — stdout/stderr/start/done en temps réel
+              if (obj.toolbus) {
+                handleToolBus(obj.toolbus, obj);
+              }
+
+              // Permission requise
+              if (obj.permission_required) {
+                showPermission(obj.id, obj.tool, obj.inputs || {});
+              }
+
+              // Action agent (résumé fin d'outil)
               if (obj.action) {
                 if (!agentBub) {
-                  // Remplacer la bulle stream de base par une bulle agent
                   if (streamEl) streamEl.closest('.bubble').remove();
                   agentBub = createAgentBubble();
                   streamEl = agentBub.querySelector('.stream-text');
                 }
                 addActionLine(agentBub, obj.action, obj.label || obj.action, obj.result || '');
+                termLog(`✔ ${obj.action}: ${(obj.label || '').slice(0,80)}`, 'info');
               }
 
               // Token texte
