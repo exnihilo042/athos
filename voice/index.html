@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="ATHOS">
+<link rel="manifest" href="/manifest.json">
+<title>A.T.H.O.S.</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  :root {
+    --bg:       #080808;
+    --surface:  #111114;
+    --border:   #1e1e24;
+    --text:     #e8e8f0;
+    --muted:    #555566;
+    --blue:     #4a9eff;
+    --red:      #ff3b30;
+    --green:    #34c759;
+    --purple:   #bf5af2;
+    --gold:     #ffd60a;
+  }
+
+  html, body {
+    height: 100%; width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 60px 24px 48px;
+  }
+
+  /* Header */
+  #header {
+    text-align: center;
+    letter-spacing: 0.3em;
+    width: 100%;
+    position: relative;
+  }
+  #header h1 {
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  #header .name {
+    font-size: 11px;
+    color: #2a2a35;
+    margin-top: 4px;
+    letter-spacing: 0.5em;
+  }
+  #engine-badge {
+    position: absolute;
+    top: 0; left: 0;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #2a2a35;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    text-transform: uppercase;
+  }
+  #engine-badge .dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #2a2a35;
+    transition: background 0.5s;
+  }
+  #engine-badge.claude .dot { background: var(--blue); }
+  #engine-badge.claude { color: #2a3a55; }
+  #engine-badge.ollama .dot { background: var(--gold); }
+  #engine-badge.ollama { color: #3a3020; }
+  #budget-indicator {
+    position: absolute;
+    top: 0; right: 0;
+    font-size: 10px;
+    color: #2a2a35;
+    letter-spacing: 0.05em;
+  }
+
+  /* Transcript */
+  #transcript-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    width: 100%;
+    max-width: 360px;
+    gap: 12px;
+    padding-bottom: 32px;
+    overflow: hidden;
+  }
+
+  .bubble {
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 90%;
+    animation: fadeUp 0.3s ease;
+  }
+  .bubble.user {
+    background: #1c1c24;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.athos {
+    background: #0f1520;
+    border: 1px solid #1a2540;
+    color: var(--text);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.athos .sender {
+    font-size: 10px;
+    color: var(--blue);
+    letter-spacing: 0.15em;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  /* Actions agent */
+  .action-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 11px;
+    color: var(--muted);
+    border-bottom: 1px solid #1a1a20;
+  }
+  .action-line:last-child { border-bottom: none; }
+  .action-icon {
+    font-size: 10px;
+    opacity: 0.5;
+    min-width: 14px;
+  }
+  .action-label { flex: 1; font-family: 'SF Mono', monospace; opacity: 0.7; }
+  .action-result {
+    font-size: 10px;
+    color: var(--green);
+    opacity: 0.6;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bubble.agent-bubble {
+    background: #080e08;
+    border: 1px solid #0f200f;
+    padding: 8px 12px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Orb container */
+  #orb-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  #status-text {
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    height: 16px;
+    transition: color 0.3s;
+  }
+
+  #orb-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    cursor: pointer;
+  }
+
+  #orb-glow {
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(74,158,255,0.08) 0%, transparent 70%);
+    transition: all 0.4s ease;
+    pointer-events: none;
+  }
+
+  #orb {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 35%, #1a1a2e 0%, #0d0d18 60%, #080810 100%);
+    border: 1px solid #1e1e30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow:
+      0 0 0 1px rgba(74,158,255,0.05),
+      0 8px 32px rgba(0,0,0,0.6),
+      inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  #orb svg {
+    width: 32px;
+    height: 32px;
+    opacity: 0.4;
+    transition: all 0.3s;
+  }
+
+  /* States */
+  body.listening #orb {
+    background: radial-gradient(circle at 38% 35%, #2a0a0a 0%, #180808 60%, #100505 100%);
+    border-color: rgba(255,59,48,0.3);
+    box-shadow:
+      0 0 0 1px rgba(255,59,48,0.15),
+      0 8px 32px rgba(0,0,0,0.6),
+      inset 0 1px 0 rgba(255,255,255,0.02);
+    animation: pulse-red 1.5s ease-in-out infinite;
+  }
+  body.listening #orb svg { opacity: 0.8; color: var(--red); }
+  body.listening #orb-glow {
+    background: radial-gradient(circle, rgba(255,59,48,0.12) 0%, transparent 70%);
+  }
+  body.listening #status-text { color: var(--red); }
+
+  body.thinking #orb {
+    border-color: rgba(74,158,255,0.2);
+    animation: spin-border 2s linear infinite;
+  }
+  body.thinking #orb svg { opacity: 0.6; color: var(--blue); animation: spin-icon 3s linear infinite; }
+  body.thinking #orb-glow {
+    background: radial-gradient(circle, rgba(74,158,255,0.1) 0%, transparent 70%);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  body.thinking #status-text { color: var(--blue); }
+
+  body.speaking #orb {
+    border-color: rgba(52,199,89,0.2);
+    animation: pulse-green 0.8s ease-in-out infinite;
+  }
+  body.speaking #orb svg { opacity: 0.8; color: var(--green); }
+  body.speaking #orb-glow {
+    background: radial-gradient(circle, rgba(52,199,89,0.08) 0%, transparent 70%);
+  }
+  body.speaking #status-text { color: var(--green); }
+
+  @keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,59,48,0.15), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02); }
+    50%       { box-shadow: 0 0 0 12px rgba(255,59,48,0.04), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02); }
+  }
+  @keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0.15), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02); }
+    50%       { box-shadow: 0 0 0 10px rgba(52,199,89,0.04), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02); }
+  }
+  @keyframes spin-border {
+    0%   { border-color: rgba(74,158,255,0.3) rgba(74,158,255,0.05) rgba(74,158,255,0.05) rgba(74,158,255,0.05); }
+    25%  { border-color: rgba(74,158,255,0.05) rgba(74,158,255,0.3) rgba(74,158,255,0.05) rgba(74,158,255,0.05); }
+    50%  { border-color: rgba(74,158,255,0.05) rgba(74,158,255,0.05) rgba(74,158,255,0.3) rgba(74,158,255,0.05); }
+    75%  { border-color: rgba(74,158,255,0.05) rgba(74,158,255,0.05) rgba(74,158,255,0.05) rgba(74,158,255,0.3); }
+    100% { border-color: rgba(74,158,255,0.3) rgba(74,158,255,0.05) rgba(74,158,255,0.05) rgba(74,158,255,0.05); }
+  }
+  @keyframes spin-icon { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50%       { opacity: 1;   transform: scale(1.1); }
+  }
+
+  #hint {
+    font-size: 11px;
+    color: #2a2a35;
+    letter-spacing: 0.1em;
+    text-align: center;
+    transition: color 0.3s;
+  }
+
+  body.conv-active #hint {
+    color: var(--muted);
+  }
+
+  #stop-btn {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: transparent;
+    border: 1px solid #2a2a35;
+    border-radius: 20px;
+    padding: 8px 20px;
+    color: #2a2a35;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: none;
+    transition: all 0.3s;
+  }
+  body.conv-active #stop-btn {
+    display: block;
+    color: var(--muted);
+    border-color: var(--muted);
+  }
+
+  /* Bouton de confirmation plan */
+  .plan-confirm {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .btn-launch {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(52,199,89,0.4);
+    background: rgba(52,199,89,0.08);
+    color: var(--green);
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-launch:active { background: rgba(52,199,89,0.2); }
+  .btn-cancel {
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #2a2a35;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* Settings */
+  #settings-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted);
+  }
+
+  #modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  #modal.open { display: flex; }
+  #modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    width: 88%;
+    max-width: 340px;
+  }
+  #modal-box h2 { font-size: 14px; font-weight: 500; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 20px; }
+  #modal-box label { font-size: 11px; color: var(--muted); letter-spacing: 0.15em; display: block; margin-bottom: 8px; }
+  #modal-box input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'SF Mono', monospace;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  #modal-box select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    margin-bottom: 16px;
+    appearance: none;
+  }
+  #modal-box select option { background: #111; }
+  .modal-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .modal-row input { flex: 1; margin-bottom: 0; }
+  #modal-box .btn-secondary {
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  #modal-box button {
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    border: none;
+    background: var(--blue);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="header">
+    <div id="engine-badge"><span class="dot"></span><span id="engine-label">—</span></div>
+    <h1>A.T.H.O.S.</h1>
+    <div class="name">Autonomous Tactical Heuristic Operating System</div>
+    <div id="budget-indicator"></div>
+  </div>
+
+  <div id="transcript-area"></div>
+
+  <div id="orb-area">
+    <div id="status-text">En attente</div>
+
+    <div id="orb-wrapper">
+      <div id="orb-glow"></div>
+      <div id="orb">
+        <!-- Microphone icon -->
+        <svg id="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4z"/>
+          <path d="M19 10a7 7 0 0 1-14 0M12 19v4M8 23h8"/>
+        </svg>
+      </div>
+    </div>
+
+    <div id="hint">Appuyer pour démarrer</div>
+  </div>
+</div>
+
+<button id="stop-btn" onclick="stopConversation()">Arrêter</button>
+
+<div id="settings-btn" onclick="toggleModal()">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+  </svg>
+</div>
+
+<div id="modal">
+  <div id="modal-box">
+    <h2>CONFIGURATION</h2>
+    <label>VOIX</label>
+    <select id="voice-select"></select>
+    <label>VITESSE — <span id="rate-val">0.85</span></label>
+    <input type="range" id="rate-range" min="0.5" max="1.5" step="0.05" value="0.85" style="width:100%;margin-bottom:16px;accent-color:var(--blue)">
+    <label>GRAVE — <span id="pitch-val">0.75</span></label>
+    <input type="range" id="pitch-range" min="0.3" max="1.5" step="0.05" value="0.75" style="width:100%;margin-bottom:16px;accent-color:var(--blue)">
+    <button class="btn-secondary" onclick="testVoice()">Tester la voix</button>
+    <label>ANTHROPIC API KEY</label>
+    <input type="password" id="api-input" placeholder="sk-ant-...">
+    <button onclick="saveSettings()">Enregistrer</button>
+  </div>
+</div>
+
+<script>
+const SERVER = window.location.origin;
+let recognition  = null;
+let synth        = window.speechSynthesis;
+let state        = 'idle';
+let voices       = [];
+let convActive   = false;   // mode conversation continue
+let autoTimer    = null;
+
+const GREETINGS = [
+  "Clément. En ligne.",
+  "Présent.",
+  "Système actif. Parlez.",
+  "En ligne. Je vous écoute."
+];
+
+// ── Voix ─────────────────────────────────────────────────────────────────────
+let voiceRate  = parseFloat(localStorage.getItem('athos_rate')  || '0.85');
+let voicePitch = parseFloat(localStorage.getItem('athos_pitch') || '0.75');
+let voiceName  = localStorage.getItem('athos_voice') || '';
+
+function loadVoices() {
+  const all = synth.getVoices();
+  // Garder toutes les voix FR + les voix enhanced/premium
+  voices = all.filter(v => v.lang.startsWith('fr') || v.lang.startsWith('FR'));
+  if (!voices.length) voices = all; // fallback toutes langues
+
+  const sel = document.getElementById('voice-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  voices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = `${v.name} (${v.lang})${v.localService ? ' ◆' : ''}`;
+    if (v.name === voiceName) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  // Auto-sélectionner Thomas Enhanced s'il existe, sinon Thomas, sinon premier
+  if (!voiceName) {
+    const thomas = voices.find(v => v.name.includes('Thomas')) || voices[0];
+    if (thomas) { voiceName = thomas.name; sel.value = thomas.name; }
+  }
+}
+synth.onvoiceschanged = loadVoices;
+loadVoices();
+
+// ── État visuel ───────────────────────────────────────────────────────────────
+function setState(s) {
+  state = s;
+  const cls = [s !== 'idle' ? s : '', convActive ? 'conv-active' : ''].filter(Boolean).join(' ');
+  document.body.className = cls;
+  const labels = { idle: 'En attente', listening: 'Écoute...', thinking: 'Analyse...', speaking: 'ATHOS' };
+  document.getElementById('status-text').textContent = labels[s] || s;
+  const hint = document.getElementById('hint');
+  if (!convActive) hint.textContent = 'Appuyer pour démarrer';
+  else if (s === 'listening') hint.textContent = 'Je vous écoute...';
+  else if (s === 'speaking')  hint.textContent = 'Appuyer pour interrompre';
+  else hint.textContent = '...';
+}
+
+function setConvActive(v) {
+  convActive = v;
+  setState(state); // refresh classes + hint
+}
+
+// ── Bulles ────────────────────────────────────────────────────────────────────
+function addBubble(type, text) {
+  const area = document.getElementById('transcript-area');
+  const b = document.createElement('div');
+  b.className = `bubble ${type}`;
+  if (type === 'athos') b.innerHTML = `<div class="sender">A.T.H.O.S.</div>${text}`;
+  else b.textContent = text;
+  area.appendChild(b);
+  while (area.children.length > 8) area.removeChild(area.firstChild);
+  b.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── API streaming — affiche texte en temps réel dans la bulle ─────────────────
+function createStreamBubble() {
+  const area = document.getElementById('transcript-area');
+  const b = document.createElement('div');
+  b.className = 'bubble athos';
+  b.innerHTML = `<div class="sender">A.T.H.O.S.</div><span class="stream-text"></span>`;
+  area.appendChild(b);
+  while (area.children.length > 8) area.removeChild(area.firstChild);
+  b.scrollIntoView({ behavior: 'smooth' });
+  return b.querySelector('.stream-text');
+}
+
+const TOOL_ICONS = {
+  shell: '⬡', applescript: '◈', network_scan: '◎',
+  http_request: '↗', write_file: '▤', memory_write: '◆',
+  memory_read: '◇', notify: '◉', ollama: '○'
+};
+
+function createAgentBubble() {
+  const area = document.getElementById('transcript-area');
+  const b    = document.createElement('div');
+  b.className = 'bubble athos agent-bubble';
+  b.innerHTML = `<div class="sender">A.T.H.O.S. — AGENT</div>
+                 <div class="actions-container"></div>
+                 <span class="stream-text"></span>`;
+  area.appendChild(b);
+  while (area.children.length > 10) area.removeChild(area.firstChild);
+  b.scrollIntoView({ behavior: 'smooth' });
+  return b;
+}
+
+function addActionLine(bubble, toolName, label, result) {
+  const container = bubble.querySelector('.actions-container');
+  if (!container) return;
+  const icon = TOOL_ICONS[toolName] || '·';
+  const div  = document.createElement('div');
+  div.className = 'action-line';
+  const shortResult = result ? result.split('\n')[0].slice(0, 80) : '';
+  div.innerHTML = `<span class="action-icon">${icon}</span>
+                   <span class="action-label">${label.slice(0,60)}</span>
+                   <span class="action-result">${shortResult}</span>`;
+  container.appendChild(div);
+  bubble.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function callAthos(text, streamTarget) {
+  setState('thinking');
+  return new Promise((resolve) => {
+    let full      = '';
+    let streamEl  = streamTarget || null;
+    let agentBub  = null;   // bulle agent (créée si on reçoit des actions)
+
+    fetch(`${SERVER}/api/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    }).then(res => {
+      const reader = res.body.getReader();
+      const dec    = new TextDecoder();
+      let buf      = '';
+
+      function pump() {
+        reader.read().then(({ done, value }) => {
+          if (done) { resolve(full || "Pas de réponse."); return; }
+          buf += dec.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const d = line.slice(6).trim();
+            if (d === '[DONE]') { resolve(full); return; }
+            try {
+              const obj = JSON.parse(d);
+
+              // Action agent
+              if (obj.action) {
+                if (!agentBub) {
+                  // Remplacer la bulle stream de base par une bulle agent
+                  if (streamEl) streamEl.closest('.bubble').remove();
+                  agentBub = createAgentBubble();
+                  streamEl = agentBub.querySelector('.stream-text');
+                }
+                addActionLine(agentBub, obj.action, obj.label || obj.action, obj.result || '');
+              }
+
+              // Token texte
+              if (obj.t) {
+                full += obj.t;
+                if (streamEl) {
+                  streamEl.textContent = full;
+                  (agentBub || streamEl.closest('.bubble'))?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }
+            } catch(e) {}
+          }
+          pump();
+        });
+      }
+      pump();
+    }).catch(() => resolve("Serveur inaccessible."));
+  });
+}
+
+// ── TTS ───────────────────────────────────────────────────────────────────────
+function buildUtterance(text) {
+  const utt   = new SpeechSynthesisUtterance(text);
+  utt.lang    = 'fr-FR';
+  utt.rate    = voiceRate;
+  utt.pitch   = voicePitch;
+  utt.volume  = 1;
+  const v = voices.find(v => v.name === voiceName) || voices[0];
+  if (v) utt.voice = v;
+  return utt;
+}
+
+function speak(text, onDone) {
+  setState('speaking');
+  synth.cancel();
+  const utt = buildUtterance(text);
+  utt.onend   = () => { setState('idle'); if (onDone) onDone(); };
+  utt.onerror = () => { setState('idle'); if (onDone) onDone(); };
+  synth.speak(utt);
+}
+
+function testVoice() {
+  synth.cancel();
+  const utt = buildUtterance("Système en ligne. À votre service.");
+  synth.speak(utt);
+}
+
+// ── Conversation continue ─────────────────────────────────────────────────────
+function autoListen() {
+  if (!convActive) return;
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => startListening(true), 500);
+}
+
+function stopConversation() {
+  convActive = false;
+  clearTimeout(autoTimer);
+  synth.cancel();
+  if (recognition) { try { recognition.stop(); } catch(e) {} }
+  setState('idle');
+}
+
+// ── STT ───────────────────────────────────────────────────────────────────────
+function startListening(auto = false) {
+  if (state !== 'idle') return;
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    addBubble('athos', "Reconnaissance vocale non supportée sur ce navigateur.");
+    return;
+  }
+  const SR     = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition  = new SR();
+  recognition.lang             = 'fr-FR';
+  recognition.interimResults   = false;
+  recognition.maxAlternatives  = 1;
+
+  recognition.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    handleTranscript(text);
+  };
+  recognition.onerror = (e) => {
+    // no-speech en mode auto → re-listen silencieusement
+    if (e.error === 'no-speech' && convActive) { setState('idle'); autoListen(); return; }
+    setState('idle');
+  };
+  recognition.onend = () => {
+    if (state === 'listening') setState('idle');
+  };
+
+  recognition.start();
+  setState('listening');
+}
+
+let _pendingPlan = null;  // plan en attente de confirmation
+
+function showPlanConfirm(bubble, planText) {
+  // ATHOS a proposé un plan — afficher les boutons Lance / Annuler
+  _pendingPlan = planText;
+  const div = document.createElement('div');
+  div.className = 'plan-confirm';
+  div.innerHTML = `
+    <button class="btn-launch" onclick="confirmPlan()">▶ Lance</button>
+    <button class="btn-cancel" onclick="cancelPlan()">Annuler</button>`;
+  bubble.appendChild(div);
+  bubble.scrollIntoView({ behavior: 'smooth' });
+  // Stopper l'auto-écoute — attendre décision
+  clearTimeout(autoTimer);
+}
+
+function confirmPlan() {
+  document.querySelectorAll('.plan-confirm').forEach(el => el.remove());
+  if (!_pendingPlan) return;
+  const plan = _pendingPlan;
+  _pendingPlan = null;
+  handleTranscript("lance");   // mot-clé → agent exécute
+}
+
+function cancelPlan() {
+  document.querySelectorAll('.plan-confirm').forEach(el => el.remove());
+  _pendingPlan = null;
+  addBubble('athos', "Annulé.");
+  speak("Annulé.", () => { if (convActive) autoListen(); });
+}
+
+async function handleTranscript(text) {
+  if (!text.trim()) { if (convActive) autoListen(); else setState('idle'); return; }
+  addBubble('user', text);
+  const streamEl = createStreamBubble();
+  const reply    = await callAthos(text, streamEl);
+
+  // Détecter plan en attente de confirmation
+  if (reply.trim().startsWith("▶")) {
+    speak(reply, null);  // lire le plan à voix haute
+    showPlanConfirm(streamEl.closest('.bubble'), reply);
+    // Ne pas auto-écouter — attendre tap sur "Lance"
+  } else {
+    speak(reply, () => { if (convActive) autoListen(); });
+  }
+}
+
+// ── Démarrage conversation ────────────────────────────────────────────────────
+function startConversation() {
+  setConvActive(true);
+  const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  addBubble('athos', greeting);
+  speak(greeting, () => autoListen());
+}
+
+// ── Orb events ────────────────────────────────────────────────────────────────
+const orb = document.getElementById('orb-wrapper');
+
+function orbTap() {
+  if (!convActive) {
+    // Première interaction — démarre la conversation
+    startConversation();
+    return;
+  }
+  if (state === 'speaking') {
+    // Interrompre ATHOS et ré-écouter
+    synth.cancel();
+    setState('idle');
+    clearTimeout(autoTimer);
+    autoListen();
+    return;
+  }
+  if (state === 'listening') {
+    // Forcer la fin d'écoute
+    if (recognition) recognition.stop();
+  }
+}
+
+orb.addEventListener('touchstart', (e) => { e.preventDefault(); orbTap(); });
+orb.addEventListener('click', orbTap);
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function toggleModal() {
+  const m = document.getElementById('modal');
+  m.classList.toggle('open');
+  document.getElementById('api-input').value = localStorage.getItem('athos_key') || '';
+  // Sync sliders
+  const rr = document.getElementById('rate-range');
+  const pr = document.getElementById('pitch-range');
+  if (rr) { rr.value = voiceRate;  document.getElementById('rate-val').textContent = voiceRate; }
+  if (pr) { pr.value = voicePitch; document.getElementById('pitch-val').textContent = voicePitch; }
+  loadVoices();
+}
+
+function saveSettings() {
+  const key = document.getElementById('api-input').value.trim();
+  if (key) localStorage.setItem('athos_key', key);
+  voiceName  = document.getElementById('voice-select').value;
+  voiceRate  = parseFloat(document.getElementById('rate-range').value);
+  voicePitch = parseFloat(document.getElementById('pitch-range').value);
+  localStorage.setItem('athos_voice', voiceName);
+  localStorage.setItem('athos_rate',  voiceRate);
+  localStorage.setItem('athos_pitch', voicePitch);
+  document.getElementById('modal').classList.remove('open');
+}
+
+// Sliders live preview
+document.addEventListener('DOMContentLoaded', () => {
+  const rr = document.getElementById('rate-range');
+  const pr = document.getElementById('pitch-range');
+  if (rr) rr.addEventListener('input', () => document.getElementById('rate-val').textContent = rr.value);
+  if (pr) pr.addEventListener('input', () => document.getElementById('pitch-val').textContent = pr.value);
+});
+
+document.getElementById('modal').addEventListener('click', (e) => {
+  if (e.target.id === 'modal') toggleModal();
+});
+
+// ── Status header ─────────────────────────────────────────────────────────────
+function updateStatus() {
+  fetch(`${SERVER}/api/status`, { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      const badge  = document.getElementById('engine-badge');
+      const label  = document.getElementById('engine-label');
+      const budget = document.getElementById('budget-indicator');
+      if (badge && label) {
+        badge.className = d.engine || '';
+        label.textContent = d.engine === 'claude' ? 'Claude' : d.engine === 'ollama' ? 'Ollama' : '—';
+      }
+      if (budget && d.budget_eur > 0) {
+        budget.textContent = `${d.budget_eur.toFixed(2)}€`;
+      }
+    }).catch(() => {});
+}
+updateStatus();
+setInterval(updateStatus, 30000);
+
+// ── Polls alertes ─────────────────────────────────────────────────────────────
+function pollAlerts() {
+  fetch(`${SERVER}/api/budget_alert`, { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      if (d.alert) { addBubble('athos', d.msg); speak(d.msg); }
+    }).catch(() => {});
+  fetch(`${SERVER}/api/engine_alert`, { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      if (d.alert) { addBubble('athos', d.msg); speak(d.msg); }
+    }).catch(() => {});
+}
+setInterval(pollAlerts, 30000);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    addBubble('athos', "Système en ligne. Appuyez pour démarrer.");
+  }, 600);
+});
+</script>
+</body>
+</html>

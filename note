@@ -1,0 +1,17 @@
+#!/bin/bash
+# Athos — note rapide en session
+# Usage: ./note "§learned:quelque_chose|val:x"
+# Ou:    ./note  (ouvre éditeur si pas d'argument)
+
+TEMP="/Users/clem/Sites/athos/temp/session_notes.mem"
+mkdir -p "$(dirname "$TEMP")"
+
+if [ -n "$1" ]; then
+    echo "$1" >> "$TEMP"
+    echo "§noted:ok"
+else
+    echo "§prompt:note_content:"
+    read -r content
+    echo "$content" >> "$TEMP"
+    echo "§noted:ok"
+fi
