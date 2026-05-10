@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 from collections.abc import Callable
+from pathlib import Path
 
 DEFAULT_ENGINE_ORDER = ["chatgpt_plus", "claude_code", "anthropic_api", "grok", "ollama"]
 
@@ -45,8 +46,19 @@ def available_engines(
     return [engine for engine in (order or configured_order()) if checks.get(engine)]
 
 
+def chatgpt_plus_path() -> str:
+    direct = shutil.which("codex")
+    if direct:
+        return direct
+    vscode_root = Path.home() / ".vscode" / "extensions"
+    for path in sorted(vscode_root.glob("openai.chatgpt-*/bin/macos-*/codex"), reverse=True):
+        if path.exists():
+            return str(path)
+    return ""
+
+
 def chatgpt_plus_available() -> bool:
-    return shutil.which("codex") is not None
+    return bool(chatgpt_plus_path())
 
 
 def claude_code_available() -> bool:

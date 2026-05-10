@@ -231,8 +231,12 @@ def ollama_stream(msg: str, send):
 def chatgpt_plus_stream(msg: str, send):
     ctx = load_context()
     prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
+    codex_bin = engine_router.chatgpt_plus_path()
+    if not codex_bin:
+        send("ChatGPT Plus CLI indisponible.")
+        return "ChatGPT Plus CLI indisponible."
     result = subprocess.run(
-        ["codex", "exec", "--ask-for-approval", "never", "--sandbox", "read-only", "-C", str(config.ATHOS_PATH), prompt],
+        [codex_bin, "exec", "--ask-for-approval", "never", "--sandbox", "read-only", "-C", str(config.ATHOS_PATH), prompt],
         capture_output=True, text=True, timeout=180
     )
     full = (result.stdout or result.stderr).strip()
