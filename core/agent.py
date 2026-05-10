@@ -1,9 +1,12 @@
 """ATHOS Agent — ReAct loop + confirmation + qualité + web + skills"""
-import json, subprocess, urllib.request, urllib.error, base64
+import json, subprocess, urllib.request, urllib.error, base64, sys
 from pathlib import Path
 from datetime import datetime
 
-DRIVE          = Path.home() / "Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/memory"
+sys.path.insert(0, str(Path(__file__).parent))
+import config
+
+DRIVE = config.DRIVE
 MAX_ITERATIONS = 10
 
 # ── SYSTEM PROMPT ─────────────────────────────────────────────────────────────
@@ -308,6 +311,73 @@ TOOLS = [
         "name": "list_skills",
         "description": "Liste les compétences ATHOS installées et disponibles.",
         "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "wikipedia",
+        "description": "Recherche sur Wikipedia et retourne un résumé.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "sentences": {"type": "integer", "default": 2}
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "youtube",
+        "description": "Ouvre une recherche YouTube dans le navigateur.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"}
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "send_email",
+        "description": "Envoie un email via SMTP.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "to": {"type": "string"},
+                "subject": {"type": "string"},
+                "body": {"type": "string"}
+            },
+            "required": ["to", "subject", "body"]
+        }
+    },
+    {
+        "name": "take_screenshot",
+        "description": "Prend un screenshot et le sauvegarde.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "filename": {"type": "string", "default": "screenshot.png"}
+            }
+        }
+    },
+    {
+        "name": "take_note",
+        "description": "Prend une note et l'ajoute à notes.txt.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "note": {"type": "string"}
+            },
+            "required": ["note"]
+        }
+    },
+    {
+        "name": "external_sources",
+        "description": "Accède aux sources externes JARVIS pour référence ou intégration.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Recherche ou liste les repos"}
+            }
+        }
     }
 ]
 
@@ -570,14 +640,14 @@ def tool_system_info(query: str) -> str:
     if q in ("disk", "all"):
         parts.append(f"Disque:\n{tool_shell('df -h / | tail -1', 5)}")
     if q in ("processes", "all"):
-        parts.append(f"CPU top:\n{tool_shell(\"ps aux | sort -rk3 | head -8 | awk '{print $3\\\"%\\\", $11}'\", 5)}")
+        parts.append("CPU top:\n" + tool_shell('ps aux | sort -rk3 | head -8 | awk \'{print $3"%", $11}\'', 5))
     if q in ("apps", "all"):
-        parts.append(f"Apps:\n{tool_shell(\"osascript -e 'tell app \\\"System Events\\\" to get name of every process whose background only is false'\", 5)}")
+        parts.append("Apps:\n" + tool_shell("osascript -e 'tell app \"System Events\" to get name of every process whose background only is false'", 5))
     if q in ("time", "all"):
-        parts.append(f"Date/heure:\n{tool_shell(\"date '+%A %d %B %Y, %H:%M:%S'\", 5)}")
+        parts.append("Date/heure:\n" + tool_shell("date '+%A %d %B %Y, %H:%M:%S'", 5))
     if q == "all":
-        parts.append(f"IP: {tool_shell('ipconfig getifaddr en0 2>/dev/null', 5).strip()}")
-    return "\n\n".join(parts) if parts else f"Query '{query}' non reconnue. Options: battery, cpu, ram, disk, processes, apps, time, all"
+        parts.append("IP: " + tool_shell('ipconfig getifaddr en0 2>/dev/null', 5).strip())
+    return "\n\n".join(parts) if parts else "Query '" + query + "' non reconnue. Options: battery, cpu, ram, disk, processes, apps, time, all"
 
 def tool_clipboard(action: str, content: str = "") -> str:
     if action == "read":
@@ -615,6 +685,26 @@ end tell'''
             script = 'set volume with output muted'
         return tool_applescript(script)
     return f"Action '{action}' non reconnue"
+
+def tool_wikipedia(query: str, sentences: int = 2) -> str:
+    from tools.wikipedia import search_wikipedia
+    return search_wikipedia(query, sentences)
+
+def tool_youtube(query: str) -> str:
+    from tools.youtube import search_youtube
+    return search_youtube(query)
+
+def tool_send_email(to: str, subject: str, body: str) -> str:
+    from tools.email_tool import send_email
+    return send_email(to, subject, body)
+
+def tool_take_screenshot(filename: str = "screenshot.png") -> str:
+    from tools.screenshot import take_screenshot
+    return take_screenshot(filename)
+
+def tool_take_note(note: str) -> str:
+    from tools.note import take_note
+    return take_note(note)
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────
 
@@ -663,6 +753,11 @@ def execute_tool(name: str, inputs: dict) -> str:
         "fetch_url":      lambda: __import__("web").fetch_page(inputs["url"]),
         "install_skill":  lambda: _install_skill(),
         "list_skills":    lambda: __import__("skill_manager").capabilities_report(),
+        "wikipedia":      lambda: tool_wikipedia(inputs["query"], inputs.get("sentences", 2)),
+        "youtube":        lambda: tool_youtube(inputs["query"]),
+        "send_email":     lambda: tool_send_email(inputs["to"], inputs["subject"], inputs["body"]),
+        "take_screenshot": lambda: tool_take_screenshot(inputs.get("filename", "screenshot.png")),
+        "take_note":      lambda: tool_take_note(inputs["note"]),
     }
 
     def _install_skill():

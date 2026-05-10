@@ -3,12 +3,15 @@ ATHOS Memory Extractor — extrait automatiquement les faits importants
 des conversations et les persiste en §-format dans le Drive.
 Appelé de manière asynchrone après chaque échange significatif.
 """
-import json, urllib.request, threading
+import json, urllib.request, threading, sys
 from pathlib import Path
 from datetime import datetime
 
-DRIVE   = Path.home() / "Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/memory"
-ENV     = Path(__file__).parent.parent / ".env"
+sys.path.insert(0, str(Path(__file__).parent))
+import config
+
+DRIVE = config.DRIVE
+ENV = config.ENV_PATH
 
 # Seuil : extraire seulement si échange > N chars (évite le bruit)
 MIN_LENGTH = 80

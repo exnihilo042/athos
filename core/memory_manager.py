@@ -1,14 +1,14 @@
 """Athos — Memory Manager | Drive R/W + session temp"""
-import os
+import sys
 from datetime import datetime
 from pathlib import Path
-from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent.parent / ".env")
+sys.path.insert(0, str(Path(__file__).parent))
+import config
 
-DRIVE = Path(os.getenv("DRIVE_PATH", Path.home() / "Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/memory"))
-TEMP  = Path(__file__).parent.parent / "temp"
-LOGS  = DRIVE / "logs"
+DRIVE = config.DRIVE
+TEMP = config.TEMP
+LOGS = config.LOGS
 
 def _path(f): return DRIVE / f
 def read(f):  p = _path(f); return p.read_text("utf-8") if p.exists() else ""

@@ -3,15 +3,13 @@ import os, sys, json, urllib.request, urllib.error, subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from datetime import datetime
-from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
+import config
 from memory_extractor import extract_and_save_async
 
-load_dotenv(Path(__file__).parent.parent / ".env")
-
-ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
-DRIVE  = Path.home() / "Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/memory"
+ANTHROPIC_KEY = config.ANTHROPIC_KEY
+DRIVE = config.DRIVE
 STATIC = Path(__file__).parent
 
 # ── Budget ────────────────────────────────────────────────────────────────────
@@ -59,6 +57,10 @@ _engine = {"current": "none", "degraded": False}
 def _detect():
     if ANTHROPIC_KEY and not ANTHROPIC_KEY.startswith("sk-ant-..."):
         return "claude"
+    if os.getenv("GROK_API_KEY"):
+        return "grok"
+    if os.getenv("OPENAI_API_KEY"):
+        return "chatgpt"
     try:
         urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2)
         return "ollama"
@@ -83,6 +85,18 @@ def _best_model() -> str:
 
 _engine["current"] = _detect()
 
+def degrade_engine(reason: str):
+    engines = ["claude", "grok", "chatgpt", "ollama"]
+    current_idx = engines.index(_engine["current"]) if _engine["current"] in engines else -1
+    next_idx = (current_idx + 1) % len(engines)
+    next_engine = engines[next_idx]
+    if next_engine == _engine["current"]: return
+    _engine["current"] = next_engine
+    _engine["degraded"] = True
+    msg = f"Je suis passé sur {next_engine.upper()}, Clément. Moins performant. Je te préviendrai quand {engines[0].upper()} reviendra."
+    _notify("A.T.H.O.S.", f"Basculé {next_engine.upper()} : {reason}", "Basso")
+    _write_alert("engine_alert.json", {"alert": True, "engine": next_engine, "msg": msg})
+
 def degrade_to_ollama(reason: str):
     if _engine["current"] == "ollama": return
     _engine["current"] = "ollama"
@@ -93,6 +107,25 @@ def degrade_to_ollama(reason: str):
 
 # ── Historique session ────────────────────────────────────────────────────────
 _history: list[dict] = []
+
+def load_last_conversation():
+    """Charge la dernière conversation depuis athos_conv.mem dans _history"""
+    f = DRIVE / "athos_conv.mem"
+    if not f.exists(): return
+    lines = f.read_text("utf-8").splitlines()
+    conv_lines = [l for l in lines if l.startswith("§conv:")][-12:]  # last 6 exchanges
+    for line in conv_lines:
+        parts = line.split("|")
+        if len(parts) >= 3:
+            ts = parts[0].split(":", 1)[1]
+            u = parts[1].split(":", 1)[1] if len(parts) > 1 else ""
+            a = parts[2].split(":", 1)[1] if len(parts) > 2 else ""
+            if u: _history.append({"role": "user", "content": u})
+            if a: _history.append({"role": "assistant", "content": a})
+    while len(_history) > 12:
+        _history.pop(0)
+
+load_last_conversation()  # Charge la dernière conv au démarrage
 
 def push(role: str, content: str):
     _history.append({"role": role, "content": content})
@@ -169,6 +202,74 @@ def ollama_stream(msg: str, send):
             except: continue
     return full
 
+# ── Grok streaming ────────────────────────────────────────────────────────────
+def grok_stream(msg: str, send):
+    ctx      = load_context()
+    from agent import SYSTEM
+    messages = [{"role": "system", "content": SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")}]
+    messages += get_history()
+    messages += [{"role": "user", "content": msg}]
+    api_key = os.getenv("GROK_API_KEY")
+    if not api_key:
+        send("Erreur: GROK_API_KEY manquante")
+        return ""
+    payload  = json.dumps({
+        "model": "grok-beta", "stream": True, "messages": messages
+    }).encode()
+    req = urllib.request.Request("https://api.x.ai/v1/chat/completions", data=payload,
+                                  headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"})
+    full = ""
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            for line in r:
+                if not line.strip(): continue
+                if line.startswith(b"data: "):
+                    line = line[6:]
+                try:
+                    chunk = json.loads(line)
+                    t = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    if t:
+                        full += t
+                        send(t)
+                except: continue
+    except Exception as e:
+        send(f"Erreur Grok: {str(e)}")
+    return full
+
+# ── ChatGPT streaming ─────────────────────────────────────────────────────────
+def chatgpt_stream(msg: str, send):
+    ctx      = load_context()
+    from agent import SYSTEM
+    messages = [{"role": "system", "content": SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")}]
+    messages += get_history()
+    messages += [{"role": "user", "content": msg}]
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        send("Erreur: OPENAI_API_KEY manquante")
+        return ""
+    payload  = json.dumps({
+        "model": "gpt-4", "stream": True, "messages": messages
+    }).encode()
+    req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=payload,
+                                  headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"})
+    full = ""
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            for line in r:
+                if not line.strip(): continue
+                if line.startswith(b"data: "):
+                    line = line[6:]
+                try:
+                    chunk = json.loads(line)
+                    t = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    if t:
+                        full += t
+                        send(t)
+                except: continue
+    except Exception as e:
+        send(f"Erreur ChatGPT: {str(e)}")
+    return full
+
 # ── HTTP Handler ──────────────────────────────────────────────────────────────
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -213,8 +314,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == "/api/status":
             b = load_budget()
+            model = {
+                "claude": "claude-sonnet-4-6",
+                "grok": "grok-beta",
+                "chatgpt": "gpt-4",
+                "ollama": _best_model(),
+                "none": "none"
+            }.get(_engine["current"], "unknown")
             self._json({"engine": _engine["current"], "degraded": _engine["degraded"],
-                        "model": _best_model() if _engine["current"] == "ollama" else "claude-sonnet-4-6",
+                        "model": model,
                         "budget_eur": round(b.get("total_eur", 0), 2)}); return
 
         if p == "/api/budget_alert":
@@ -266,12 +374,28 @@ class Handler(BaseHTTPRequestHandler):
 
                     except urllib.error.HTTPError as e:
                         if e.code in (402, 529, 413):
-                            degrade_to_ollama(f"HTTP {e.code}")
-                            # fallthrough to ollama
+                            degrade_engine(f"HTTP {e.code}")
+                            # fallthrough to next engine
                         else:
                             sse({"t": f"Erreur API : {e.code}"}); sse("[DONE]"); return
 
-                if _engine["current"] == "ollama":
+                elif _engine["current"] == "grok":
+                    sse({"action": "grok", "label": "Grok — sans outils", "result": ""})
+                    buf = []
+                    reply = grok_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
+                    push("user", msg); push("assistant", reply)
+                    save_exchange(msg, reply)
+                    log_exchange(msg, reply, "grok")
+
+                elif _engine["current"] == "chatgpt":
+                    sse({"action": "chatgpt", "label": "ChatGPT — sans outils", "result": ""})
+                    buf = []
+                    reply = chatgpt_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
+                    push("user", msg); push("assistant", reply)
+                    save_exchange(msg, reply)
+                    log_exchange(msg, reply, "chatgpt")
+
+                elif _engine["current"] == "ollama":
                     sse({"action": "ollama", "label": "Ollama — sans outils", "result": ""})
                     buf = []
                     reply = ollama_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
@@ -279,7 +403,7 @@ class Handler(BaseHTTPRequestHandler):
                     save_exchange(msg, reply)
                     log_exchange(msg, reply, "ollama")
 
-                if _engine["current"] == "none":
+                else:
                     sse({"t": "Aucun moteur disponible."})
 
             except Exception as e:
@@ -294,7 +418,13 @@ if __name__ == "__main__":
     port = 7474
     b    = load_budget()
     eng  = _engine["current"]
-    model = _best_model() if eng == "ollama" else "claude-sonnet-4-6"
+    model = {
+        "claude": "claude-sonnet-4-6",
+        "grok": "grok-beta",
+        "chatgpt": "gpt-4",
+        "ollama": _best_model(),
+        "none": "none"
+    }.get(eng, "unknown")
     print(f"\n  ╔══════════════════════════════════╗")
     print(f"  ║      A.T.H.O.S. — VOICE SERVER   ║")
     print(f"  ╚══════════════════════════════════╝\n")

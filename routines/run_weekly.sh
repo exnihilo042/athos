@@ -1,5 +1,7 @@
 #!/bin/bash
-source /Users/clem/Sites/athos/.env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
+source "$ROOT/.env"
 export ANTHROPIC_API_KEY
 export DRIVE_PATH
-/Users/clem/Sites/athos/venv/bin/python3 /Users/clem/Sites/athos/core/weekly_consolidator.py
+"$ROOT/venv/bin/python3" "$ROOT/core/weekly_consolidator.py"

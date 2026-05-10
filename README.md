@@ -13,7 +13,7 @@ athos/
 ├── docs/           # Documentation système
 ├── temp/           # Sessions temporaires
 ├── logs/           # Logs d'exécution
-└── config/         # Configuration système
+└── tests/          # Suite de tests pytest
 ```
 
 ## 🧠 Fichiers mémoire essentiels
@@ -52,11 +52,17 @@ Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir l
    ```bash
    cp .env.example .env
    # Éditer .env et ajouter votre ANTHROPIC_API_KEY
+   # Vous pouvez aussi définir DRIVE_PATH pour stocker la mémoire en dehors du repo.
    ```
 
 4. **Lancer l'application**
    ```bash
    ./voice/start.sh
+   ```
+
+5. **Tester**
+   ```bash
+   python3 -m pytest
    ```
 
 L'application sera accessible via un tunnel Cloudflare temporaire.
@@ -97,6 +103,7 @@ L'application sera accessible via un tunnel Cloudflare temporaire.
 - `./note` - Ajout rapide de notes en session
 - `./routines/run_brief.sh` - Génération du brief quotidien
 - `./routines/run_weekly.sh` - Consolidation hebdomadaire
+- `.github/workflows/python-app.yml` - tests automatisés sur push/PR
 
 ## 📄 Licence
 

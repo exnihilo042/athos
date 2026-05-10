@@ -1,2 +1,5 @@
 anthropic>=0.40.0
 python-dotenv>=1.0.0
+pytest>=8.0.0
+wikipedia>=1.4.0
+pyautogui>=0.9.53

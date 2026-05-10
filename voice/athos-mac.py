@@ -1,12 +1,12 @@
 """ATHOS — Interface vocale Mac | sox + Claude API + say"""
 import os, sys, json, subprocess, urllib.request, tempfile
 from pathlib import Path
-from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent.parent / ".env")
+sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
+import config
 
-API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-DRIVE   = Path.home() / "Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/memory"
+API_KEY = config.ANTHROPIC_KEY
+DRIVE = config.DRIVE
 
 SYSTEM = """Tu es A.T.H.O.S. — Autonomous Tactical Heuristic Operating System.
 IA personnelle de Clément, fondateur d'Ex-Nihilo Agency.

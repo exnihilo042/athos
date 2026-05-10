@@ -2,8 +2,9 @@
 # Athos — Install
 set -e
 
-ATHOS=~/Sites/athos
-LAUNCH=~/Library/LaunchAgents
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+ATHOS="$(cd "$SCRIPT_DIR" >/dev/null 2>&1 && pwd)"
+LAUNCH="${HOME}/Library/LaunchAgents"
 
 echo "§athos:install|status:start"
 

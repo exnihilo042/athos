@@ -4,10 +4,11 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+import config
 from memory_manager import read
 
-DRIVE    = Path.home() / "Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/memory"
-ENV_FILE = Path(__file__).parent.parent / ".env"
+DRIVE = config.DRIVE
+ENV_FILE = config.ENV_PATH
 
 def load_env():
     if not ENV_FILE.exists(): return {}

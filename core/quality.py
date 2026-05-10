@@ -3,17 +3,14 @@ ATHOS Quality Pipeline
 Génération → Autocritique (Haiku) → Web si besoin → Raffinement (Sonnet)
 Coût typique : +0.001€ par échange (haiku ~50 tokens)
 """
-import json, urllib.request
+import json, urllib.request, sys
 from pathlib import Path
 
-ENV = Path(__file__).parent.parent / ".env"
+sys.path.insert(0, str(Path(__file__).parent))
+import config
 
 def _key() -> str:
-    if not ENV.exists(): return ""
-    for line in ENV.read_text().splitlines():
-        if line.startswith("ANTHROPIC_API_KEY="):
-            return line.split("=",1)[1].strip()
-    return ""
+    return config.ANTHROPIC_KEY
 
 def _claude(system: str, msg: str, model: str, max_tokens: int, key: str) -> str:
     payload = json.dumps({

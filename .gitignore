@@ -34,6 +34,9 @@ logs/
 *.log
 /tmp/athos_*.log
 
+# Pytest
+.pytest_cache/
+
 # Temporary files
 temp/
 *.tmp

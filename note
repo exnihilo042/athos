@@ -3,7 +3,9 @@
 # Usage: ./note "§learned:quelque_chose|val:x"
 # Ou:    ./note  (ouvre éditeur si pas d'argument)
 
-TEMP="/Users/clem/Sites/athos/temp/session_notes.mem"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+ROOT="$(cd "$SCRIPT_DIR" >/dev/null 2>&1 && pwd)"
+TEMP="$ROOT/temp/session_notes.mem"
 mkdir -p "$(dirname "$TEMP")"
 
 if [ -n "$1" ]; then

@@ -1,7 +1,8 @@
 #!/bin/bash
 # ATHOS — Lance serveur vocal + Cloudflare Tunnel
 
-ATHOS=~/Sites/athos
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+ATHOS="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 source "$ATHOS/.env" 2>/dev/null
 
 clear
@@ -11,13 +12,13 @@ echo "  ║      A.T.H.O.S. — VOICE          ║"
 echo "  ╚══════════════════════════════════╝"
 echo ""
 
-# 1. Ollama
-if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+# 1. Ollama (optionnel — seulement si demandé)
+if [ "$START_OLLAMA" = "true" ] && ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
     echo "  [1/3] Démarrage Ollama..."
     ollama serve > /tmp/athos_ollama.log 2>&1 &
     sleep 3
 else
-    echo "  [1/3] Ollama : déjà actif"
+    echo "  [1/3] Ollama : ignoré (pas de START_OLLAMA=true)"
 fi
 
 # 2. Serveur ATHOS
