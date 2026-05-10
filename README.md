@@ -56,6 +56,8 @@ Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir l
    # Éditer .env et ajouter votre ANTHROPIC_API_KEY
    # Vous pouvez aussi définir DRIVE_PATH pour stocker la mémoire en dehors du repo.
    # Pour exposer Athos en ligne, définir ATHOS_ACCESS_TOKEN et le saisir dans les réglages de l'interface.
+   # Ordre moteur par défaut : ATHOS_ENGINE_ORDER=chatgpt,claude,grok,ollama
+   # Modèle OpenAI configurable : OPENAI_MODEL=gpt-4.1
    ```
 
 4. **Lancer l'application**

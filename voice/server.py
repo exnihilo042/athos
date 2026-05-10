@@ -6,11 +6,16 @@ from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
 import config
+import engine_router
 import session_kernel
 from auth import request_authorized
 from memory_extractor import extract_and_save_async
 
 ANTHROPIC_KEY = config.ANTHROPIC_KEY
+OPENAI_KEY = config.OPENAI_KEY
+GROK_KEY = config.GROK_KEY
+OPENAI_MODEL = config.OPENAI_MODEL
+GROK_MODEL = config.GROK_MODEL
 ACCESS_TOKEN = config.ATHOS_ACCESS_TOKEN
 DRIVE = config.DRIVE
 STATIC = Path(__file__).parent
@@ -58,17 +63,7 @@ def _pop_alert(filename: str) -> dict:
 _engine = {"current": "none", "degraded": False}
 
 def _detect():
-    if ANTHROPIC_KEY and not ANTHROPIC_KEY.startswith("sk-ant-..."):
-        return "claude"
-    if os.getenv("GROK_API_KEY"):
-        return "grok"
-    if os.getenv("OPENAI_API_KEY"):
-        return "chatgpt"
-    try:
-        urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2)
-        return "ollama"
-    except:
-        return "none"
+    return engine_router.first_available(_available_engines())
 
 def _ollama_models() -> list:
     try:
@@ -86,33 +81,26 @@ def _best_model() -> str:
                 return name
     return available[0] if available else "mistral"
 
-_engine["current"] = _detect()
-
 def is_authorized(headers) -> bool:
     return request_authorized(headers, ACCESS_TOKEN)
 
 def _available_engines() -> list[str]:
-    engines = []
-    if ANTHROPIC_KEY and not ANTHROPIC_KEY.startswith("sk-ant-..."):
-        engines.append("claude")
-    if os.getenv("GROK_API_KEY"):
-        engines.append("grok")
-    if os.getenv("OPENAI_API_KEY"):
-        engines.append("chatgpt")
-    if _ollama_models():
-        engines.append("ollama")
-    return engines
+    return engine_router.available_engines(
+        anthropic_key=ANTHROPIC_KEY,
+        openai_key=OPENAI_KEY,
+        grok_key=GROK_KEY,
+        has_ollama=lambda: bool(_ollama_models()),
+    )
+
+_engine["current"] = _detect()
 
 def degrade_engine(reason: str):
-    priority = ["claude", "grok", "chatgpt", "ollama"]
     available = _available_engines()
     if not available:
         _engine["current"] = "none"
         _engine["degraded"] = True
         return "none"
-    current_idx = priority.index(_engine["current"]) if _engine["current"] in priority else -1
-    ordered = priority[current_idx + 1:] + priority[:current_idx + 1]
-    next_engine = next((name for name in ordered if name in available and name != _engine["current"]), available[0])
+    next_engine = engine_router.next_engine(_engine["current"], available)
     if next_engine == _engine["current"]:
         return next_engine
     _engine["current"] = next_engine
@@ -242,12 +230,12 @@ def grok_stream(msg: str, send):
     messages = [{"role": "system", "content": SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")}]
     messages += get_history()
     messages += [{"role": "user", "content": msg}]
-    api_key = os.getenv("GROK_API_KEY")
+    api_key = GROK_KEY
     if not api_key:
         send("Erreur: GROK_API_KEY manquante")
         return ""
     payload  = json.dumps({
-        "model": "grok-beta", "stream": True, "messages": messages
+        "model": GROK_MODEL, "stream": True, "messages": messages
     }).encode()
     req = urllib.request.Request("https://api.x.ai/v1/chat/completions", data=payload,
                                   headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"})
@@ -276,12 +264,12 @@ def chatgpt_stream(msg: str, send):
     messages = [{"role": "system", "content": SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")}]
     messages += get_history()
     messages += [{"role": "user", "content": msg}]
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = OPENAI_KEY
     if not api_key:
         send("Erreur: OPENAI_API_KEY manquante")
         return ""
     payload  = json.dumps({
-        "model": "gpt-4", "stream": True, "messages": messages
+        "model": OPENAI_MODEL, "stream": True, "messages": messages
     }).encode()
     req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=payload,
                                   headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"})
@@ -362,14 +350,16 @@ class Handler(BaseHTTPRequestHandler):
             b = load_budget()
             model = {
                 "claude": "claude-sonnet-4-6",
-                "grok": "grok-beta",
-                "chatgpt": "gpt-4",
+                "grok": GROK_MODEL,
+                "chatgpt": OPENAI_MODEL,
                 "ollama": _best_model(),
                 "none": "none"
             }.get(_engine["current"], "unknown")
             kernel = session_kernel.status()
             self._json({"engine": _engine["current"], "degraded": _engine["degraded"],
                         "model": model,
+                        "engine_order": engine_router.configured_order(),
+                        "available_engines": _available_engines(),
                         "session_events": kernel["events"],
                         "session_file": kernel["file"],
                         "budget_eur": round(b.get("total_eur", 0), 2)}); return
@@ -496,8 +486,8 @@ if __name__ == "__main__":
     eng  = _engine["current"]
     model = {
         "claude": "claude-sonnet-4-6",
-        "grok": "grok-beta",
-        "chatgpt": "gpt-4",
+        "grok": GROK_MODEL,
+        "chatgpt": OPENAI_MODEL,
         "ollama": _best_model(),
         "none": "none"
     }.get(eng, "unknown")

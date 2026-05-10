@@ -10,6 +10,11 @@ load_dotenv(ENV_PATH)
 DRIVE = Path(os.getenv("DRIVE_PATH", ROOT / "memory")).expanduser().resolve()
 ATHOS_PATH = Path(os.getenv("ATHOS_PATH", ROOT)).expanduser().resolve()
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+OPENAI_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+GROK_KEY = os.getenv("GROK_API_KEY", "").strip()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1").strip()
+GROK_MODEL = os.getenv("GROK_MODEL", "grok-beta").strip()
+ATHOS_ENGINE_ORDER = os.getenv("ATHOS_ENGINE_ORDER", "chatgpt,claude,grok,ollama").strip()
 ATHOS_ACCESS_TOKEN = os.getenv("ATHOS_ACCESS_TOKEN", "").strip()
 TEMP = ROOT / "temp"
 LOGS = DRIVE / "logs"
