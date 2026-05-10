@@ -21,6 +21,6 @@ def test_authorization_requires_explicit_launch_intent():
 
 def test_external_sources_tool_lists_athos_sources():
     result = tool_external_sources("ollama")
-    assert "codewithbro95/J.A.R.V.I.S" in result
+    assert "codewithbro95 legacy voice/vision source" in result
     assert "Ollama" in result
-    assert "JARVIS" not in ATHOS_OPERATING_PROTOCOL
+    assert "LEGACY_ASSISTANT_NAME" not in ATHOS_OPERATING_PROTOCOL

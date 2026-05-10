@@ -374,7 +374,7 @@ TOOLS = [
     },
     {
         "name": "external_sources",
-        "description": "Accède aux sources externes ATHOS/Jarvis pour référence ou intégration.",
+        "description": "Accède aux sources externes ATHOS legacy pour référence ou intégration.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -715,19 +715,19 @@ def tool_take_note(note: str) -> str:
 def tool_external_sources(query: str = "") -> str:
     sources = [
         {
-            "name": "codewithbro95/J.A.R.V.I.S",
+            "name": "codewithbro95 legacy voice/vision source",
             "use": "Ollama local, vision webcam/LLaVA, wrapper d'outils, patterns Kokoro/LuxTTS",
             "files": "main.py, modules/ollama_nlp.py, modules/vibranium/vision/vision.py",
         },
         {
-            "name": "GauravSingh9356/J.A.R.V.I.S",
+            "name": "GauravSingh9356 legacy desktop source",
             "use": "commandes desktop, Wikipedia, YouTube, email, screenshot, notes, weather, OCR",
-            "files": "jarvis.py, helpers.py, youtube.py, news.py, OCR.py",
+            "files": "assistant.py, helpers.py, youtube.py, news.py, OCR.py",
         },
         {
-            "name": "kishanrajput23/Jarvis-Desktop-Voice-Assistant",
+            "name": "kishanrajput23 legacy desktop voice source",
             "use": "boucle voix/TTS simple, commandes assistant desktop de base",
-            "files": "Jarvis/jarvis.py",
+            "files": "desktop_voice_assistant.py",
         },
         {
             "name": "201Harsh/IRIS-AI",
