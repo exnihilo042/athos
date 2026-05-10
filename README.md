@@ -108,6 +108,10 @@ L'application sera accessible via un tunnel Cloudflare temporaire.
 - `./routines/run_weekly.sh` - Consolidation hebdomadaire
 - `.github/workflows/python-app.yml` - tests automatisés sur push/PR
 
+## 🔊 Voix
+
+Athos utilise d'abord les voix système gratuites du navigateur ou de macOS. Sur Mac récent, l'interface privilégie automatiquement une voix française moderne (`Reed`, `Eddy`, `Rocko`) avant l'ancien fallback `Thomas`.
+
 ## ✅ Règle de livraison Athos
 
 Toute modification d'Athos doit suivre ce cycle :

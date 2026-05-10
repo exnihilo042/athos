@@ -14,8 +14,11 @@ Ton : majordome. Direct, posé, précis. Humour sec si pertinent.
 Jamais servile. Toujours français. Réponses courtes pour la voix (2-3 phrases max)."""
 
 def say(text: str):
-    """TTS macOS — voix Thomas (FR)"""
-    subprocess.run(["say", "-v", "Thomas", "-r", "175", text])
+    """TTS macOS — voix FR moderne si disponible."""
+    voice = os.getenv("ATHOS_MAC_VOICE", "Reed (Français (France))")
+    result = subprocess.run(["say", "-v", voice, "-r", "182", text])
+    if result.returncode != 0 and voice != "Thomas":
+        subprocess.run(["say", "-v", "Thomas", "-r", "175", text])
 
 def record() -> str:
     """Enregistre depuis le micro jusqu'au silence"""

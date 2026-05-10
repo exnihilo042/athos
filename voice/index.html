@@ -593,6 +593,7 @@
 <script>
 const SERVER = window.location.origin;
 const ACCESS_TOKEN_KEY = 'athos_access_token';
+const VOICE_PROFILE_VERSION = 'athos_voice_profile_v2';
 let recognition  = null;
 let synth        = window.speechSynthesis;
 let state        = 'idle';
@@ -614,11 +615,53 @@ let voiceRate  = parseFloat(localStorage.getItem('athos_rate')  || '0.85');
 let voicePitch = parseFloat(localStorage.getItem('athos_pitch') || '0.75');
 let voiceName  = localStorage.getItem('athos_voice') || '';
 
+const PREFERRED_VOICES = [
+  'Reed (Français (France))',
+  'Eddy (Français (France))',
+  'Rocko (Français (France))',
+  'Thomas',
+  'Jacques',
+  'Amélie'
+];
+
+function voiceScore(v) {
+  const name = v.name || '';
+  const lang = v.lang || '';
+  const preferred = PREFERRED_VOICES.findIndex(want => name === want || name.includes(want));
+  let score = preferred >= 0 ? 1000 - preferred * 40 : 0;
+  if (lang === 'fr-FR') score += 100;
+  else if (lang.startsWith('fr')) score += 60;
+  if (v.localService) score += 20;
+  if (name.includes('Thomas')) score -= 80;
+  if (name.includes('Grandma') || name.includes('Grandpa')) score -= 200;
+  return score;
+}
+
+function selectPreferredVoice(list) {
+  if (!list.length) return null;
+  return [...list].sort((a, b) => voiceScore(b) - voiceScore(a))[0];
+}
+
 function loadVoices() {
   const all = synth.getVoices();
   // Garder toutes les voix FR + les voix enhanced/premium
-  voices = all.filter(v => v.lang.startsWith('fr') || v.lang.startsWith('FR'));
+  voices = all.filter(v => v.lang.startsWith('fr') || v.lang.startsWith('FR'))
+              .sort((a, b) => voiceScore(b) - voiceScore(a));
   if (!voices.length) voices = all; // fallback toutes langues
+  const savedProfile = localStorage.getItem('athos_voice_profile');
+  const shouldAutoUpgrade = !voiceName || (savedProfile !== VOICE_PROFILE_VERSION && voiceName.includes('Thomas'));
+  if (shouldAutoUpgrade) {
+    const preferred = selectPreferredVoice(voices);
+    if (preferred) {
+      voiceName = preferred.name;
+      voiceRate = parseFloat(localStorage.getItem('athos_rate') || '0.92');
+      voicePitch = parseFloat(localStorage.getItem('athos_pitch') || '0.82');
+      localStorage.setItem('athos_voice', voiceName);
+      localStorage.setItem('athos_voice_profile', VOICE_PROFILE_VERSION);
+      localStorage.setItem('athos_rate', voiceRate);
+      localStorage.setItem('athos_pitch', voicePitch);
+    }
+  }
 
   const sel = document.getElementById('voice-select');
   if (!sel) return;
@@ -630,10 +673,10 @@ function loadVoices() {
     if (v.name === voiceName) opt.selected = true;
     sel.appendChild(opt);
   });
-  // Auto-sélectionner Thomas Enhanced s'il existe, sinon Thomas, sinon premier
+  // Auto-sélectionner une voix FR moderne si aucune préférence n'existe.
   if (!voiceName) {
-    const thomas = voices.find(v => v.name.includes('Thomas')) || voices[0];
-    if (thomas) { voiceName = thomas.name; sel.value = thomas.name; }
+    const preferred = selectPreferredVoice(voices);
+    if (preferred) { voiceName = preferred.name; sel.value = preferred.name; }
   }
 }
 synth.onvoiceschanged = loadVoices;
@@ -1051,6 +1094,7 @@ function saveSettings() {
   voiceRate  = parseFloat(document.getElementById('rate-range').value);
   voicePitch = parseFloat(document.getElementById('pitch-range').value);
   localStorage.setItem('athos_voice', voiceName);
+  localStorage.setItem('athos_voice_profile', VOICE_PROFILE_VERSION);
   localStorage.setItem('athos_rate',  voiceRate);
   localStorage.setItem('athos_pitch', voicePitch);
   document.getElementById('modal').classList.remove('open');
