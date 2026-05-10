@@ -85,17 +85,36 @@ def _best_model() -> str:
 
 _engine["current"] = _detect()
 
+def _available_engines() -> list[str]:
+    engines = []
+    if ANTHROPIC_KEY and not ANTHROPIC_KEY.startswith("sk-ant-..."):
+        engines.append("claude")
+    if os.getenv("GROK_API_KEY"):
+        engines.append("grok")
+    if os.getenv("OPENAI_API_KEY"):
+        engines.append("chatgpt")
+    if _ollama_models():
+        engines.append("ollama")
+    return engines
+
 def degrade_engine(reason: str):
-    engines = ["claude", "grok", "chatgpt", "ollama"]
-    current_idx = engines.index(_engine["current"]) if _engine["current"] in engines else -1
-    next_idx = (current_idx + 1) % len(engines)
-    next_engine = engines[next_idx]
-    if next_engine == _engine["current"]: return
+    priority = ["claude", "grok", "chatgpt", "ollama"]
+    available = _available_engines()
+    if not available:
+        _engine["current"] = "none"
+        _engine["degraded"] = True
+        return "none"
+    current_idx = priority.index(_engine["current"]) if _engine["current"] in priority else -1
+    ordered = priority[current_idx + 1:] + priority[:current_idx + 1]
+    next_engine = next((name for name in ordered if name in available and name != _engine["current"]), available[0])
+    if next_engine == _engine["current"]:
+        return next_engine
     _engine["current"] = next_engine
     _engine["degraded"] = True
-    msg = f"Je suis passé sur {next_engine.upper()}, Clément. Moins performant. Je te préviendrai quand {engines[0].upper()} reviendra."
+    msg = f"Je suis passé sur {next_engine.upper()}, Clément. Je continue avec le moteur disponible."
     _notify("A.T.H.O.S.", f"Basculé {next_engine.upper()} : {reason}", "Basso")
     _write_alert("engine_alert.json", {"alert": True, "engine": next_engine, "msg": msg})
+    return next_engine
 
 def degrade_to_ollama(reason: str):
     if _engine["current"] == "ollama": return
@@ -343,71 +362,87 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.flush()
 
             try:
-                if _engine["current"] == "claude":
-                    try:
-                        from agent import run_agent, SYSTEM
-                        ctx     = load_context()
-                        system  = SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")
+                attempted = set()
+                reply = ""
 
-                        def on_action(name, inputs, result):
-                            label = (inputs.get("command") or inputs.get("script","")
-                                     or inputs.get("query","") or name)[:60]
-                            sse({"action": name, "label": label, "result": result[:200]})
+                while _engine["current"] not in attempted:
+                    engine = _engine["current"]
+                    attempted.add(engine)
 
-                        draft = run_agent(msg, system, get_history(), ANTHROPIC_KEY, on_action)
+                    if engine == "claude":
+                        try:
+                            from agent import run_agent, SYSTEM
+                            ctx     = load_context()
+                            system  = SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")
 
-                        # Quality pipeline — critique + web si nécessaire
-                        # Seulement pour les réponses textuelles (pas les plans ▶)
-                        reply = draft
-                        if not draft.startswith("▶") and len(draft) > 80:
-                            from quality import quality_pipeline
-                            def on_qstatus(s):
-                                sse({"action": "quality", "label": s, "result": ""})
-                            reply = quality_pipeline(msg, draft, system, ANTHROPIC_KEY, on_qstatus)
+                            def on_action(name, inputs, result):
+                                label = (inputs.get("command") or inputs.get("script","")
+                                         or inputs.get("query","") or name)[:60]
+                                sse({"action": name, "label": label, "result": result[:200]})
 
-                        sse({"t": reply})
+                            draft = run_agent(msg, system, get_history(), ANTHROPIC_KEY, on_action)
+
+                            # Quality pipeline — critique + web si nécessaire
+                            # Seulement pour les réponses textuelles (pas les plans ▶)
+                            reply = draft
+                            if not draft.startswith("▶") and len(draft) > 80:
+                                from quality import quality_pipeline
+                                def on_qstatus(s):
+                                    sse({"action": "quality", "label": s, "result": ""})
+                                reply = quality_pipeline(msg, draft, system, ANTHROPIC_KEY, on_qstatus)
+
+                            sse({"t": reply})
+                            push("user", msg); push("assistant", reply)
+                            save_exchange(msg, reply)
+                            log_exchange(msg, reply, "claude")
+                            extract_and_save_async(msg, reply)
+                            track_usage(len(msg)//4 + 300, len(reply)//4)
+                            break
+
+                        except urllib.error.HTTPError as e:
+                            if e.code in (402, 413, 429, 529):
+                                previous = engine
+                                next_engine = degrade_engine(f"HTTP {e.code}")
+                                sse({"action": "failover", "label": f"{previous} → {next_engine}", "result": f"HTTP {e.code}"})
+                                if next_engine == "none":
+                                    sse({"t": "Aucun moteur disponible."})
+                                    break
+                                continue
+                            sse({"t": f"Erreur API : {e.code}"}); break
+
+                    elif engine == "grok":
+                        sse({"action": "grok", "label": "Grok — sans outils", "result": ""})
+                        buf = []
+                        reply = grok_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
                         push("user", msg); push("assistant", reply)
                         save_exchange(msg, reply)
-                        log_exchange(msg, reply, "claude")
-                        extract_and_save_async(msg, reply)
-                        track_usage(len(msg)//4 + 300, len(reply)//4)
+                        log_exchange(msg, reply, "grok")
+                        break
 
-                    except urllib.error.HTTPError as e:
-                        if e.code in (402, 529, 413):
-                            degrade_engine(f"HTTP {e.code}")
-                            # fallthrough to next engine
-                        else:
-                            sse({"t": f"Erreur API : {e.code}"}); sse("[DONE]"); return
+                    elif engine == "chatgpt":
+                        sse({"action": "chatgpt", "label": "ChatGPT — sans outils", "result": ""})
+                        buf = []
+                        reply = chatgpt_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
+                        push("user", msg); push("assistant", reply)
+                        save_exchange(msg, reply)
+                        log_exchange(msg, reply, "chatgpt")
+                        break
 
-                elif _engine["current"] == "grok":
-                    sse({"action": "grok", "label": "Grok — sans outils", "result": ""})
-                    buf = []
-                    reply = grok_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
-                    push("user", msg); push("assistant", reply)
-                    save_exchange(msg, reply)
-                    log_exchange(msg, reply, "grok")
+                    elif engine == "ollama":
+                        sse({"action": "ollama", "label": "Ollama — sans outils", "result": ""})
+                        buf = []
+                        reply = ollama_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
+                        push("user", msg); push("assistant", reply)
+                        save_exchange(msg, reply)
+                        log_exchange(msg, reply, "ollama")
+                        break
 
-                elif _engine["current"] == "chatgpt":
-                    sse({"action": "chatgpt", "label": "ChatGPT — sans outils", "result": ""})
-                    buf = []
-                    reply = chatgpt_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
-                    push("user", msg); push("assistant", reply)
-                    save_exchange(msg, reply)
-                    log_exchange(msg, reply, "chatgpt")
-
-                elif _engine["current"] == "ollama":
-                    sse({"action": "ollama", "label": "Ollama — sans outils", "result": ""})
-                    buf = []
-                    reply = ollama_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
-                    push("user", msg); push("assistant", reply)
-                    save_exchange(msg, reply)
-                    log_exchange(msg, reply, "ollama")
-
-                else:
-                    sse({"t": "Aucun moteur disponible."})
+                    else:
+                        sse({"t": "Aucun moteur disponible."})
+                        break
 
             except Exception as e:
-                sse({"t": f"Erreur : {e}"})
+                sse({"error": str(e), "t": f"Erreur : {e}"})
 
             sse("[DONE]"); return
 
