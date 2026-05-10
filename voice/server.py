@@ -253,22 +253,25 @@ def ollama_stream(msg: str, send):
     return full
 
 # ── Grok streaming ────────────────────────────────────────────────────────────
+CHATGPT_LIMIT_MARKERS = ["usage limit", "upgrade to pro", "purchase more credits"]
+
 def chatgpt_plus_stream(msg: str, send):
     ctx = load_context()
     prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
     codex_bin = engine_router.chatgpt_plus_path()
     if not codex_bin:
-        send("ChatGPT Plus CLI indisponible.")
-        return "ChatGPT Plus CLI indisponible."
+        raise RuntimeError("ChatGPT Plus CLI introuvable")
     result = subprocess.run(
-        [codex_bin, "exec", "--ask-for-approval", "never", "--sandbox", "read-only", "-C", str(config.ATHOS_PATH), prompt],
-        capture_output=True, text=True, timeout=180
+        [codex_bin, "exec", "--dangerously-bypass-approvals-and-sandbox", prompt],
+        capture_output=True, text=True, timeout=180,
+        cwd=str(config.ATHOS_PATH)
     )
-    full = (result.stdout or result.stderr).strip()
-    if result.returncode != 0 and not full:
-        full = "ChatGPT Plus CLI indisponible ou non authentifié."
-    send(full)
-    return full
+    output = (result.stdout + result.stderr).strip()
+    # Détecter limite d'usage → déclencher failover
+    if result.returncode != 0 or any(m in output.lower() for m in CHATGPT_LIMIT_MARKERS):
+        raise RuntimeError(f"ChatGPT Plus limite atteinte : {output[:120]}")
+    send(output)
+    return output
 
 
 def claude_code_stream(msg: str, send):
@@ -461,22 +464,37 @@ class Handler(BaseHTTPRequestHandler):
                     attempted.add(engine)
 
                     if engine == "chatgpt_plus":
-                        sse({"action": "chatgpt_plus", "label": "ChatGPT Plus — ChatGPT Plus CLI", "result": ""})
-                        reply = chatgpt_plus_stream(msg, lambda t: sse({"t": t}))
-                        push("user", msg); push("assistant", reply)
-                        save_exchange(msg, reply)
-                        log_exchange(msg, reply, "chatgpt_plus")
-                        session_kernel.record_exchange(msg, reply, "chatgpt_plus")
-                        break
+                        sse({"action": "chatgpt_plus", "label": "ChatGPT Plus — CLI", "result": ""})
+                        try:
+                            reply = chatgpt_plus_stream(msg, lambda t: sse({"t": t}))
+                            push("user", msg); push("assistant", reply)
+                            save_exchange(msg, reply)
+                            log_exchange(msg, reply, "chatgpt_plus")
+                            session_kernel.record_exchange(msg, reply, "chatgpt_plus")
+                            break
+                        except RuntimeError as e:
+                            next_eng = degrade_engine(str(e)[:80])
+                            session_kernel.record_action("failover", f"chatgpt_plus → {next_eng}", str(e)[:200], engine="chatgpt_plus")
+                            sse({"action": "failover", "label": f"chatgpt_plus → {next_eng}", "result": str(e)[:80]})
+                            if next_eng == "none":
+                                sse({"t": "Aucun moteur disponible."}); break
+                            continue
 
                     elif engine == "claude_code":
                         sse({"action": "claude_code", "label": "Claude Code Pro — subscription", "result": ""})
-                        reply = claude_code_stream(msg, lambda t: sse({"t": t}))
-                        push("user", msg); push("assistant", reply)
-                        save_exchange(msg, reply)
-                        log_exchange(msg, reply, "claude_code")
-                        session_kernel.record_exchange(msg, reply, "claude_code")
-                        break
+                        try:
+                            reply = claude_code_stream(msg, lambda t: sse({"t": t}))
+                            push("user", msg); push("assistant", reply)
+                            save_exchange(msg, reply)
+                            log_exchange(msg, reply, "claude_code")
+                            session_kernel.record_exchange(msg, reply, "claude_code")
+                            break
+                        except RuntimeError as e:
+                            next_eng = degrade_engine(str(e)[:80])
+                            sse({"action": "failover", "label": f"claude_code → {next_eng}", "result": str(e)[:80]})
+                            if next_eng == "none":
+                                sse({"t": "Aucun moteur disponible."}); break
+                            continue
 
                     elif engine in ("anthropic_api", "claude"):
                         try:
