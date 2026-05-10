@@ -7,9 +7,11 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
 import config
 import session_kernel
+from auth import request_authorized
 from memory_extractor import extract_and_save_async
 
 ANTHROPIC_KEY = config.ANTHROPIC_KEY
+ACCESS_TOKEN = config.ATHOS_ACCESS_TOKEN
 DRIVE = config.DRIVE
 STATIC = Path(__file__).parent
 
@@ -85,6 +87,9 @@ def _best_model() -> str:
     return available[0] if available else "mistral"
 
 _engine["current"] = _detect()
+
+def is_authorized(headers) -> bool:
+    return request_authorized(headers, ACCESS_TOKEN)
 
 def _available_engines() -> list[str]:
     engines = []
@@ -312,6 +317,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.split("?")[0] == "/api/session":
+            if not self._require_auth():
+                return
             self._json(session_kernel.status()); return
 
         routes = {
@@ -340,8 +347,16 @@ class Handler(BaseHTTPRequestHandler):
         self.cors(); self.end_headers()
         self.wfile.write(body)
 
+    def _require_auth(self) -> bool:
+        if is_authorized(self.headers):
+            return True
+        self._json({"error": "unauthorized", "auth_required": True}, 401)
+        return False
+
     def do_POST(self):
         p = self.path
+        if p.startswith("/api/") and not self._require_auth():
+            return
 
         if p == "/api/status":
             b = load_budget()

@@ -55,6 +55,7 @@ Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir l
    cp .env.example .env
    # Éditer .env et ajouter votre ANTHROPIC_API_KEY
    # Vous pouvez aussi définir DRIVE_PATH pour stocker la mémoire en dehors du repo.
+   # Pour exposer Athos en ligne, définir ATHOS_ACCESS_TOKEN et le saisir dans les réglages de l'interface.
    ```
 
 4. **Lancer l'application**

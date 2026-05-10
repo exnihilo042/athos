@@ -10,6 +10,7 @@ load_dotenv(ENV_PATH)
 DRIVE = Path(os.getenv("DRIVE_PATH", ROOT / "memory")).expanduser().resolve()
 ATHOS_PATH = Path(os.getenv("ATHOS_PATH", ROOT)).expanduser().resolve()
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+ATHOS_ACCESS_TOKEN = os.getenv("ATHOS_ACCESS_TOKEN", "").strip()
 TEMP = ROOT / "temp"
 LOGS = DRIVE / "logs"
 

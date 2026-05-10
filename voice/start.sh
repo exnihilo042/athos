@@ -5,6 +5,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 ATHOS="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 source "$ATHOS/.env" 2>/dev/null
 
+AUTH_HEADER=()
+if [ -n "$ATHOS_ACCESS_TOKEN" ]; then
+    AUTH_HEADER=(-H "Authorization: Bearer $ATHOS_ACCESS_TOKEN")
+fi
+
 clear
 echo ""
 echo "  ╔══════════════════════════════════╗"
@@ -30,7 +35,7 @@ SERVER_PID=$!
 sleep 2
 
 # Vérifier que le serveur répond
-if curl -s http://localhost:7474/api/status -X POST > /dev/null 2>&1; then
+if curl -s "${AUTH_HEADER[@]}" http://localhost:7474/api/status -X POST > /dev/null 2>&1; then
     echo "  [2/3] Serveur OK (PID $SERVER_PID)"
 else
     echo "  [2/3] ERREUR — serveur ne répond pas"
@@ -59,7 +64,7 @@ cloudflared tunnel --url http://localhost:7474 2>&1 | while IFS= read -r line; d
         echo "  ║         A.T.H.O.S. — EN LIGNE            ║"
         echo "  ╚══════════════════════════════════════════╝"
         echo ""
-        echo "  Moteur  : $(curl -s -X POST http://localhost:7474/api/status | python3 -c 'import sys,json; print(json.load(sys.stdin)["engine"].upper())' 2>/dev/null || echo 'OLLAMA')"
+        echo "  Moteur  : $(curl -s "${AUTH_HEADER[@]}" -X POST http://localhost:7474/api/status | python3 -c 'import sys,json; print(json.load(sys.stdin)["engine"].upper())' 2>/dev/null || echo 'OLLAMA')"
         echo ""
         echo "  ┌──────────────────────────────────────────┐"
         echo "  │  $URL"

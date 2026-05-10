@@ -584,14 +584,15 @@
     <label>GRAVE — <span id="pitch-val">0.75</span></label>
     <input type="range" id="pitch-range" min="0.3" max="1.5" step="0.05" value="0.75" style="width:100%;margin-bottom:16px;accent-color:var(--blue)">
     <button class="btn-secondary" onclick="testVoice()">Tester la voix</button>
-    <label>ANTHROPIC API KEY</label>
-    <input type="password" id="api-input" placeholder="sk-ant-...">
+    <label>ATHOS ACCESS TOKEN</label>
+    <input type="password" id="api-input" placeholder="Token d'accès distant">
     <button onclick="saveSettings()">Enregistrer</button>
   </div>
 </div>
 
 <script>
 const SERVER = window.location.origin;
+const ACCESS_TOKEN_KEY = 'athos_access_token';
 let recognition  = null;
 let synth        = window.speechSynthesis;
 let state        = 'idle';
@@ -599,6 +600,7 @@ let voices       = [];
 let convActive   = false;   // mode conversation continue
 let autoTimer    = null;
 let activeStream = null;
+let authPromptVisible = false;
 
 const GREETINGS = [
   "Clément. En ligne.",
@@ -670,6 +672,20 @@ function terminalLine(text, kind = '') {
   out.appendChild(div);
   while (out.children.length > 80) out.removeChild(out.firstChild);
   out.scrollTop = out.scrollHeight;
+}
+
+function authHeaders(extra = {}) {
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY) || '';
+  return token ? { ...extra, 'Authorization': `Bearer ${token}` } : extra;
+}
+
+function handleAuthRequired() {
+  setTerminalState('ERROR');
+  terminalLine('§auth:required|open_settings', 'error');
+  if (!authPromptVisible) addBubble('athos', "Token d'accès requis.");
+  authPromptVisible = true;
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('api-input').value = localStorage.getItem(ACCESS_TOKEN_KEY) || '';
 }
 
 // ── Bulles ────────────────────────────────────────────────────────────────────
@@ -747,10 +763,15 @@ async function callAthos(text, streamTarget) {
 
     fetch(`${SERVER}/api/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ message: text }),
       signal: activeStream.signal
     }).then(res => {
+      if (res.status === 401) {
+        handleAuthRequired();
+        resolve("Authentification requise.");
+        return;
+      }
       if (!res.ok || !res.body) {
         setTerminalState('ERROR');
         terminalLine(`§stream:error|http:${res.status}`, 'error');
@@ -1010,7 +1031,7 @@ document.getElementById('text-input').addEventListener('keydown', (e) => {
 function toggleModal() {
   const m = document.getElementById('modal');
   m.classList.toggle('open');
-  document.getElementById('api-input').value = localStorage.getItem('athos_key') || '';
+  document.getElementById('api-input').value = localStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem('athos_key') || '';
   // Sync sliders
   const rr = document.getElementById('rate-range');
   const pr = document.getElementById('pitch-range');
@@ -1021,7 +1042,11 @@ function toggleModal() {
 
 function saveSettings() {
   const key = document.getElementById('api-input').value.trim();
-  if (key) localStorage.setItem('athos_key', key);
+  if (key) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, key);
+    localStorage.removeItem('athos_key');
+    authPromptVisible = false;
+  }
   voiceName  = document.getElementById('voice-select').value;
   voiceRate  = parseFloat(document.getElementById('rate-range').value);
   voicePitch = parseFloat(document.getElementById('pitch-range').value);
@@ -1045,8 +1070,16 @@ document.getElementById('modal').addEventListener('click', (e) => {
 
 // ── Status header ─────────────────────────────────────────────────────────────
 function updateStatus() {
-  fetch(`${SERVER}/api/status`, { method: 'POST' })
-    .then(r => r.json()).then(d => {
+  fetch(`${SERVER}/api/status`, { method: 'POST', headers: authHeaders() })
+    .then(r => {
+      if (r.status === 401) {
+        handleAuthRequired();
+        return null;
+      }
+      return r.json();
+    })
+    .then(d => {
+      if (!d) return;
       const badge  = document.getElementById('engine-badge');
       const label  = document.getElementById('engine-label');
       const budget = document.getElementById('budget-indicator');
@@ -1065,11 +1098,11 @@ setInterval(updateStatus, 30000);
 
 // ── Polls alertes ─────────────────────────────────────────────────────────────
 function pollAlerts() {
-  fetch(`${SERVER}/api/budget_alert`, { method: 'POST' })
+  fetch(`${SERVER}/api/budget_alert`, { method: 'POST', headers: authHeaders() })
     .then(r => r.json()).then(d => {
       if (d.alert) { addBubble('athos', d.msg); speak(d.msg); }
     }).catch(() => {});
-  fetch(`${SERVER}/api/engine_alert`, { method: 'POST' })
+  fetch(`${SERVER}/api/engine_alert`, { method: 'POST', headers: authHeaders() })
     .then(r => r.json()).then(d => {
       if (d.alert) { addBubble('athos', d.msg); speak(d.msg); }
     }).catch(() => {});
