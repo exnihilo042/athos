@@ -2,6 +2,32 @@
 
 Athos est un assistant IA vocal avec interface web, utilisant Claude (Anthropic) et Ollama comme moteurs de conversation.
 
+## 📁 Structure du projet
+
+```
+athos/
+├── core/           # Logique métier et gestion mémoire Python
+├── voice/          # Interface web PWA et serveur HTTP
+├── routines/       # Automatisations (briefs quotidiens/hebdomadaires)
+├── memory/         # Fichiers mémoire Athos (contexte et apprentissage)
+├── docs/           # Documentation système
+├── temp/           # Sessions temporaires
+├── logs/           # Logs d'exécution
+└── config/         # Configuration système
+```
+
+## 🧠 Fichiers mémoire essentiels
+
+Le cerveau d'Athos est composé de fichiers `.mem` contenant son contexte et apprentissage :
+
+- **`memory/athos_identity.mem`** - Identité, persona et règles de base
+- **`memory/athos_capabilities.mem`** - Capacités complètes du système
+- **`memory/athos_projects.mem`** - Suivi des projets actifs
+- **`memory/cx_global.mem`** - Préférences utilisateur générales
+- **`docs/CLAUDE.md`** - Documentation système et contexte agence
+
+Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir la cohérence d'Athos.
+
 ## 🚀 Démarrage rapide
 
 ### Prérequis
