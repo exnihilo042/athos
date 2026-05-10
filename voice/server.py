@@ -255,7 +255,7 @@ def ollama_stream(msg: str, send):
 # ── Grok streaming ────────────────────────────────────────────────────────────
 CHATGPT_LIMIT_MARKERS = ["usage limit", "upgrade to pro", "purchase more credits"]
 
-def chatgpt_plus_stream(msg: str, send):
+def chatgpt_plus_stream(msg: str, send, on_terminal=None):
     ctx = load_context()
     prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
     codex_bin = engine_router.chatgpt_plus_path()
@@ -266,24 +266,44 @@ def chatgpt_plus_stream(msg: str, send):
         capture_output=True, text=True, timeout=180,
         cwd=str(config.ATHOS_PATH)
     )
-    output = (result.stdout + result.stderr).strip()
-    # Détecter limite d'usage → déclencher failover
-    if result.returncode != 0 or any(m in output.lower() for m in CHATGPT_LIMIT_MARKERS):
-        raise RuntimeError(f"ChatGPT Plus limite atteinte : {output[:120]}")
+    # Stderr → terminal panel
+    if result.stderr.strip() and on_terminal:
+        for line in result.stderr.strip().splitlines():
+            on_terminal(line)
+    output = result.stdout.strip()
+    if result.returncode != 0 or any(m in (result.stdout + result.stderr).lower() for m in CHATGPT_LIMIT_MARKERS):
+        raise RuntimeError(f"ChatGPT Plus limite atteinte : {(result.stdout + result.stderr)[:120]}")
     send(output)
     return output
 
 
-def claude_code_stream(msg: str, send):
+def claude_code_stream(msg: str, send, on_terminal=None):
+    """on_terminal(line) → streame les logs internes vers le terminal panel."""
     ctx = load_context()
     prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
-    result = subprocess.run(
+    proc = subprocess.Popen(
         ["claude", "-p", prompt, "--output-format", "text"],
-        cwd=str(config.ATHOS_PATH), capture_output=True, text=True, timeout=180
+        cwd=str(config.ATHOS_PATH),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, bufsize=1
     )
-    full = result.stdout.strip()
-    if not full or result.returncode != 0:
-        raise RuntimeError(f"Claude Code échec (code {result.returncode}): {result.stderr[:120]}")
+    stdout_lines = []
+    # Lire stderr en thread → terminal panel
+    def drain_stderr():
+        for line in proc.stderr:
+            line = line.rstrip()
+            if line and on_terminal:
+                on_terminal(line)
+    import threading
+    t = threading.Thread(target=drain_stderr, daemon=True)
+    t.start()
+    for line in proc.stdout:
+        stdout_lines.append(line)
+    proc.wait(timeout=180)
+    t.join(timeout=5)
+    full = "".join(stdout_lines).strip()
+    if not full or proc.returncode != 0:
+        raise RuntimeError(f"Claude Code échec (code {proc.returncode})")
     send(full)
     return full
 
@@ -461,7 +481,11 @@ class Handler(BaseHTTPRequestHandler):
                     if engine == "chatgpt_plus":
                         sse({"action": "chatgpt_plus", "label": "ChatGPT Plus — CLI", "result": ""})
                         try:
-                            reply = chatgpt_plus_stream(msg, lambda t: sse({"t": t}))
+                            reply = chatgpt_plus_stream(
+                                msg,
+                                lambda t: sse({"t": t}),
+                                on_terminal=lambda line: sse({"toolbus": "stderr", "data": {"chunk": line, "pid": 0}}),
+                            )
                             push("user", msg); push("assistant", reply)
                             save_exchange(msg, reply)
                             log_exchange(msg, reply, "chatgpt_plus")
@@ -478,7 +502,11 @@ class Handler(BaseHTTPRequestHandler):
                     elif engine == "claude_code":
                         sse({"action": "claude_code", "label": "Claude Code Pro — subscription", "result": ""})
                         try:
-                            reply = claude_code_stream(msg, lambda t: sse({"t": t}))
+                            reply = claude_code_stream(
+                                msg,
+                                lambda t: sse({"t": t}),
+                                on_terminal=lambda line: sse({"toolbus": "stderr", "data": {"chunk": line, "pid": 0}}),
+                            )
                             push("user", msg); push("assistant", reply)
                             save_exchange(msg, reply)
                             log_exchange(msg, reply, "claude_code")
