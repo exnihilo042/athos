@@ -471,142 +471,21 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.flush()
 
             try:
-                attempted = set()
-                reply = ""
-
-                while _engine["current"] not in attempted:
-                    engine = _engine["current"]
-                    attempted.add(engine)
-
-                    if engine == "chatgpt_plus":
-                        sse({"action": "chatgpt_plus", "label": "ChatGPT Plus — CLI", "result": ""})
-                        try:
-                            reply = chatgpt_plus_stream(
-                                msg,
-                                lambda t: sse({"t": t}),
-                                on_terminal=lambda line: sse({"toolbus": "stderr", "data": {"chunk": line, "pid": 0}}),
-                            )
-                            push("user", msg); push("assistant", reply)
-                            save_exchange(msg, reply)
-                            log_exchange(msg, reply, "chatgpt_plus")
-                            session_kernel.record_exchange(msg, reply, "chatgpt_plus")
-                            break
-                        except RuntimeError as e:
-                            next_eng = degrade_engine(str(e)[:80])
-                            session_kernel.record_action("failover", f"chatgpt_plus → {next_eng}", str(e)[:200], engine="chatgpt_plus")
-                            sse({"action": "failover", "label": f"chatgpt_plus → {next_eng}", "result": str(e)[:80]})
-                            if next_eng == "none":
-                                sse({"t": "Aucun moteur disponible."}); break
-                            continue
-
-                    elif engine == "claude_code":
-                        sse({"action": "claude_code", "label": "Claude Code Pro — subscription", "result": ""})
-                        try:
-                            reply = claude_code_stream(
-                                msg,
-                                lambda t: sse({"t": t}),
-                                on_terminal=lambda line: sse({"toolbus": "stderr", "data": {"chunk": line, "pid": 0}}),
-                            )
-                            push("user", msg); push("assistant", reply)
-                            save_exchange(msg, reply)
-                            log_exchange(msg, reply, "claude_code")
-                            session_kernel.record_exchange(msg, reply, "claude_code")
-                            break
-                        except RuntimeError as e:
-                            next_eng = degrade_engine(str(e)[:80])
-                            sse({"action": "failover", "label": f"claude_code → {next_eng}", "result": str(e)[:80]})
-                            if next_eng == "none":
-                                sse({"t": "Aucun moteur disponible."}); break
-                            continue
-
-                    elif engine in ("anthropic_api", "claude"):
-                        try:
-                            from agent import run_agent, SYSTEM
-                            ctx     = load_context()
-                            system  = SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")
-
-                            def on_action(name, inputs, result):
-                                label = (inputs.get("command") or inputs.get("script","")
-                                         or inputs.get("query","") or name)[:60]
-                                session_kernel.record_action(name, label, result[:200], engine=engine)
-                                sse({"action": name, "label": label, "result": result[:200]})
-
-                            def on_stream(event_type, data):
-                                """ToolBus — stdout/stderr/start/done en temps réel vers UI."""
-                                sse({"toolbus": event_type, **data})
-
-                            permission_check = make_permission_checker(sse)
-
-                            draft = run_agent(msg, system, get_history(), ANTHROPIC_KEY,
-                                             on_action, on_stream, permission_check)
-
-                            reply = draft
-                            if not draft.startswith("▶") and len(draft) > 80:
-                                from quality import quality_pipeline
-                                def on_qstatus(s):
-                                    sse({"action": "quality", "label": s, "result": ""})
-                                reply = quality_pipeline(msg, draft, system, ANTHROPIC_KEY, on_qstatus)
-
-                            sse({"t": reply})
-                            push("user", msg); push("assistant", reply)
-                            save_exchange(msg, reply)
-                            log_exchange(msg, reply, engine)
-                            session_kernel.record_exchange(msg, reply, engine)
-                            extract_and_save_async(msg, reply)
-                            track_usage(len(msg)//4 + 300, len(reply)//4)
-                            break
-
-                        except urllib.error.HTTPError as e:
-                            if e.code in (402, 413, 429, 529):
-                                previous = engine
-                                next_engine = degrade_engine(f"HTTP {e.code}")
-                                session_kernel.record_action(
-                                    "failover",
-                                    f"{previous} -> {next_engine}",
-                                    f"HTTP {e.code}",
-                                    engine=previous,
-                                )
-                                sse({"action": "failover", "label": f"{previous} → {next_engine}", "result": f"HTTP {e.code}"})
-                                if next_engine == "none":
-                                    sse({"t": "Aucun moteur disponible."})
-                                    break
-                                continue
-                            sse({"t": f"Erreur API : {e.code}"}); break
-
-                    elif engine == "grok":
-                        sse({"action": "grok", "label": "Grok — sans outils", "result": ""})
-                        buf = []
-                        reply = grok_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
-                        push("user", msg); push("assistant", reply)
-                        save_exchange(msg, reply)
-                        log_exchange(msg, reply, "grok")
-                        session_kernel.record_exchange(msg, reply, "grok")
-                        break
-
-                    elif engine == "chatgpt":
-                        sse({"action": "chatgpt", "label": "ChatGPT — sans outils", "result": ""})
-                        buf = []
-                        reply = chatgpt_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
-                        push("user", msg); push("assistant", reply)
-                        save_exchange(msg, reply)
-                        log_exchange(msg, reply, "chatgpt")
-                        session_kernel.record_exchange(msg, reply, "chatgpt")
-                        break
-
-                    elif engine == "ollama":
-                        sse({"action": "ollama", "label": "Ollama — sans outils", "result": ""})
-                        buf = []
-                        reply = ollama_stream(msg, lambda t: (buf.append(t), sse({"t": t})))
-                        push("user", msg); push("assistant", reply)
-                        save_exchange(msg, reply)
-                        log_exchange(msg, reply, "ollama")
-                        session_kernel.record_exchange(msg, reply, "ollama")
-                        break
-
-                    else:
-                        sse({"t": "Aucun moteur disponible."})
-                        break
-
+                from athos_engine import AthosEngine
+                athos = AthosEngine(
+                    sse=sse,
+                    get_history=get_history,
+                    push_history=push,
+                    save_exchange=save_exchange,
+                    log_exchange=log_exchange,
+                    load_context=load_context,
+                    degrade_engine=degrade_engine,
+                    track_usage=track_usage,
+                    make_permission_checker=lambda: make_permission_checker(sse),
+                )
+                reply = athos.respond(msg, _engine["current"])
+                if reply:
+                    extract_and_save_async(msg, reply)
             except Exception as e:
                 sse({"error": str(e), "t": f"Erreur : {e}"})
 
