@@ -6,6 +6,7 @@ from typing import Any
 
 try:
     from . import config, session_compactor, session_kernel, sync_manager
+    from .athos_advantage import pack as athos_advantage_pack
     from .capabilities import status_report
     from .named_protocols import list_protocols, match_protocol, run_protocol
     from .registries import device_registry, hardware_registry, skill_registry
@@ -14,6 +15,7 @@ except ImportError:
     import session_compactor
     import session_kernel
     import sync_manager
+    from athos_advantage import pack as athos_advantage_pack
     from capabilities import status_report
     from named_protocols import list_protocols, match_protocol, run_protocol
     from registries import device_registry, hardware_registry, skill_registry
@@ -97,6 +99,8 @@ def context_for_attach(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     max_chars = int(payload.get("max_chars") or session_kernel.MAX_CONTEXT_CHARS)
     memory_chars = int(payload.get("memory_chars") or 6_000)
+    engine = _engine_name(payload)
+    objective = str(payload.get("purpose") or payload.get("objective") or payload.get("scope") or "")
     return {
         "identity": "A.T.H.O.S.",
         "role": "sovereign_layer_for_memory_context_cognition_and_skills",
@@ -104,6 +108,7 @@ def context_for_attach(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         "session": session_kernel.status(),
         "context_pack": session_kernel.context_pack(max_chars=max_chars),
         "drive_memory": _drive_memory_pack(max_chars=memory_chars),
+        "athos_advantage": athos_advantage_pack(engine=engine, objective=objective),
         "latest_checkpoint": session_kernel.latest_checkpoint(),
         "recent_messages": session_kernel.latest_messages(limit=12),
         "capabilities_text": status_report(),

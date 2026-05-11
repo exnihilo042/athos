@@ -17,3 +17,4 @@ def test_compact_status_intent():
 def test_compact_status_mentions_cognition():
     text = capabilities.status_report(compact=True)
     assert "Cognition:" in text
+    assert "Anti-LLM delta:" in text

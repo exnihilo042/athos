@@ -34,6 +34,8 @@ def test_attach_engine_returns_context_and_records_event(tmp_path, monkeypatch):
     assert response["attach_id"]
     assert response["must_report"] is True
     assert response["cost_policy"]["paid_api_enabled"] is False
+    assert response["athos_advantage"]["engine"] == "codex"
+    assert response["athos_advantage"]["athos_delta"]
     assert response["drive_memory"]["files"]["athos_identity.mem"][0].startswith("§id:")
     assert "athos_capabilities.mem" in response["drive_memory"]["files"]
     assert "athos_projects.mem" in response["drive_memory"]["files"]

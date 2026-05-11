@@ -13,6 +13,7 @@ import memory_status
 import session_compactor
 import metacognition
 import situational_decision
+import athos_advantage
 import engine_router
 import failover_simulator
 from auth import request_authorized
@@ -250,6 +251,13 @@ class Handler(BaseHTTPRequestHandler):
                 body.get("objective", ""),
                 body.get("options", []),
             ).to_dict()); return
+
+        if p == "/api/athos/advantage":
+            body = self._body()
+            self._json(athos_advantage.pack(
+                engine=body.get("engine", "unknown_engine"),
+                objective=body.get("objective", ""),
+            )); return
 
         if p == "/api/self_improvement_plan":
             body = self._body()
