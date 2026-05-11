@@ -76,6 +76,17 @@ PROTOCOLS: dict[str, dict[str, Any]] = {
         "steps": ["lire outbox locale", "repérer conflits", "proposer replay contrôlé", "écrire récap"],
         "risk": "medium",
     },
+    "ATHOS_FAILOVER_TEST": {
+        "purpose": "vérifier sans dépense que la bascule moteur conserve requête, checkpoint et contexte",
+        "steps": [
+            "lire les moteurs disponibles",
+            "simuler une limite/session sur le moteur courant",
+            "calculer le moteur suivant selon l'ordre configuré",
+            "retourner un resume_pack avec requête, checkpoint et hash de contexte",
+        ],
+        "requires_approval": False,
+        "risk": "low",
+    },
     "ATHOS_CLEAN_ROOM": {
         "purpose": "ramener l'environnement local à un état lisible et minimal",
         "steps": [
@@ -105,6 +116,8 @@ def match_protocol(text: str) -> str | None:
         "STATUS ATHOS": "ATHOS_STATUS",
         "CE QUI TOURNE": "ATHOS_STATUS",
         "SYNCHRONISE": "ATHOS_SYNC",
+        "FAILOVER": "ATHOS_FAILOVER_TEST",
+        "BASCULE MOTEUR": "ATHOS_FAILOVER_TEST",
         "AUTO AMELIORE": "ATHOS_SELF_IMPROVE",
         "AUTO-AMELIORE": "ATHOS_SELF_IMPROVE",
         "SECURISE": "ATHOS_SECURE_DEVICE",

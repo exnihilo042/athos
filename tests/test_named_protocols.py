@@ -14,7 +14,9 @@ def test_named_protocols_are_listed_and_match_aliases(tmp_path, monkeypatch):
     names = {item["name"] for item in named_protocols.list_protocols()}
 
     assert "ATHOS_STATUS" in names
+    assert "ATHOS_FAILOVER_TEST" in names
     assert named_protocols.match_protocol("dis moi ce qui tourne") == "ATHOS_STATUS"
+    assert named_protocols.match_protocol("test failover") == "ATHOS_FAILOVER_TEST"
     assert named_protocols.match_protocol("ATHOS_SCAN_NETWORK") == "ATHOS_SCAN_NETWORK"
 
 

@@ -11,6 +11,7 @@ import session_kernel
 import sync_manager
 import memory_status
 import engine_router
+import failover_simulator
 from auth import request_authorized
 from memory_extractor import extract_and_save_async
 from athos_memory import AthosMemory
@@ -234,6 +235,14 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/self_improvement_plan":
             body = self._body()
             self._json({"plan": plan_self_improvement(body.get("request", "")).to_dict()}); return
+
+        if p == "/api/failover/simulate":
+            body = self._body()
+            if not body.get("available"):
+                body["available"] = _router.available()
+            if not body.get("current"):
+                body["current"] = _router.current
+            self._json(failover_simulator.simulate(body)); return
 
         # ── Alertes ─────────────────────────────────────────────────────────
         if p == "/api/budget_alert":
