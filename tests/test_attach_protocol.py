@@ -20,6 +20,7 @@ def test_attach_engine_returns_context_and_records_event(tmp_path, monkeypatch):
     session_kernel, attach_protocol = _reload_for_tmp(tmp_path, monkeypatch)
     (tmp_path / "athos_identity.mem").write_text("§id:athos|identity:A.T.H.O.S.\n", "utf-8")
     (tmp_path / "athos_capabilities.mem").write_text("§done:today|thing:attach_pack\n", "utf-8")
+    (tmp_path / "athos_projects.mem").write_text("§project:athos|status:active\n", "utf-8")
     (tmp_path / "athos_conv.mem").write_text("§conv:now|u:test|a:ok\n", "utf-8")
 
     response = attach_protocol.attach_engine({"engine": "codex", "scope": "repo_work"})
@@ -31,9 +32,24 @@ def test_attach_engine_returns_context_and_records_event(tmp_path, monkeypatch):
     assert response["cost_policy"]["paid_api_enabled"] is False
     assert response["drive_memory"]["files"]["athos_identity.mem"][0].startswith("§id:")
     assert "athos_capabilities.mem" in response["drive_memory"]["files"]
+    assert "athos_projects.mem" in response["drive_memory"]["files"]
     assert "athos_conv.mem" in response["drive_memory"]["files"]
     assert session_kernel.status()["attaches"] == 1
     assert "§attach:" in session_kernel.context_pack()
+
+
+def test_drive_memory_pack_keeps_later_files_when_identity_is_large(tmp_path, monkeypatch):
+    _, attach_protocol = _reload_for_tmp(tmp_path, monkeypatch)
+    large_identity = "\n".join(f"§id:{i}|{'x' * 120}" for i in range(80))
+    (tmp_path / "athos_identity.mem").write_text(large_identity + "\n", "utf-8")
+    (tmp_path / "athos_projects.mem").write_text("§project:athos|status:active\n", "utf-8")
+    (tmp_path / "athos_conv.mem").write_text("§conv:now|u:last|a:ok\n", "utf-8")
+
+    response = attach_protocol.context_for_attach({"memory_chars": 1_200})
+
+    assert "athos_identity.mem" in response["drive_memory"]["files"]
+    assert "athos_projects.mem" in response["drive_memory"]["files"]
+    assert "athos_conv.mem" in response["drive_memory"]["files"]
 
 
 def test_delegate_named_protocol_and_report_are_traced(tmp_path, monkeypatch):

@@ -58,6 +58,7 @@ def _drive_memory_pack(max_chars: int = 6_000) -> dict[str, Any]:
     """Small canonical Drive memory pack for newly attached engines."""
     files: dict[str, list[str]] = {}
     remaining = max_chars
+    per_file = max(400, max_chars // max(1, len(CANONICAL_MEMORY_FILES)))
     for name in CANONICAL_MEMORY_FILES:
         path = config.DRIVE / name
         if not path.exists() or remaining <= 0:
@@ -71,12 +72,15 @@ def _drive_memory_pack(max_chars: int = 6_000) -> dict[str, Any]:
                 if line.startswith("§") or any(token in line for token in ("§done:", "§todo:", "§blocker:", "§checkpoint:"))
             ][-18:]
         clipped: list[str] = []
+        file_remaining = min(per_file, remaining)
         for line in selected:
-            if remaining <= 0:
+            if remaining <= 0 or file_remaining <= 0:
                 break
             item = line[:600]
             clipped.append(item)
-            remaining -= len(item) + 1
+            consumed = len(item) + 1
+            remaining -= consumed
+            file_remaining -= consumed
         if clipped:
             files[name] = clipped
     return {
