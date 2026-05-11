@@ -145,7 +145,7 @@ class AthosEngine:
         from agent import SYSTEM
         prompt = self._build_prompt(SYSTEM, self.mem.context(), self.mem.get_history(), msg)
         proc   = subprocess.Popen(
-            ["claude", "-p", prompt, "--output-format", "text"],
+            ["claude", "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
             cwd=str(config.ATHOS_PATH),
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1,
         )
