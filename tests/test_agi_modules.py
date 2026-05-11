@@ -19,6 +19,10 @@ def _mock_config(tmp_path: Path) -> types.ModuleType:
     cfg = types.ModuleType("config")
     cfg.DRIVE = tmp_path
     cfg.ATHOS_PATH = tmp_path
+    cfg.AUTONOMOUS_LOOP_ENABLED = False
+    cfg.AUTONOMOUS_LOOP_DEFAULT_TICK = 0.01
+    cfg.AUTONOMOUS_LOOP_MIN_TICK = 0.001
+    cfg.SKILL_INSTALL_ENABLED = False
     (tmp_path / "core" / "skills").mkdir(parents=True, exist_ok=True)
     return cfg
 
@@ -246,23 +250,33 @@ class TestSkillLibrary:
         code = "def add_numbers(a, b):\n    return a + b\n"
         test = "assert add_numbers(2, 3) == 5"
         skill = lib.propose("add_numbers", "adds two numbers", code, test_code=test)
-        ok, msg = lib.test_and_integrate(skill.id)
+        ok, msg = lib.test_and_integrate(skill.id, allow_mutation=True)
         assert ok is True
         assert lib._skills[skill.id].status == "active"
+
+    def test_test_and_integrate_blocks_without_visible_approval(self, tmp_path):
+        lib = self._lib(tmp_path)
+        skill = lib.propose("needs_review", "requires approval", "def needs_review(): return True")
+
+        ok, msg = lib.test_and_integrate(skill.id)
+
+        assert ok is False
+        assert "approval" in msg
+        assert lib._skills[skill.id].status == "pending_review"
 
     def test_test_and_integrate_failure(self, tmp_path):
         lib = self._lib(tmp_path)
         code = "def broken(): pass\n"
         test = "assert broken() == 999"
         skill = lib.propose("broken", "broken skill", code, test_code=test)
-        ok, msg = lib.test_and_integrate(skill.id)
+        ok, msg = lib.test_and_integrate(skill.id, allow_mutation=True)
         assert ok is False
 
     def test_call_executes_function(self, tmp_path):
         lib = self._lib(tmp_path)
         code = "def double(n):\n    return n * 2\n"
         skill = lib.propose("double", "doubles a number", code, test_code="assert double(3)==6")
-        lib.test_and_integrate(skill.id)
+        lib.test_and_integrate(skill.id, allow_mutation=True)
         result = lib.call("double", n=5)
         assert result == 10
 
@@ -357,3 +371,13 @@ class TestAutonomousLoop:
         t = loop.start(daemon=True)
         t.join(timeout=2.0)
         assert "goal_picked" in events
+
+    def test_start_loop_requires_explicit_allow(self, tmp_path):
+        mod, *_ = self._loop_mod(tmp_path)
+
+        try:
+            mod.start_loop(lambda p: "[]", tick_interval=0.01)
+        except PermissionError as exc:
+            assert "allow_autonomous" in str(exc)
+        else:
+            raise AssertionError("start_loop should require explicit authorization")

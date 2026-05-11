@@ -16,19 +16,19 @@ from __future__ import annotations
 
 import json
 import logging
-import signal
 import threading
 import time
 from typing import Callable
 
 try:
-    from . import config
+    from . import config, session_kernel
     from .goal_manager import get_manager, Goal
     from .belief_store import get_store
     from .skill_library import get_library
     from .tools.web_search import summarize_search
 except ImportError:
     import config
+    import session_kernel
     from goal_manager import get_manager, Goal
     from belief_store import get_store
     from skill_library import get_library
@@ -37,6 +37,7 @@ except ImportError:
 logger = logging.getLogger("athos.loop")
 
 LOOP_STATE_FILE = config.DRIVE / "athos_loop_state.json"
+LOOP_EVENTS_FILE = config.DRIVE / "athos_loop_events.jsonl"
 
 _running = threading.Event()
 _loop_thread: threading.Thread | None = None
@@ -57,15 +58,18 @@ class AutonomousLoop:
         llm_call: Callable[[str], str],
         tick_interval: float = 30.0,
         idle_stop_after: int = 0,
+        allow_skill_mutation: bool = False,
         on_event: Callable[[str, dict], None] | None = None,
     ) -> None:
         self.llm = llm_call
-        self.tick_interval = tick_interval
+        self.tick_interval = max(float(tick_interval), getattr(config, "AUTONOMOUS_LOOP_MIN_TICK", 5.0))
         self.idle_stop_after = idle_stop_after
+        self.allow_skill_mutation = allow_skill_mutation
         self.on_event = on_event or (lambda t, d: None)
         self._stop_flag = threading.Event()
         self._idle_ticks = 0
         self._iteration = 0
+        self._last_event: dict | None = None
 
     # ── Public control ────────────────────────────────────────────────────────
 
@@ -81,11 +85,24 @@ class AutonomousLoop:
     def is_alive(self) -> bool:
         return not self._stop_flag.is_set()
 
+    def status(self) -> dict:
+        return {
+            "running": self.is_alive(),
+            "iterations": self._iteration,
+            "idle_ticks": self._idle_ticks,
+            "tick_interval": self.tick_interval,
+            "idle_stop_after": self.idle_stop_after,
+            "allow_skill_mutation": self.allow_skill_mutation,
+            "last_event": self._last_event,
+            "events_file": str(LOOP_EVENTS_FILE),
+            "state_file": str(LOOP_STATE_FILE),
+        }
+
     # ── Main loop ─────────────────────────────────────────────────────────────
 
     def _loop(self) -> None:
         logger.info("Autonomous loop started")
-        self._emit("loop_started", {})
+        self._emit("loop_started", {"policy": loop_policy()})
         while not self._stop_flag.is_set():
             try:
                 self._tick()
@@ -239,17 +256,27 @@ RÉSULTAT:"""
             except ImportError:
                 return
         try:
-            skill = scan_and_acquire(text, self.llm)
+            skill = scan_and_acquire(
+                text,
+                self.llm,
+                allow_mutation=self.allow_skill_mutation,
+                allow_dependency_install=self.allow_skill_mutation,
+            )
             if skill:
-                self._emit("skill_acquired", {"name": skill.name, "description": skill.description})
+                event_type = "skill_acquired" if skill.status == "active" else "skill_proposed"
+                self._emit(event_type, {"name": skill.name, "description": skill.description, "status": skill.status})
         except Exception as e:
             logger.debug("skill acquisition skipped: %s", e)
 
     # ── Events ────────────────────────────────────────────────────────────────
 
     def _emit(self, event_type: str, data: dict) -> None:
+        event = {"type": event_type, "ts": time.time(), **data}
+        self._last_event = event
+        _append_event(event)
+        _write_state(self.status())
         try:
-            self.on_event(event_type, {"type": event_type, "ts": time.time(), **data})
+            self.on_event(event_type, event)
         except Exception:
             pass
 
@@ -267,18 +294,30 @@ def start_loop(
     llm_call: Callable[[str], str],
     tick_interval: float = 30.0,
     idle_stop_after: int = 0,
+    allow_autonomous: bool = False,
+    allow_skill_mutation: bool = False,
     on_event: Callable[[str, dict], None] | None = None,
 ) -> AutonomousLoop:
     global _loop_instance
     if _loop_instance and _loop_instance.is_alive():
         return _loop_instance
+    if not (allow_autonomous or getattr(config, "AUTONOMOUS_LOOP_ENABLED", False)):
+        raise PermissionError("autonomous loop start requires explicit allow_autonomous=true or ATHOS_AUTONOMOUS_LOOP_ENABLED=true")
     _loop_instance = AutonomousLoop(
         llm_call=llm_call,
         tick_interval=tick_interval,
         idle_stop_after=idle_stop_after,
+        allow_skill_mutation=allow_skill_mutation and getattr(config, "SKILL_INSTALL_ENABLED", False),
         on_event=on_event,
     )
     _loop_instance.start()
+    session_kernel.record_action(
+        "autonomous_loop_start",
+        f"tick={tick_interval}",
+        "running",
+        engine="athos_kernel",
+        meta={"allow_skill_mutation": _loop_instance.allow_skill_mutation},
+    )
     return _loop_instance
 
 
@@ -286,3 +325,64 @@ def stop_loop() -> None:
     global _loop_instance
     if _loop_instance:
         _loop_instance.stop()
+        session_kernel.record_action("autonomous_loop_stop", "manual", "stopping", engine="athos_kernel")
+
+
+def loop_policy() -> dict:
+    return {
+        "env_enabled": getattr(config, "AUTONOMOUS_LOOP_ENABLED", False),
+        "default_tick": getattr(config, "AUTONOMOUS_LOOP_DEFAULT_TICK", 30.0),
+        "min_tick": getattr(config, "AUTONOMOUS_LOOP_MIN_TICK", 5.0),
+        "skill_mutation_enabled": getattr(config, "SKILL_INSTALL_ENABLED", False),
+        "events_file": str(LOOP_EVENTS_FILE),
+        "state_file": str(LOOP_STATE_FILE),
+    }
+
+
+def status() -> dict:
+    loop = get_loop()
+    if loop:
+        return {**loop.status(), "policy": loop_policy()}
+    return {
+        "running": False,
+        "iterations": 0,
+        "idle_ticks": 0,
+        "last_event": _read_last_event(),
+        "events_file": str(LOOP_EVENTS_FILE),
+        "state_file": str(LOOP_STATE_FILE),
+        "policy": loop_policy(),
+    }
+
+
+def recent_events(limit: int = 20) -> list[dict]:
+    if not LOOP_EVENTS_FILE.exists():
+        return []
+    rows = []
+    for line in LOOP_EVENTS_FILE.read_text("utf-8").splitlines()[-limit:]:
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            rows.append({"type": "corrupt", "raw": line[:300]})
+    return rows
+
+
+def _append_event(event: dict) -> None:
+    try:
+        LOOP_EVENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with LOOP_EVENTS_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
+    except Exception:
+        pass
+
+
+def _read_last_event() -> dict | None:
+    events = recent_events(limit=1)
+    return events[-1] if events else None
+
+
+def _write_state(data: dict) -> None:
+    try:
+        LOOP_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        LOOP_STATE_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
+    except Exception:
+        pass

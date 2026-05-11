@@ -265,9 +265,10 @@ class AthosEngine:
                     return
             try:
                 from server import _make_loop_llm  # reuse same llm factory
-                skill = scan_and_acquire(reply, _make_loop_llm())
+                skill = scan_and_acquire(reply, _make_loop_llm(), allow_mutation=False)
                 if skill:
-                    self.sse({"action": "skill_acquired", "label": skill.name,
+                    action = "skill_acquired" if skill.status == "active" else "skill_proposed"
+                    self.sse({"action": action, "label": skill.name,
                               "result": skill.description})
             except Exception:
                 pass

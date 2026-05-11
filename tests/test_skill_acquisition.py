@@ -152,11 +152,45 @@ class TestAcquire:
             patch.object(sa_mod, "search_github", return_value=[]),
             patch.object(sa_mod, "summarize_search", return_value=""),
         ):
-            skill = sa_mod.acquire("reverse a string", lambda p: llm_resp)
+            skill = sa_mod.acquire("reverse a string", lambda p: llm_resp, allow_mutation=True)
 
         assert skill is not None
         assert skill.name == "reverse_string"
         assert skill.status == "active"
+
+    def test_acquire_proposes_skill_without_mutation_by_default(self, tmp_path):
+        import importlib, types
+        cfg = types.ModuleType("config")
+        cfg.DRIVE = tmp_path
+        cfg.ATHOS_PATH = tmp_path
+        (tmp_path / "core" / "skills").mkdir(parents=True, exist_ok=True)
+
+        with patch.dict(sys.modules, {"config": cfg}):
+            import skill_library as sl_mod
+            importlib.reload(sl_mod)
+            sl_mod.SKILLS_DIR = tmp_path / "core" / "skills"
+            sl_mod.SKILLS_MANIFEST = sl_mod.SKILLS_DIR / "manifest.json"
+            sl_mod.SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+            import belief_store as bs_mod
+            importlib.reload(bs_mod)
+            import skill_acquisition as sa_mod
+            importlib.reload(sa_mod)
+
+        lib = sl_mod.SkillLibrary()
+        store = bs_mod.BeliefStore()
+        llm_resp = '{"name":"safe_plan","description":"plan only","code":"def safe_plan():\\n    return True","test_code":"assert safe_plan() == True"}'
+
+        with (
+            patch.object(sa_mod, "get_library", return_value=lib),
+            patch.object(sa_mod, "get_store", return_value=store),
+            patch.object(sa_mod, "search_github", return_value=[]),
+            patch.object(sa_mod, "summarize_search", return_value=""),
+        ):
+            skill = sa_mod.acquire("make a plan", lambda p: llm_resp)
+
+        assert skill is not None
+        assert skill.status == "pending"
+        assert not skill.file_path().exists()
 
     def test_returns_none_on_bad_code(self, tmp_path):
         import importlib, types
@@ -192,6 +226,7 @@ class TestAcquire:
                 "do something",
                 lambda p: '{"name":"bad","description":"x","code":"def bad(): pass","test_code":"assert bad() == 999"}',
                 max_attempts=1,
+                allow_mutation=True,
             )
 
         assert skill is None

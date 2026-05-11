@@ -9,6 +9,7 @@
 - OBS lisible: process, ports, launchd, logs, moteurs attachés, sync, devices, skills, coûts.
 - Zéro dépense API par défaut.
 - Plan/lance visible pour toute mutation.
+- Boucle autonome en mode guarded: start explicite, statut observable, events JSONL, mutation de skill bloquée par défaut.
 
 ## P1 — Ce Mois
 

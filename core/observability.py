@@ -168,6 +168,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
     ports = listening_ports()
     jobs = launchd_jobs()
     sync = sync_manager.status()
+    loop = _loop_status()
     attached = _attached_engines()
     skills = skill_registry()
     devices = device_registry()
@@ -182,6 +183,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
         "agent_processes": agent_processes or [],
         "attached_engines": attached,
         "sync": sync,
+        "loop": loop,
         "skills": skills,
         "devices": devices,
         "hardware": hardware,
@@ -193,6 +195,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
             "agent_processes": len(agent_processes or []),
             "attached_engines": len(attached),
             "sync_pending": sync.get("pending", 0),
+            "loop_running": loop.get("running", False),
             "installed_skills": sum(1 for skill in skills if skill.get("installed")),
             "devices": len(devices),
         },
@@ -239,3 +242,17 @@ def _permission_summary(skills: list[dict[str, Any]], devices: list[dict[str, An
         ],
         "hardware_requires_explicit_scope": [item["name"] for item in hardware],
     }
+
+
+def _loop_status() -> dict[str, Any]:
+    try:
+        from .autonomous_loop import status as loop_status
+    except ImportError:
+        try:
+            from autonomous_loop import status as loop_status
+        except ImportError:
+            return {"running": False, "error": "autonomous_loop unavailable"}
+    try:
+        return loop_status()
+    except Exception as exc:
+        return {"running": False, "error": str(exc)}

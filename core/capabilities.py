@@ -5,12 +5,14 @@ from pathlib import Path
 
 try:
     from . import config, session_kernel, sync_manager
+    from .autonomous_loop import status as loop_status
     from .named_protocols import list_protocols
     from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
     import config
     import session_kernel
     import sync_manager
+    from autonomous_loop import status as loop_status
     from named_protocols import list_protocols
     from registries import device_registry, hardware_registry, skill_registry
 
@@ -43,6 +45,7 @@ def status_report() -> str:
         f"Session: {session_kernel.summarize_recent()}",
         f"Attach protocol: /api/attach → /api/context_pack → /api/report",
         f"Sync: {sync_manager.status()['pending']} job(s) pending",
+        f"Loop autonome: {'running' if loop_status()['running'] else 'off'}; skill mutation: {loop_status()['policy']['skill_mutation_enabled']}",
         f"Protocoles nommés: {', '.join(p['name'] for p in list_protocols())}",
         f"Skills installés: {sum(1 for s in skill_registry() if s['installed'])}/{len(skill_registry())}",
         f"Devices: {', '.join(d['id'] + ':' + d['status'] for d in device_registry())}",

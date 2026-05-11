@@ -16,6 +16,9 @@ ATHOS_API_SPEND = os.getenv("ATHOS_API_SPEND", "off").strip().lower()
 PAID_API_ENABLED = ATHOS_API_SPEND in {"1", "true", "yes", "on", "allow", "enabled"}
 WHISPER_ENABLED = os.getenv("WHISPER_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 SKILL_INSTALL_ENABLED = os.getenv("ATHOS_SKILL_INSTALL_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+AUTONOMOUS_LOOP_ENABLED = os.getenv("ATHOS_AUTONOMOUS_LOOP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+AUTONOMOUS_LOOP_DEFAULT_TICK = float(os.getenv("ATHOS_AUTONOMOUS_LOOP_DEFAULT_TICK", "30"))
+AUTONOMOUS_LOOP_MIN_TICK = float(os.getenv("ATHOS_AUTONOMOUS_LOOP_MIN_TICK", "5"))
 FAILOVER_TEST_ENGINES = {
     item.strip()
     for item in os.getenv("ATHOS_FAILOVER_TEST_ENGINES", "").split(",")
@@ -42,6 +45,7 @@ def spend_policy() -> dict:
         "openai_enabled": OPENAI_ENABLED and PAID_API_ENABLED,
         "whisper_enabled": WHISPER_ENABLED and OPENAI_ENABLED and PAID_API_ENABLED,
         "skill_install_enabled": SKILL_INSTALL_ENABLED,
+        "autonomous_loop_enabled": AUTONOMOUS_LOOP_ENABLED,
     }
 
 # Ensure common directories exist if needed

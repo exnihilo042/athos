@@ -988,6 +988,10 @@
     flex: 1; padding: 6px; font-size: 10px; letter-spacing: .08em;
     border-radius: 3px; cursor: pointer;
   }
+  #agi-loop-status {
+    padding: 0 12px 8px; color: var(--muted); font-size: 9px;
+    letter-spacing: .08em; border-top: 1px solid #111118;
+  }
   #btn-loop-start {
     background: #1a1228; border: 1px solid #9b6bff55; color: #9b6bff;
   }
@@ -1295,6 +1299,7 @@
     <button id="btn-loop-start" onclick="loopAction('start')">▶ LOOP ON</button>
     <button id="btn-loop-stop" onclick="loopAction('stop')">■ LOOP OFF</button>
   </div>
+  <div id="agi-loop-status">loop: off · guarded</div>
 </div>
 
 <div id="artifact-panel">
@@ -1500,7 +1505,14 @@ async function addBelief() {
 }
 
 async function loopAction(action) {
-  await apiFetch('/api/loop', {action, tick_interval: 30});
+  const payload = {
+    action,
+    tick_interval: 30,
+    allow_autonomous: action === 'start',
+    allow_skill_mutation: false
+  };
+  const r = await apiFetch('/api/loop', payload);
+  if (r && r.ok === false && r.msg) termLog(`loop:${r.msg}`, 'done-err');
   refreshLoopStatus();
 }
 
@@ -1510,6 +1522,11 @@ async function refreshLoopStatus() {
     _loopRunning = r.running;
     const dot = document.getElementById('agi-loop-dot');
     dot?.classList.toggle('running', _loopRunning);
+    const el = document.getElementById('agi-loop-status');
+    if (el) {
+      const policy = r.policy || {};
+      el.textContent = `loop: ${_loopRunning ? 'running' : 'off'} · tick:${r.tick_interval || policy.default_tick || 30}s · skill mutation:${!!r.allow_skill_mutation} · events:${r.events_file || '-'}`;
+    }
   } catch(e) {}
 }
 

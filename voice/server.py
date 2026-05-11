@@ -373,8 +373,14 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 self._json(s.to_dict()); return
             if action == "integrate":
-                ok, msg = lib.test_and_integrate(body.get("id", ""))
+                ok, msg = lib.test_and_integrate(
+                    body.get("id", ""),
+                    allow_mutation=bool(body.get("allow_mutation", False)),
+                    allow_dependency_install=bool(body.get("allow_dependency_install", False)),
+                )
                 self._json({"ok": ok, "msg": msg}); return
+            if action == "plan":
+                self._json(lib.integration_plan(body.get("id", ""))); return
             if action == "search":
                 results = lib.search(body.get("query", ""), limit=int(body.get("limit", 5)))
                 self._json({"skills": [s.to_dict() for s in results]}); return
@@ -395,21 +401,27 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"results": search(query, max_results=int(body.get("max_results", 5)))}); return
 
         if p == "/api/loop":
-            from autonomous_loop import get_loop, start_loop, stop_loop
+            from autonomous_loop import recent_events, start_loop, status as loop_status, stop_loop
             body = self._body()
             action = body.get("action", "status")
-            loop = get_loop()
             if action == "start":
-                if not loop or not loop.is_alive():
+                try:
                     start_loop(
                         _make_loop_llm(),
-                        tick_interval=float(body.get("tick_interval", 30)),
+                        tick_interval=float(body.get("tick_interval", config.AUTONOMOUS_LOOP_DEFAULT_TICK)),
+                        idle_stop_after=int(body.get("idle_stop_after", 0)),
+                        allow_autonomous=bool(body.get("allow_autonomous", False)),
+                        allow_skill_mutation=bool(body.get("allow_skill_mutation", False)),
                     )
-                self._json({"ok": True, "running": True}); return
+                except PermissionError as e:
+                    self._json({"ok": False, "running": False, "requires_confirmation": True, "msg": str(e), "status": loop_status()}); return
+                self._json({"ok": True, **loop_status()}); return
             if action == "stop":
                 stop_loop()
-                self._json({"ok": True, "running": False}); return
-            self._json({"running": bool(loop and loop.is_alive())}); return
+                self._json({"ok": True, **loop_status()}); return
+            if action == "events":
+                self._json({"events": recent_events(limit=int(body.get("limit", 20))), "status": loop_status()}); return
+            self._json(loop_status()); return
 
         self.send_response(404); self.end_headers()
 

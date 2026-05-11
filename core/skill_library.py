@@ -13,11 +13,9 @@ Acquisition loop (run by autonomous_loop or on demand):
 from __future__ import annotations
 
 import importlib
-import inspect
 import json
 import subprocess
 import sys
-import textwrap
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -94,11 +92,45 @@ class SkillLibrary:
         self._save()
         return skill
 
-    def test_and_integrate(self, skill_id: str) -> tuple[bool, str]:
-        """Run test_code in subprocess. If passes, write file and mark active."""
+    def integration_plan(self, skill_id: str) -> dict:
+        skill = self._skills.get(skill_id)
+        if not skill:
+            return {"ok": False, "error": "skill not found"}
+        return {
+            "ok": True,
+            "skill_id": skill.id,
+            "name": skill.name,
+            "file": str(skill.file_path()),
+            "dependencies": skill.dependencies,
+            "mutations": [
+                "write skill source file",
+                "run test_code in subprocess" if skill.test_code else "mark skill active",
+                "install dependencies" if skill.dependencies else "",
+            ],
+            "requires_approval": True,
+            "requires_skill_install_enabled": bool(skill.dependencies),
+        }
+
+    def test_and_integrate(
+        self,
+        skill_id: str,
+        allow_mutation: bool = False,
+        allow_dependency_install: bool = False,
+    ) -> tuple[bool, str]:
+        """Run test_code in subprocess. Mutations require explicit approval."""
         skill = self._skills.get(skill_id)
         if not skill:
             return False, "skill not found"
+
+        if not allow_mutation:
+            skill.status = "pending_review"
+            self._save()
+            return False, "integration blocked: visible approval required before writing/testing skill code"
+
+        if skill.dependencies and (not allow_dependency_install or not getattr(config, "SKILL_INSTALL_ENABLED", False)):
+            skill.status = "pending_review"
+            self._save()
+            return False, "dependency install blocked: ATHOS_SKILL_INSTALL_ENABLED=false or approval missing"
 
         # Write skill file
         skill.file_path().write_text(skill.code, "utf-8")

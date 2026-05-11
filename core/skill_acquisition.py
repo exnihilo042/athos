@@ -112,6 +112,8 @@ def acquire(
     gap_description: str,
     llm_call: Callable[[str], str],
     max_attempts: int = 2,
+    allow_mutation: bool = False,
+    allow_dependency_install: bool = False,
 ) -> Skill | None:
     """
     Full acquisition pipeline for a gap.
@@ -151,7 +153,21 @@ def acquire(
             tags=["auto_acquired"],
         )
 
-        ok, msg = lib.test_and_integrate(skill.id)
+        if not allow_mutation:
+            store.add(
+                subject="skill_library",
+                predicate=f"skill proposal '{name}' pending approval for gap: {gap_description[:80]}",
+                confidence=0.8,
+                source="skill_acquisition",
+                tags=["pending_approval"],
+            )
+            return skill
+
+        ok, msg = lib.test_and_integrate(
+            skill.id,
+            allow_mutation=allow_mutation,
+            allow_dependency_install=allow_dependency_install,
+        )
         if ok:
             logger.info("Skill acquired: %s", name)
             store.add(
@@ -176,6 +192,8 @@ def acquire(
 def scan_and_acquire(
     text: str,
     llm_call: Callable[[str], str],
+    allow_mutation: bool = False,
+    allow_dependency_install: bool = False,
 ) -> Skill | None:
     """
     Scan text for a gap signal and auto-acquire if found.
@@ -185,4 +203,9 @@ def scan_and_acquire(
     if not gap:
         return None
     logger.info("Gap detected: %s", gap[:80])
-    return acquire(gap, llm_call)
+    return acquire(
+        gap,
+        llm_call,
+        allow_mutation=allow_mutation,
+        allow_dependency_install=allow_dependency_install,
+    )
