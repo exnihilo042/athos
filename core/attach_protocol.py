@@ -5,12 +5,13 @@ import uuid
 from typing import Any
 
 try:
-    from . import config, session_kernel, sync_manager
+    from . import config, session_compactor, session_kernel, sync_manager
     from .capabilities import status_report
     from .named_protocols import list_protocols, match_protocol, run_protocol
     from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
     import config
+    import session_compactor
     import session_kernel
     import sync_manager
     from capabilities import status_report
@@ -191,6 +192,7 @@ def report(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     status = str(payload.get("status") or "reported")
     event = session_kernel.record_report(attach_id, engine, summary, status=status, meta=payload.get("meta") or {})
     checkpoint_event = None
+    session_summary = None
     if payload.get("checkpoint"):
         cp = payload["checkpoint"] if isinstance(payload["checkpoint"], dict) else {}
         checkpoint_event = session_kernel.checkpoint(
@@ -206,10 +208,19 @@ def report(payload: dict[str, Any] | None = None) -> dict[str, Any]:
             tasks=payload.get("tasks", []),
             files=payload.get("files", []),
         )
+    if checkpoint_event:
+        session_summary = _write_session_summary_safely()
     warnings = []
     if not attach_id:
         warnings.append("attach_id manquant: report accepté mais non relié à une IA attachée")
-    return {"ok": True, "event": event, "checkpoint": checkpoint_event, "warnings": warnings}
+    return {"ok": True, "event": event, "checkpoint": checkpoint_event, "session_summary": session_summary, "warnings": warnings}
+
+
+def _write_session_summary_safely() -> dict[str, Any] | None:
+    try:
+        return session_compactor.write_summary()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 def attach_prompt() -> str:

@@ -9,10 +9,13 @@ def _reload_for_tmp(tmp_path, monkeypatch):
     importlib.reload(session_kernel)
     import core.sync_manager as sync_manager
     importlib.reload(sync_manager)
+    import core.session_compactor as session_compactor
+    importlib.reload(session_compactor)
     import core.attach_protocol as attach_protocol
     importlib.reload(attach_protocol)
     session_kernel.SESSION_FILE = tmp_path / "athos_session_kernel.jsonl"
     sync_manager.OUTBOX_FILE = tmp_path / "athos_sync_outbox.jsonl"
+    session_compactor.SUMMARY_FILE = tmp_path / "athos_session_summary.mem"
     return session_kernel, attach_protocol
 
 
@@ -103,4 +106,6 @@ def test_checkpoint_report_writes_session_checkpoint(tmp_path, monkeypatch):
     })
 
     assert response["checkpoint"]["goal"] == "publish Athos checkpoint"
+    assert response["session_summary"]["written"] is True
     assert session_kernel.latest_checkpoint()["goal"] == "publish Athos checkpoint"
+    assert (tmp_path / "athos_session_summary.mem").exists()
