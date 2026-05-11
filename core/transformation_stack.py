@@ -31,6 +31,14 @@ class TransformationForm:
 
 FORM_CATALOG = [
     TransformationForm(
+        name="austere_core",
+        purpose="stay capable with minimal local resources, no sensors, no cloud, and no new installs",
+        triggers=("sans rien", "aucune ressource", "minimal", "austérité", "austerite", "peu de ressources", "hors réseau", "hors reseau"),
+        modules=("local_resource_scan", "memory_compression", "first_principles_inference", "local_simulation", "sync_outbox"),
+        constraints=("external hardware is an amplifier, not a prerequisite", "prefer reversible low-cost steps"),
+        risk=0.15,
+    ),
+    TransformationForm(
         name="conversation_core",
         purpose="answer, synthesize, remember, and keep continuity across engines",
         triggers=("explique", "résume", "resume", "statut", "topo", "question"),
@@ -77,7 +85,7 @@ FORM_CATALOG = [
         name="offline_survival",
         purpose="continue locally with memory, installed skills and queued sync work while offline",
         triggers=("offline", "hors ligne", "sans réseau", "sans reseau", "sync"),
-        modules=("local_memory", "installed_skills", "ollama_fallback", "sync_outbox", "replay_plan"),
+        modules=("local_memory", "installed_skills", "local_resource_scan", "ollama_fallback", "sync_outbox", "replay_plan"),
         constraints=("queue network actions", "no silent conflict overwrite"),
         risk=0.25,
     ),
@@ -118,7 +126,8 @@ def transformation_pack(engine: str = "unknown_engine", objective: str = "") -> 
         "enabled_modules": sorted({*primary.modules, *(module for form in secondary for module in form.modules)}),
         "operational_gain": (
             "The attached engine is reconfigured from a stateless text model into a situational Athos operator "
-            "with memory, decisioning, tools, observability, safety constraints and optional physical-world interfaces."
+            "with memory, decisioning, local austerity tactics, tools, observability, safety constraints "
+            "and optional physical-world interfaces."
         ),
     }
 

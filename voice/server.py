@@ -15,6 +15,7 @@ import metacognition
 import situational_decision
 import athos_advantage
 import transformation_stack
+import local_capability
 import engine_router
 import failover_simulator
 from auth import request_authorized
@@ -266,6 +267,10 @@ class Handler(BaseHTTPRequestHandler):
                 engine=body.get("engine", "unknown_engine"),
                 objective=body.get("objective", ""),
             )); return
+
+        if p == "/api/local/capability":
+            body = self._body()
+            self._json(local_capability.austerity_pack(body.get("objective", ""))); return
 
         if p == "/api/self_improvement_plan":
             body = self._body()

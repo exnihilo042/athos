@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 try:
-    from . import config, session_kernel, sync_manager
+    from . import config, session_kernel, sync_manager, local_capability
     from .athos_advantage import CORE_AUGMENTATIONS
     from .autonomous_loop import status as loop_status
     from .metacognition import status as cognition_status
@@ -14,6 +14,7 @@ except ImportError:
     import config
     import session_kernel
     import sync_manager
+    import local_capability
     from athos_advantage import CORE_AUGMENTATIONS
     from autonomous_loop import status as loop_status
     from metacognition import status as cognition_status
@@ -59,8 +60,9 @@ def status_report(compact: bool = False) -> str:
             f"Session: {session_kernel.summarize_recent()}",
             f"Sync: {sync_manager.status()['pending']} job(s) pending",
         f"Loop: {'running' if loop_status()['running'] else 'off'}",
-        f"Cognition: non_immutable={cognition_status()['non_immutable_base']}; all_engines={cognition_status()['applies_to_all_engines']}",
-        f"Anti-LLM delta: {len(CORE_AUGMENTATIONS)} augmentations runtime",
+            f"Cognition: non_immutable={cognition_status()['non_immutable_base']}; all_engines={cognition_status()['applies_to_all_engines']}",
+            f"Anti-LLM delta: {len(CORE_AUGMENTATIONS)} augmentations runtime",
+            f"Austérité locale: {local_capability.scan()['available_tool_count']} outils détectés sans réseau",
         ]
         if latest_done:
             parts.append("Derniers done:")
@@ -79,6 +81,7 @@ def status_report(compact: bool = False) -> str:
         f"Loop autonome: {'running' if loop_status()['running'] else 'off'}; skill mutation: {loop_status()['policy']['skill_mutation_enabled']}",
         f"Cognition: non_immutable={cognition_status()['non_immutable_base']}; principles={len(cognition_status()['principles'])}",
         f"Anti-LLM delta: {', '.join(item['name'] for item in CORE_AUGMENTATIONS[:4])}",
+        f"Austérité locale: {local_capability.scan()['available_tool_count']} outils détectés; réseau requis=False",
         f"Protocoles nommés: {', '.join(p['name'] for p in list_protocols())}",
         f"Skills installés: {sum(1 for s in skill_registry() if s['installed'])}/{len(skill_registry())}",
         f"Devices: {', '.join(d['id'] + ':' + d['status'] for d in device_registry())}",

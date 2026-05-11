@@ -1,21 +1,22 @@
 """What an engine gains by passing through Athos.
 
 This is the anti-LLM delta: Athos does not merely rename a model. It augments
-the model with persistent cognition, memory, observability, tools, physical
-world interfaces, and a situational decision layer.
+the model with persistent cognition, memory, observability, local austerity,
+tools, optional physical-world interfaces, and a situational decision layer.
 """
 from __future__ import annotations
 
 from typing import Any
 
 try:
-    from . import config, session_kernel, memory_status, metacognition
+    from . import config, session_kernel, memory_status, metacognition, local_capability
     from .transformation_stack import transformation_pack
 except ImportError:
     import config
     import session_kernel
     import memory_status
     import metacognition
+    import local_capability
     from transformation_stack import transformation_pack
 
 
@@ -33,6 +34,10 @@ CORE_AUGMENTATIONS = [
         "gain": "Athos frames known facts, precise uncertainty, gap strategy, adaptation rules and stop conditions before acting",
     },
     {
+        "name": "llm_gap_compensation",
+        "gain": "scope limits, context limits, provider rigidity and missing tools become routing, memory, queue or protocol problems",
+    },
+    {
         "name": "observable_runtime",
         "gain": "ports, PIDs, logs, launchd jobs, memory health, failover and pending work are visible and stoppable",
     },
@@ -41,8 +46,12 @@ CORE_AUGMENTATIONS = [
         "gain": "missing capabilities become named gaps, proposed skills, tests, rollback, commit/push and memory updates",
     },
     {
+        "name": "austere_local_capability",
+        "gain": "even with no cloud, sensors or new installs, Athos scans local resources, compresses context, reasons from memory, simulates, and queues deferred work",
+    },
+    {
         "name": "physical_world_bridge",
-        "gain": "authorized devices, sensors, hardware tools and local OS actions can become capabilities with scopes and logs",
+        "gain": "authorized devices, sensors, hardware tools and local OS actions amplify Athos with scopes and logs, but are not prerequisites",
     },
     {
         "name": "cost_and_risk_governor",
@@ -75,6 +84,7 @@ def pack(engine: str = "unknown_engine", objective: str = "") -> dict[str, Any]:
             "decision_axes": cognition.get("decision_axes", []),
             "core_loop": cognition["core_loop"],
         },
+        "local_capability": local_capability.austerity_pack(objective),
         "transformation_stack": transformation_pack(engine=engine, objective=objective),
         "honest_boundary": (
             "Athos cannot override a provider's system instructions from outside, "

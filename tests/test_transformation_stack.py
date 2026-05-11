@@ -18,6 +18,15 @@ def test_device_objective_requires_approval_and_physical_modules():
     assert pack["decision"]["should_pause"] is True
 
 
+def test_no_resource_objective_transforms_engine_into_austere_core():
+    pack = transformation_stack.transformation_pack("codex", "hors réseau, sans rien, reste capable en local")
+
+    assert pack["primary_form"]["name"] == "austere_core"
+    assert "local_resource_scan" in pack["enabled_modules"]
+    assert "memory_compression" in pack["enabled_modules"]
+    assert pack["primary_form"]["requires_approval"] is False
+
+
 def test_unknown_objective_defaults_to_conversation_core():
     pack = transformation_stack.transformation_pack("grok", "bonjour")
 

@@ -26,6 +26,8 @@ PRINCIPLES = [
     "visible_observable_background_work",
     "controlled_self_extension",
     "situational_decision_for_engine_skill_tool_action_and_protocol",
+    "capability_under_resource_austerity",
+    "llm_limitations_are_routing_inputs_not_identity_limits",
 ]
 
 
@@ -69,10 +71,12 @@ def assess(request: str, available_engines: list[str] | None = None) -> Cognitiv
         uncertainty_model=[
             "Missing data must become named gaps, not guesses.",
             "No rule is immutable; routing and process adapt to context, risk, evidence, and available tools.",
+            "LLM scope, context, tool and policy limits are treated as constraints Athos routes around safely.",
         ],
         gap_strategy=[
             "If enough evidence exists: solve directly.",
             "If evidence is partial: infer from first principles, analogies, and verified local memory.",
+            "If resources are scarce: scan local tools and memory, compress context, act reversibly, and queue missing network work.",
             "If capability is missing: identify exact missing capability, then propose controlled acquisition.",
         ],
         adaptation_rules=[
@@ -99,6 +103,10 @@ def assess(request: str, available_engines: list[str] | None = None) -> Cognitiv
     if any(word in q for word in ("pourquoi", "réfléchis", "raisonne", "cognition", "meta", "métacognition")):
         assessment.mode = "metacognitive_analysis"
         assessment.adaptation_rules.append("Expose operational reasoning journal, not hidden chain-of-thought.")
+    if any(word in q for word in ("sans rien", "aucune ressource", "minimal", "local", "hors ligne", "hors réseau", "hors reseau", "offline", "austérité", "austerite")):
+        assessment.mode = "local_austerity"
+        assessment.known_state.append("External hardware and network access are amplifiers, not prerequisites for Athos capability.")
+        assessment.gap_strategy.append("Start from local resource inventory, memory compression, first-principles inference, and deferred sync.")
     return assessment
 
 
@@ -112,6 +120,8 @@ def status() -> dict[str, Any]:
         "applies_to_all_engines": True,
         "core_loop": [
             "map_known_unknown_inferable",
+            "scan_and_repurpose_available_local_resources",
+            "compress_context_and_minimize_energy_cost",
             "attempt_direct_resolution",
             "situationally_choose_engine_skill_tool_action_or_acquisition",
             "name_precise_gap",
