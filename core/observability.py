@@ -5,6 +5,7 @@ import json
 import os
 import signal
 import subprocess
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,8 @@ except ImportError:
 
 
 ROOT = config.ATHOS_PATH
+SERVER_STARTED_AT = datetime.now(timezone.utc)
+SERVER_STARTED_MONOTONIC = time.monotonic()
 
 
 def _run(args: list[str], timeout: int = 5) -> str:
@@ -138,7 +141,7 @@ def _log_for_job(label: str) -> str:
 
 def athos_logs() -> list[dict[str, Any]]:
     candidates = [
-        Path("/tmp/athos_server.log"),
+        config.ATHOS_LOG_PATH,
         Path("/tmp/athos_brief.log"),
         Path("/tmp/athos_weekly.log"),
         Path("/tmp/athos_evening.log"),
@@ -151,6 +154,21 @@ def athos_logs() -> list[dict[str, Any]]:
             "size": path.stat().st_size if path.exists() else 0,
         })
     return rows
+
+
+def server_runtime() -> dict[str, Any]:
+    return {
+        "pid": os.getpid(),
+        "started_at": SERVER_STARTED_AT.isoformat(timespec="seconds"),
+        "uptime_seconds": round(time.monotonic() - SERVER_STARTED_MONOTONIC, 1),
+        "host": config.ATHOS_BIND_HOST,
+        "port": config.ATHOS_PORT,
+        "log": str(config.ATHOS_LOG_PATH),
+        "pid_file": str(config.ATHOS_PID_FILE),
+        "pid_file_exists": config.ATHOS_PID_FILE.exists(),
+        "stop_method": f"kill {os.getpid()}",
+        "visible_runtime_rule": "server must be launched in a visible terminal tab, not as a hidden background daemon",
+    }
 
 
 def drive_status() -> dict[str, Any]:
@@ -177,6 +195,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git": git_status(),
         "drive": drive_status(),
+        "server_runtime": server_runtime(),
         "ports": ports,
         "launchd": jobs,
         "logs": athos_logs(),
@@ -199,6 +218,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
             "loop_running": loop.get("running", False),
             "installed_skills": sum(1 for skill in skills if skill.get("installed")),
             "devices": len(devices),
+            "server_pid": os.getpid(),
         },
     }
 

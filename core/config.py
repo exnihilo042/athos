@@ -30,6 +30,9 @@ GROK_MODEL = os.getenv("GROK_MODEL", "grok-beta").strip()
 ATHOS_ENGINE_ORDER = os.getenv("ATHOS_ENGINE_ORDER", "chatgpt_plus,claude_code,anthropic_api,grok,ollama").strip()
 ATHOS_ACCESS_TOKEN = os.getenv("ATHOS_ACCESS_TOKEN", "").strip()
 ATHOS_BIND_HOST = os.getenv("ATHOS_BIND_HOST", "127.0.0.1").strip() or "127.0.0.1"
+ATHOS_PORT = int(os.getenv("ATHOS_PORT", "7474"))
+ATHOS_LOG_PATH = Path(os.getenv("ATHOS_LOG_PATH", "/tmp/athos_server.log")).expanduser()
+ATHOS_PID_FILE = Path(os.getenv("ATHOS_PID_FILE", "/tmp/athos_server.pid")).expanduser()
 _REQUIRE_TOKEN_RAW = os.getenv("ATHOS_REQUIRE_TOKEN", "").strip().lower()
 if _REQUIRE_TOKEN_RAW:
     ATHOS_REQUIRE_TOKEN = _REQUIRE_TOKEN_RAW in {"1", "true", "yes", "on", "required"}
@@ -74,6 +77,7 @@ def spend_policy() -> dict:
 def server_security_policy() -> dict:
     return {
         "bind_host": ATHOS_BIND_HOST,
+        "port": ATHOS_PORT,
         "allowed_origins": ATHOS_ALLOWED_ORIGINS,
         "token_required": ATHOS_TOKEN_ENFORCED,
         "remote_token_required": ATHOS_REQUIRE_TOKEN,

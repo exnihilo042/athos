@@ -31,6 +31,9 @@ def test_config_uses_drive_path_env(tmp_path, monkeypatch):
     assert config.ATHOS_ENGINE_ORDER == "chatgpt_plus,claude_code,anthropic_api,grok,ollama"
     assert config.ATHOS_ACCESS_TOKEN == "access-test"
     assert config.ATHOS_BIND_HOST == "127.0.0.1"
+    assert config.ATHOS_PORT == 7474
+    assert str(config.ATHOS_LOG_PATH).endswith("athos_server.log")
+    assert str(config.ATHOS_PID_FILE).endswith("athos_server.pid")
     assert config.ATHOS_REQUIRE_TOKEN is False
     assert config.ATHOS_TOKEN_ENFORCED is True
     assert config.server_security_policy()["token_required"] is True

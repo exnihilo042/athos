@@ -1,5 +1,5 @@
 """ATHOS Voice Server — couche HTTP pure. Toute la logique est dans core/."""
-import sys, json, subprocess, threading, uuid, tempfile, shutil
+import sys, json, subprocess, threading, uuid, tempfile, shutil, os, atexit
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from pathlib import Path
@@ -15,7 +15,7 @@ from memory_extractor import extract_and_save_async
 from athos_memory import AthosMemory
 from athos_router import AthosRouter
 from athos_engine import AthosEngine
-from observability import process_snapshot, stop_observed_pid
+from observability import process_snapshot, stop_observed_pid, server_runtime
 from capabilities import status_report
 from self_improvement import plan_self_improvement
 from attach_protocol import attach_engine, attach_prompt, context_for_attach, delegate as delegate_request, report as attach_report
@@ -174,7 +174,7 @@ class Handler(BaseHTTPRequestHandler):
         # ── Status ──────────────────────────────────────────────────────────
         if p == "/api/status":
             s = _router.status()
-            self._json({**s, "session": session_kernel.status()}); return
+            self._json({**s, "session": session_kernel.status(), "server_runtime": server_runtime()}); return
 
         if p == "/api/observability":
             from agent import list_processes
@@ -482,8 +482,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    port = 7474
+    port = config.ATHOS_PORT
     s    = _router.status()
+    config.ATHOS_PID_FILE.write_text(str(os.getpid()), "utf-8")
+    atexit.register(lambda: config.ATHOS_PID_FILE.unlink(missing_ok=True))
     print(f"\n  ╔══════════════════════════════════╗")
     print(f"  ║      A.T.H.O.S. — VOICE SERVER   ║")
     print(f"  ╚══════════════════════════════════╝\n")
