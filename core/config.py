@@ -29,6 +29,15 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1").strip()
 GROK_MODEL = os.getenv("GROK_MODEL", "grok-beta").strip()
 ATHOS_ENGINE_ORDER = os.getenv("ATHOS_ENGINE_ORDER", "chatgpt_plus,claude_code,anthropic_api,grok,ollama").strip()
 ATHOS_ACCESS_TOKEN = os.getenv("ATHOS_ACCESS_TOKEN", "").strip()
+ATHOS_BIND_HOST = os.getenv("ATHOS_BIND_HOST", "127.0.0.1").strip() or "127.0.0.1"
+ATHOS_ALLOWED_ORIGINS = [
+    item.strip()
+    for item in os.getenv(
+        "ATHOS_ALLOWED_ORIGINS",
+        "http://127.0.0.1:7474,http://localhost:7474",
+    ).split(",")
+    if item.strip()
+]
 TEMP = ROOT / "temp"
 LOGS = DRIVE / "logs"
 

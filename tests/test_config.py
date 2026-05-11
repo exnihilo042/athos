@@ -30,6 +30,8 @@ def test_config_uses_drive_path_env(tmp_path, monkeypatch):
     assert config.GROK_MODEL == "grok-test-model"
     assert config.ATHOS_ENGINE_ORDER == "chatgpt_plus,claude_code,anthropic_api,grok,ollama"
     assert config.ATHOS_ACCESS_TOKEN == "access-test"
+    assert config.ATHOS_BIND_HOST == "127.0.0.1"
+    assert "http://127.0.0.1:7474" in config.ATHOS_ALLOWED_ORIGINS
     assert config.ENV_PATH == Path(config.ROOT / ".env")
     assert config.LOGS == config.DRIVE / "logs"
 

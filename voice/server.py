@@ -108,7 +108,15 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 
     def cors(self):
-        self.send_header("Access-Control-Allow-Origin",  "*")
+        origin = self.headers.get("Origin", "")
+        allowed = config.ATHOS_ALLOWED_ORIGINS
+        if "*" in allowed:
+            self.send_header("Access-Control-Allow-Origin", origin or "*")
+        elif origin in allowed:
+            self.send_header("Access-Control-Allow-Origin", origin)
+        else:
+            self.send_header("Access-Control-Allow-Origin", allowed[0] if allowed else "http://127.0.0.1:7474")
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 
@@ -458,5 +466,6 @@ if __name__ == "__main__":
     print(f"  ╚══════════════════════════════════╝\n")
     print(f"  Moteur  : {s['engine'].upper()}")
     print(f"  Budget  : {s['budget']:.2f}€")
+    print(f"  Host    : {config.ATHOS_BIND_HOST}")
     print(f"  Port    : {port}\n")
-    ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
+    ThreadingHTTPServer((config.ATHOS_BIND_HOST, port), Handler).serve_forever()
