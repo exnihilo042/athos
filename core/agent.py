@@ -447,6 +447,9 @@ def tool_screenshot(prompt: str = "Décris ce que tu vois sur cet écran.", api_
     if result.returncode != 0 or not tmp.exists():
         return "Impossible de prendre le screenshot"
     img_b64 = base64.standard_b64encode(tmp.read_bytes()).decode()
+    if not config.paid_api_allowed("anthropic"):
+        tmp.unlink(missing_ok=True)
+        return "Screenshot pris — analyse IA payante désactivée par la politique zéro dépense."
     if not api_key:
         env = Path(__file__).parent.parent / ".env"
         if env.exists():
@@ -651,6 +654,20 @@ def execute_tool(name: str, inputs: dict,
                  on_stream: Callable | None = None,
                  permission_check: Callable | None = None) -> str:
 
+    def _requires_permission(tool: str) -> bool:
+        return tool in {
+            "shell", "applescript", "open", "screenshot", "calendar_read",
+            "network_scan", "http_request", "write_file", "memory_write",
+            "notify", "remind", "clipboard", "media_control", "install_skill",
+        }
+
+    if _requires_permission(name):
+        if not permission_check:
+            return f"REFUSÉ : autorisation explicite requise pour {name}."
+        approved = permission_check(name, inputs)
+        if not approved:
+            return f"Refusé par Clément : {name}."
+
     def _web_search():
         from web import search_web, search_news, search_arxiv, search_wikipedia, format_search_results
         src = inputs.get("source", "web"); q = inputs["query"]; n = inputs.get("max_results", 5)
@@ -662,7 +679,11 @@ def execute_tool(name: str, inputs: dict,
 
     def _install_skill():
         from skill_manager import install_skill
-        ok, msg = install_skill(inputs["skill_name"], _get_api_key())
+        ok, msg = install_skill(
+            inputs["skill_name"],
+            _get_api_key(),
+            allow_mutation=config.SKILL_INSTALL_ENABLED,
+        )
         return msg
 
     dispatch = {

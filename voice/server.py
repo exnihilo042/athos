@@ -13,6 +13,7 @@ from memory_extractor import extract_and_save_async
 from athos_memory import AthosMemory
 from athos_router import AthosRouter
 from athos_engine import AthosEngine
+from observability import process_snapshot
 
 STATIC       = Path(__file__).parent
 ACCESS_TOKEN = config.ATHOS_ACCESS_TOKEN
@@ -96,6 +97,10 @@ class Handler(BaseHTTPRequestHandler):
             s = _router.status()
             self._json({**s, "session": session_kernel.status()}); return
 
+        if p == "/api/observability":
+            from agent import list_processes
+            self._json(process_snapshot(list_processes())); return
+
         # ── Alertes ─────────────────────────────────────────────────────────
         if p == "/api/budget_alert":
             self._json(_mem.pop_alert("budget_alert.json")); return
@@ -140,7 +145,7 @@ class Handler(BaseHTTPRequestHandler):
                 rec = sr.Recognizer()
                 with sr.AudioFile(wav_path) as src:
                     audio = rec.record(src)
-                if config.OPENAI_KEY:
+                if config.OPENAI_KEY and config.spend_policy()["whisper_enabled"]:
                     import openai
                     with open(wav_path, "rb") as f:
                         text = openai.OpenAI(api_key=config.OPENAI_KEY).audio.transcriptions.create(

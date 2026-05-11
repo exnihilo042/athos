@@ -58,7 +58,10 @@ Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir l
    # Pour exposer Athos en ligne, définir ATHOS_ACCESS_TOKEN et le saisir dans les réglages de l'interface.
    # Ordre moteur par défaut : ATHOS_ENGINE_ORDER=chatgpt_plus,claude_code,anthropic_api,grok,ollama
    # Modèle OpenAI configurable : OPENAI_MODEL=gpt-4.1
-   # Sécurité coût : OPENAI_ENABLED=false garde la clé stockée mais interdit les appels OpenAI.
+   # Sécurité coût : ATHOS_API_SPEND=off interdit les APIs payantes par défaut.
+   # OPENAI_ENABLED=false garde la clé stockée mais interdit les appels OpenAI.
+   # WHISPER_ENABLED=false garde la transcription sur fallback gratuit.
+   # ATHOS_SKILL_INSTALL_ENABLED=false transforme l'auto-extension en plan visible.
    ```
 
 4. **Lancer l'application**
@@ -77,6 +80,8 @@ L'application sera accessible via un tunnel Cloudflare temporaire.
 
 - `core/` - Logique métier et gestion mémoire
 - `core/operating_protocol.py` - Protocole de travail noyau injecté dans tous les moteurs
+- `core/reasoning_kernel.py` - Journal d'action visible et routage mental Athos
+- `core/observability.py` - Ports, processus, launchd, logs, Git et mémoire visibles
 - `voice/` - Interface web et serveur HTTP
 - `routines/` - Tâches automatisées (briefs quotidiens/hebdomadaires)
 - `temp/` - Fichiers temporaires de session

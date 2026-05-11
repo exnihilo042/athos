@@ -6,6 +6,7 @@ import sys
 def test_voice_server_import_initializes_engine(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "openai-test")
     monkeypatch.setenv("OPENAI_ENABLED", "true")
+    monkeypatch.setenv("ATHOS_API_SPEND", "allow")
     root = os.getcwd()
     voice_path = os.path.join(root, "voice")
     if voice_path not in sys.path:

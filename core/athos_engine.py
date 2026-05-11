@@ -15,17 +15,18 @@ import urllib.error
 import config
 import engine_router
 import session_kernel
+from reasoning_kernel import build_frame
 from athos_memory import AthosMemory
 from athos_router import AthosRouter
 
 CHATGPT_LIMIT_MARKERS = ["usage limit", "upgrade to pro", "purchase more credits"]
 
 ENGINE_LABELS = {
-    "chatgpt_plus":  "ChatGPT Plus — CLI",
-    "claude_code":   "Claude Code Pro — subscription",
-    "anthropic_api": "Anthropic API — claude-sonnet",
-    "grok":          "Grok — xAI",
-    "ollama":        "Ollama — local",
+    "chatgpt_plus":  "Athos via ChatGPT Plus CLI",
+    "claude_code":   "Athos via Claude Code Pro",
+    "anthropic_api": "Athos via Anthropic API",
+    "grok":          "Athos via Grok",
+    "ollama":        "Athos via Ollama local",
 }
 
 
@@ -43,6 +44,9 @@ class AthosEngine:
 
     def _terminal(self, line: str):
         self.sse({"toolbus": "stderr", "data": {"chunk": line, "pid": 0}})
+
+    def _thinking(self, kind: str, text: str):
+        self.sse({"thinking": {"kind": kind, "text": text}})
 
     def _action(self, name, inputs, result, engine):
         label = (inputs.get("command") or inputs.get("script", "")
@@ -113,6 +117,8 @@ class AthosEngine:
         return output.strip()
 
     def _anthropic_api(self, msg: str, engine: str) -> str:
+        if not config.paid_api_allowed("anthropic"):
+            raise RuntimeError("Anthropic API désactivée par la politique zéro dépense")
         from agent import run_agent, SYSTEM
         ctx    = self.mem.context()
         system = SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")
@@ -182,6 +188,10 @@ class AthosEngine:
 
     def respond(self, msg: str) -> str:
         attempted: set[str] = set()
+        available = self.router.available()
+        frame = build_frame(msg, available, self.router.current)
+        for event in frame.events():
+            self.sse(event)
         engine = self.router.current
 
         while engine not in attempted:

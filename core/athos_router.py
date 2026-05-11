@@ -40,7 +40,8 @@ class AthosRouter:
         return engine_router.available_engines(
             anthropic_key   = config.ANTHROPIC_KEY,
             openai_key      = config.OPENAI_KEY,
-            openai_enabled  = config.OPENAI_ENABLED,
+            openai_enabled  = config.OPENAI_ENABLED and config.paid_api_allowed("openai"),
+            anthropic_enabled = config.paid_api_allowed("anthropic"),
             grok_key        = config.GROK_KEY,
             has_ollama      = lambda: bool(self._ollama_models()),
             has_chatgpt_plus= engine_router.chatgpt_plus_available,
@@ -78,4 +79,5 @@ class AthosRouter:
             "degraded":  self.degraded,
             "available": self.available(),
             "budget":    round(b.get("total_eur", 0.0), 4),
+            "spend_policy": config.spend_policy(),
         }

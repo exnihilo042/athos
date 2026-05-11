@@ -91,7 +91,7 @@
     display: none;
   }
 
-  /* ── HUD strip — FUI/JARVIS ─────────────────────────────────────────────── */
+  /* ── HUD strip — ATHOS ──────────────────────────────────────────────────── */
   #hud {
     display: flex;
     align-items: stretch;
@@ -689,6 +689,50 @@
   }
   #term-btn.active { border-color: var(--green); color: var(--green); }
 
+  #think-btn {
+    position: fixed;
+    bottom: 28px;
+    left: 20px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted);
+    transition: border-color 0.3s, color 0.3s;
+    z-index: 50;
+    font-size: 12px; letter-spacing: .06em;
+  }
+  #think-btn.active { border-color: var(--blue); color: var(--blue); }
+
+  #thinking-panel {
+    display: none;
+    position: fixed;
+    top: 84px; left: 16px;
+    width: min(360px, calc(100vw - 32px));
+    max-height: 42vh;
+    background: rgba(5,5,8,0.96);
+    border: 1px solid #1a1a24;
+    z-index: 70;
+    flex-direction: column;
+    font-family: 'SF Mono', 'Menlo', monospace;
+  }
+  #thinking-panel.open { display: flex; }
+  #thinking-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-bottom: 1px solid #111118;
+    font-size: 10px; letter-spacing: 0.18em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  #thinking-body {
+    overflow-y: auto; padding: 10px 12px;
+    font-size: 10px; line-height: 1.55;
+  }
+  .think-line { display: flex; gap: 8px; margin-bottom: 5px; }
+  .think-kind { color: var(--blue); width: 74px; flex-shrink: 0; text-transform: uppercase; }
+  .think-text { color: #9a9ab4; word-break: break-word; }
+
   #terminal {
     display: none;
     position: fixed;
@@ -861,6 +905,15 @@
 
 <button id="stop-btn" onclick="stopConversation()">Arrêter</button>
 
+<div id="think-btn" onclick="toggleThinking()" title="Journal ATHOS">TH</div>
+
+<div id="thinking-panel">
+  <div id="thinking-header"><span>ATHOS — JOURNAL</span><span id="thinking-count">0</span></div>
+  <div id="thinking-body">
+    <div class="think-line"><span class="think-kind">READY</span><span class="think-text">Journal d'action visible initialisé.</span></div>
+  </div>
+</div>
+
 <!-- Terminal panel -->
 <div id="term-btn" onclick="toggleTerminal()" title="Terminal">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -936,6 +989,8 @@ function authHeaders() {
 
 // ── Terminal ──────────────────────────────────────────────────────────────────
 let termOpen      = false;
+let thinkingOpen  = false;
+let thinkingCount = 0;
 let _runningProcs = {};
 let _pendingPermId = null;
 
@@ -943,6 +998,12 @@ function toggleTerminal() {
   termOpen = !termOpen;
   document.getElementById('terminal').classList.toggle('open', termOpen);
   document.getElementById('term-btn').classList.toggle('active', termOpen);
+}
+
+function toggleThinking() {
+  thinkingOpen = !thinkingOpen;
+  document.getElementById('thinking-panel').classList.toggle('open', thinkingOpen);
+  document.getElementById('think-btn').classList.toggle('active', thinkingOpen);
 }
 
 function escHtml(s) {
@@ -962,6 +1023,23 @@ function termLog(text, cls = 'info') {
   // Auto-ouvrir si stdout/stderr arrive
   if (!termOpen && (cls === 'start' || cls === 'stdout' || cls === 'stderr'))
     toggleTerminal();
+}
+
+function addThinking(kind, text) {
+  const body = document.getElementById('thinking-body');
+  if (!body) return;
+  thinkingCount += 1;
+  const line = document.createElement('div');
+  line.className = 'think-line';
+  line.innerHTML = `<span class="think-kind">${escHtml(kind || 'log')}</span><span class="think-text">${escHtml(text || '')}</span>`;
+  body.appendChild(line);
+  while (body.children.length > 120) body.removeChild(body.firstChild);
+  body.scrollTop = body.scrollHeight;
+  const c = document.getElementById('thinking-count');
+  if (c) c.textContent = thinkingCount;
+  if (!thinkingOpen) {
+    document.getElementById('think-btn').classList.add('active');
+  }
 }
 
 function updateProcList() {
@@ -1288,6 +1366,10 @@ async function callAthos(text, streamTarget) {
               // ToolBus — stdout/stderr/start/done en temps réel
               if (obj.toolbus) {
                 handleToolBus(obj.toolbus, obj);
+              }
+
+              if (obj.thinking) {
+                addThinking(obj.thinking.kind, obj.thinking.text);
               }
 
               // Permission requise
@@ -1636,8 +1718,8 @@ document.getElementById('modal').addEventListener('click', (e) => {
 
 // ── HUD ───────────────────────────────────────────────────────────────────────
 const ENGINE_NAMES = {
-  chatgpt_plus: 'ChatGPT+', claude_code: 'Claude Code',
-  anthropic_api: 'Anthropic', grok: 'Grok', ollama: 'Ollama', none: '—'
+  chatgpt_plus: 'Athos via ChatGPT+', claude_code: 'Athos via Claude',
+  anthropic_api: 'Athos via Anthropic', grok: 'Athos via Grok', ollama: 'Athos local', none: '—'
 };
 
 function updateHUD(d) {
@@ -1651,7 +1733,8 @@ function updateHUD(d) {
   const budget = document.getElementById('hud-budget');
   if (budget) {
     const b = d.budget;
-    budget.textContent = b > 0 ? `${b.toFixed(2)}€` : '0€';
+    const zero = d.spend_policy && d.spend_policy.mode === 'zero_paid_api';
+    budget.textContent = zero ? 'OFF' : (b > 0 ? `${b.toFixed(2)}€` : '0€');
     budget.className = 'hud-val' + (b > 5 ? ' warn' : '') + (b > 15 ? ' alert' : '');
   }
 
@@ -1676,6 +1759,17 @@ function updateStatus() {
     })
     .then(d => { if (d) updateHUD(d); })
     .catch(() => {});
+  fetch(`${SERVER}/api/observability`, { method: 'POST', headers: authHeaders() })
+    .then(r => r.ok ? r.json() : null)
+    .then(d => {
+      if (!d || !d.summary) return;
+      const el = document.getElementById('hud-procs');
+      if (el) {
+        const n = (d.summary.listening_ports || 0) + (d.summary.agent_processes || 0);
+        el.textContent = n;
+        el.className = 'hud-val' + (n > 0 ? ' warn' : '');
+      }
+    }).catch(() => {});
 }
 updateStatus();
 setInterval(updateStatus, 30000);

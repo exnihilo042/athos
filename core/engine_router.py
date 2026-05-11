@@ -28,6 +28,7 @@ def available_engines(
     anthropic_key: str = "",
     openai_key: str = "",
     openai_enabled: bool = True,
+    anthropic_enabled: bool = True,
     grok_key: str = "",
     has_ollama: Callable[[], bool] | None = None,
     has_chatgpt_plus: Callable[[], bool] | None = None,
@@ -37,9 +38,9 @@ def available_engines(
     checks = {
         "chatgpt_plus": bool(has_chatgpt_plus and has_chatgpt_plus()),
         "claude_code": bool(has_claude_code and has_claude_code()),
-        "anthropic_api": bool(anthropic_key and not anthropic_key.startswith("sk-ant-...")),
+        "anthropic_api": bool(anthropic_enabled and anthropic_key and not anthropic_key.startswith("sk-ant-...")),
         "chatgpt": bool(openai_enabled and openai_key),
-        "claude": bool(anthropic_key and not anthropic_key.startswith("sk-ant-...")),
+        "claude": bool(anthropic_enabled and anthropic_key and not anthropic_key.startswith("sk-ant-...")),
         "grok": bool(grok_key),
         "ollama": bool(has_ollama and has_ollama()),
     }

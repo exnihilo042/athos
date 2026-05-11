@@ -6,6 +6,11 @@ import json, subprocess, urllib.request
 from pathlib import Path
 from datetime import datetime
 
+try:
+    import config
+except ModuleNotFoundError:
+    from core import config
+
 SKILLS_DIR = Path(__file__).parent / "skills"
 SKILLS_DIR.mkdir(exist_ok=True)
 MANIFEST   = SKILLS_DIR / "manifest.json"
@@ -94,13 +99,36 @@ def detect_needed_skills(question: str) -> list[str]:
 
 # ── Installation ──────────────────────────────────────────────────────────────
 
-def install_skill(skill_name: str, api_key: str = "") -> tuple[bool, str]:
+def skill_install_plan(skill_name: str) -> str:
+    if skill_name in KNOWN_SKILLS:
+        skill = KNOWN_SKILLS[skill_name]
+        deps = ", ".join(skill.get("pip", [])) or "aucune"
+        return (
+            f"Plan installation compétence ATHOS '{skill_name}'\n"
+            f"- Description: {skill['description']}\n"
+            f"- Dépendances pip: {deps}\n"
+            f"- Fichier cible: {SKILLS_DIR / skill['file']}\n"
+            "- Mutation requise: installation dépendances, écriture manifest/connecteur.\n"
+            "- Validation requise: import du connecteur + tests ciblés."
+        )
+    return (
+        f"Plan acquisition compétence ATHOS '{skill_name}'\n"
+        "- Compétence inconnue: recherche web technique requise.\n"
+        "- Mutation requise: génération d'un connecteur et écriture dans core/skills.\n"
+        "- Validation requise: revue humaine, import, tests ciblés."
+    )
+
+
+def install_skill(skill_name: str, api_key: str = "", allow_mutation: bool = False) -> tuple[bool, str]:
     """
     Installe une compétence :
     1. pip install des dépendances
     2. Génère le code connecteur via Claude si non existant
     3. Teste que l'import fonctionne
     """
+    if not allow_mutation or not config.SKILL_INSTALL_ENABLED:
+        return False, skill_install_plan(skill_name) + "\nStatut: en attente d'autorisation explicite."
+
     if skill_name not in KNOWN_SKILLS:
         # Compétence inconnue → tenter de la générer
         return _generate_unknown_skill(skill_name, api_key)
@@ -137,6 +165,8 @@ def install_skill(skill_name: str, api_key: str = "") -> tuple[bool, str]:
 
 def _generate_connector(skill_name: str, description: str, api_key: str) -> str:
     """Génère le code Python d'un connecteur via Claude."""
+    if not config.paid_api_allowed("anthropic"):
+        return ""
     payload = json.dumps({
         "model": "claude-sonnet-4-6",
         "max_tokens": 800,

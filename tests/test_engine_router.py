@@ -13,6 +13,7 @@ def test_configured_order_preserves_known_custom_order_and_appends_missing():
 def test_available_engines_respects_priority():
     engines = available_engines(
         anthropic_key="sk-ant-real",
+        anthropic_enabled=True,
         openai_key="sk-openai",
         openai_enabled=True,
         grok_key="",
@@ -24,15 +25,16 @@ def test_available_engines_respects_priority():
     assert first_available(engines) == "chatgpt_plus"
 
 
-def test_openai_key_is_ignored_when_openai_disabled():
+def test_paid_api_keys_are_ignored_when_disabled():
     engines = available_engines(
         anthropic_key="sk-ant-real",
+        anthropic_enabled=False,
         openai_key="sk-openai",
         openai_enabled=False,
         grok_key="",
         has_ollama=lambda: False,
     )
-    assert engines == ["anthropic_api"]
+    assert engines == []
 
 
 def test_next_engine_never_wraps_to_current_when_other_available():
