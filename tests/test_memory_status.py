@@ -13,4 +13,5 @@ def test_memory_status_reports_canonical_files(tmp_path, monkeypatch):
     assert result["canonical_files"][0]["name"] == "athos_identity.mem"
     assert result["canonical_files"][0]["last_line"] == "§id:athos"
     assert "athos_capabilities.mem" in result["missing"]
+    assert "athos_session_summary.mem" in result["missing"]
     assert result["ok"] is False

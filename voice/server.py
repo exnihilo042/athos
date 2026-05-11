@@ -10,6 +10,7 @@ import config
 import session_kernel
 import sync_manager
 import memory_status
+import session_compactor
 import engine_router
 import failover_simulator
 from auth import request_authorized
@@ -231,6 +232,12 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == "/api/memory/status":
             self._json(memory_status.status()); return
+
+        if p == "/api/memory/summary":
+            body = self._body()
+            if body.get("write", False):
+                self._json(session_compactor.write_summary(limit=int(body.get("limit", 120)))); return
+            self._json(session_compactor.build_summary(limit=int(body.get("limit", 120)))); return
 
         if p == "/api/self_improvement_plan":
             body = self._body()
