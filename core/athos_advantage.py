@@ -10,11 +10,13 @@ from typing import Any
 
 try:
     from . import config, session_kernel, memory_status, metacognition
+    from .transformation_stack import transformation_pack
 except ImportError:
     import config
     import session_kernel
     import memory_status
     import metacognition
+    from transformation_stack import transformation_pack
 
 
 CORE_AUGMENTATIONS = [
@@ -73,6 +75,7 @@ def pack(engine: str = "unknown_engine", objective: str = "") -> dict[str, Any]:
             "decision_axes": cognition.get("decision_axes", []),
             "core_loop": cognition["core_loop"],
         },
+        "transformation_stack": transformation_pack(engine=engine, objective=objective),
         "honest_boundary": (
             "Athos cannot override a provider's system instructions from outside, "
             "but it can make the engine operate as an attached Athos motor with extra memory, "

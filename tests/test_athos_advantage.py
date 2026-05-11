@@ -10,4 +10,5 @@ def test_advantage_pack_explains_functional_delta():
     assert any(item["name"] == "situational_decision_kernel" for item in pack["athos_delta"])
     assert any(item["name"] == "physical_world_bridge" for item in pack["athos_delta"])
     assert pack["cognitive_base"]["non_immutable"] is True
+    assert pack["transformation_stack"]["primary_form"]["name"]
     assert "cannot override" in pack["honest_boundary"]

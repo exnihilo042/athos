@@ -14,6 +14,7 @@ import session_compactor
 import metacognition
 import situational_decision
 import athos_advantage
+import transformation_stack
 import engine_router
 import failover_simulator
 from auth import request_authorized
@@ -255,6 +256,13 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/athos/advantage":
             body = self._body()
             self._json(athos_advantage.pack(
+                engine=body.get("engine", "unknown_engine"),
+                objective=body.get("objective", ""),
+            )); return
+
+        if p == "/api/athos/transform":
+            body = self._body()
+            self._json(transformation_stack.transformation_pack(
                 engine=body.get("engine", "unknown_engine"),
                 objective=body.get("objective", ""),
             )); return
