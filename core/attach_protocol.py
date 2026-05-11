@@ -20,6 +20,14 @@ except ImportError:
 
 PROTOCOL_VERSION = "athos-attach-v1"
 PROMPT_FILE = config.ATHOS_PATH / "ATHOS_ATTACH_PROMPT.md"
+CANONICAL_MEMORY_FILES = [
+    "athos_identity.mem",
+    "athos_capabilities.mem",
+    "athos_cognition.mem",
+    "athos_projects.mem",
+    "athos_kernel_plan.mem",
+    "athos_conv.mem",
+]
 
 
 RULES = [
@@ -46,15 +54,50 @@ def _capability_pack() -> dict[str, Any]:
     }
 
 
+def _drive_memory_pack(max_chars: int = 6_000) -> dict[str, Any]:
+    """Small canonical Drive memory pack for newly attached engines."""
+    files: dict[str, list[str]] = {}
+    remaining = max_chars
+    for name in CANONICAL_MEMORY_FILES:
+        path = config.DRIVE / name
+        if not path.exists() or remaining <= 0:
+            continue
+        lines = [line for line in path.read_text("utf-8", errors="ignore").splitlines() if line.strip()]
+        if name == "athos_conv.mem":
+            selected = lines[-12:]
+        else:
+            selected = [
+                line for line in lines
+                if line.startswith("§") or any(token in line for token in ("§done:", "§todo:", "§blocker:", "§checkpoint:"))
+            ][-18:]
+        clipped: list[str] = []
+        for line in selected:
+            if remaining <= 0:
+                break
+            item = line[:600]
+            clipped.append(item)
+            remaining -= len(item) + 1
+        if clipped:
+            files[name] = clipped
+    return {
+        "source": str(config.DRIVE),
+        "files": files,
+        "truncated": remaining <= 0,
+        "max_chars": max_chars,
+    }
+
+
 def context_for_attach(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     payload = payload or {}
     max_chars = int(payload.get("max_chars") or session_kernel.MAX_CONTEXT_CHARS)
+    memory_chars = int(payload.get("memory_chars") or 6_000)
     return {
         "identity": "A.T.H.O.S.",
         "role": "sovereign_layer_for_memory_context_cognition_and_skills",
         "rules": RULES,
         "session": session_kernel.status(),
         "context_pack": session_kernel.context_pack(max_chars=max_chars),
+        "drive_memory": _drive_memory_pack(max_chars=memory_chars),
         "latest_checkpoint": session_kernel.latest_checkpoint(),
         "recent_messages": session_kernel.latest_messages(limit=12),
         "capabilities_text": status_report(),
