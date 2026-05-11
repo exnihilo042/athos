@@ -11,6 +11,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
@@ -251,8 +254,8 @@
     flex-direction: column;
     justify-content: flex-start;
     width: 100%;
-    max-width: 360px;
-    gap: 12px;
+    max-width: min(720px, calc(100vw - 48px));
+    gap: 8px;
     padding-bottom: 32px;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -263,35 +266,117 @@
   #transcript-area::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 2px; }
 
   .bubble {
-    padding: 12px 16px;
-    border-radius: 16px;
-    font-size: 15px;
-    line-height: 1.5;
-    max-width: 90%;
     animation: fadeUp 0.3s ease;
+    width: 100%;
   }
   .bubble.user {
     background: #1c1c24;
     border: 1px solid var(--border);
+    border-radius: 14px;
     color: var(--muted);
     font-size: 13px;
+    line-height: 1.5;
+    padding: 10px 14px;
     align-self: flex-end;
-    border-bottom-right-radius: 4px;
+    max-width: 85%;
+    width: auto;
   }
   .bubble.athos {
-    background: #0f1520;
-    border: 1px solid #1a2540;
+    background: transparent;
+    border: none;
     color: var(--text);
     align-self: flex-start;
-    border-bottom-left-radius: 4px;
+    padding: 4px 0 20px 0;
+    border-bottom: 1px solid #111118;
   }
   .bubble.athos .sender {
     font-size: 10px;
     color: var(--blue);
     letter-spacing: 0.15em;
-    margin-bottom: 6px;
+    margin-bottom: 10px;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
+  .bubble.athos .sender::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--blue);
+    flex-shrink: 0;
+  }
+
+  /* ── Markdown prose ──────────────────────────────────────────────────────── */
+  .md-content {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text);
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  .md-content p { margin-bottom: 12px; }
+  .md-content p:last-child { margin-bottom: 0; }
+  .md-content h1,.md-content h2,.md-content h3 {
+    color: #fff; font-size: 14px; letter-spacing: 0.06em;
+    margin: 18px 0 8px; font-weight: 600;
+  }
+  .md-content strong { color: #fff; font-weight: 600; }
+  .md-content em { color: #b0b0cc; }
+  .md-content a { color: var(--blue); text-decoration: none; }
+  .md-content ul, .md-content ol { padding-left: 22px; margin-bottom: 12px; }
+  .md-content li { margin-bottom: 5px; }
+  .md-content blockquote {
+    border-left: 3px solid var(--blue);
+    margin: 10px 0; padding-left: 14px;
+    color: var(--muted);
+  }
+  .md-content code:not(pre code) {
+    background: #1a1a28;
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 12px;
+    color: #a0a0e8;
+  }
+  .md-content pre {
+    background: #0d0d18 !important;
+    border: 1px solid #1e1e30;
+    border-radius: 8px;
+    margin: 12px 0;
+    overflow-x: auto;
+    position: relative;
+  }
+  .md-content pre code {
+    background: transparent !important;
+    border: none !important;
+    padding: 14px 16px !important;
+    font-size: 12px;
+    line-height: 1.55;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace !important;
+    display: block;
+  }
+  .md-content table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 13px; }
+  .md-content th, .md-content td { border: 1px solid #1e1e30; padding: 6px 10px; text-align: left; }
+  .md-content th { background: #111118; color: var(--muted); }
+  .copy-btn {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: transparent;
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 9px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+    transition: color 0.2s, border-color 0.2s;
+    z-index: 2;
+  }
+  .copy-btn:hover { color: var(--text); border-color: #3a3a50; }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
 
   /* Actions agent */
   .action-line {
@@ -320,9 +405,10 @@
     white-space: nowrap;
   }
   .bubble.agent-bubble {
-    background: #080e08;
-    border: 1px solid #0f200f;
-    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    padding: 4px 0 20px 0;
+    border-bottom: 1px solid #111118;
   }
 
   @keyframes fadeUp {
@@ -1269,6 +1355,43 @@ async function respondPerm(approved) {
 }
 let authPromptVisible = false;
 
+// ── Markdown + highlight setup ────────────────────────────────────────────────
+if (typeof marked !== 'undefined') {
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+    highlight: (code, lang) => {
+      if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+        return hljs.highlight(code, { language: lang }).value;
+      }
+      return typeof hljs !== 'undefined' ? hljs.highlightAuto(code).value : code;
+    }
+  });
+}
+
+function renderMarkdown(container, text) {
+  if (!text) return;
+  if (typeof marked === 'undefined') {
+    container.textContent = text;
+    return;
+  }
+  container.innerHTML = marked.parse(text);
+  container.querySelectorAll('pre code').forEach(block => {
+    if (typeof hljs !== 'undefined') hljs.highlightElement(block);
+    const pre = block.parentNode;
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copier';
+    btn.onclick = () => {
+      navigator.clipboard.writeText(block.textContent).then(() => {
+        btn.textContent = '✓'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 1800);
+      });
+    };
+    pre.appendChild(btn);
+  });
+}
+
 const GREETINGS = [
   "Clément. En ligne.",
   "Présent.",
@@ -1406,8 +1529,18 @@ function addBubble(type, text) {
   const area = document.getElementById('transcript-area');
   const b = document.createElement('div');
   b.className = `bubble ${type}`;
-  if (type === 'athos') b.innerHTML = `<div class="sender">A.T.H.O.S.</div>${text}`;
-  else b.textContent = text;
+  if (type === 'athos') {
+    const sender = document.createElement('div');
+    sender.className = 'sender';
+    sender.textContent = 'A.T.H.O.S.';
+    const content = document.createElement('div');
+    content.className = 'md-content';
+    b.appendChild(sender);
+    b.appendChild(content);
+    renderMarkdown(content, text);
+  } else {
+    b.textContent = text;
+  }
   area.appendChild(b);
   while (area.children.length > 60) area.removeChild(area.firstChild);
   b.scrollIntoView({ behavior: 'smooth' });
@@ -1418,7 +1551,7 @@ function createStreamBubble() {
   const area = document.getElementById('transcript-area');
   const b = document.createElement('div');
   b.className = 'bubble athos';
-  b.innerHTML = `<div class="sender">A.T.H.O.S.</div><span class="stream-text"></span>`;
+  b.innerHTML = `<div class="sender">A.T.H.O.S.</div><div class="stream-text md-content"></div>`;
   area.appendChild(b);
   while (area.children.length > 60) area.removeChild(area.firstChild);
   b.scrollIntoView({ behavior: 'smooth' });
@@ -1498,6 +1631,7 @@ async function callAthos(text, streamTarget) {
       function pump() {
         reader.read().then(({ done, value }) => {
           if (done) {
+            if (streamEl && full) renderMarkdown(streamEl, full);
             activeStream = null;
             setTerminalState('IDLE');
             resolve(full || "Pas de réponse.");
@@ -1511,6 +1645,7 @@ async function callAthos(text, streamTarget) {
             if (!line.startsWith('data: ')) continue;
             const d = line.slice(6).trim();
             if (d === '[DONE]') {
+              if (streamEl && full) renderMarkdown(streamEl, full);
               activeStream = null;
               setTerminalState('IDLE');
               terminalLine(`§assistant:done|chars:${full.length}`, 'success');
