@@ -26,6 +26,7 @@ CANONICAL_MEMORY_FILES = [
     "athos_cognition.mem",
     "athos_projects.mem",
     "athos_kernel_plan.mem",
+    "athos_session_summary.mem",
     "athos_conv.mem",
 ]
 
