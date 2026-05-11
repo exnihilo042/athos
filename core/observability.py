@@ -189,6 +189,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
         "hardware": hardware,
         "permissions": _permission_summary(skills, devices, hardware),
         "cost_policy": config.spend_policy(),
+        "server_security": config.server_security_policy(),
         "summary": {
             "listening_ports": len(ports),
             "launchd_jobs": len(jobs),

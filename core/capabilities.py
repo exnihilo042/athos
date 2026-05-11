@@ -42,6 +42,7 @@ def status_report() -> str:
         f"Repo: {config.ATHOS_PATH}",
         f"Mémoire: {config.DRIVE}",
         f"Politique coût: {config.spend_policy()['mode']}",
+        f"Sécurité serveur: host={config.server_security_policy()['bind_host']}; token_required={config.server_security_policy()['token_required']}; token_configured={config.server_security_policy()['token_configured']}",
         f"Session: {session_kernel.summarize_recent()}",
         f"Attach protocol: /api/attach → /api/context_pack → /api/report",
         f"Sync: {sync_manager.status()['pending']} job(s) pending",

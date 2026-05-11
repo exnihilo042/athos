@@ -159,8 +159,13 @@ class Handler(BaseHTTPRequestHandler):
         self.cors(); self.end_headers(); self.wfile.write(body)
 
     def _auth(self) -> bool:
-        if request_authorized(self.headers, ACCESS_TOKEN): return True
-        self._json({"error": "unauthorized", "auth_required": True}, 401); return False
+        if request_authorized(self.headers, ACCESS_TOKEN, require_token=config.ATHOS_REQUIRE_TOKEN): return True
+        self._json({
+            "error": "unauthorized",
+            "auth_required": True,
+            "token_configured": bool(ACCESS_TOKEN),
+            "token_required": config.ATHOS_REQUIRE_TOKEN,
+        }, 401); return False
 
     def do_POST(self):
         p = self.path

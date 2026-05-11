@@ -31,6 +31,7 @@ def test_config_uses_drive_path_env(tmp_path, monkeypatch):
     assert config.ATHOS_ENGINE_ORDER == "chatgpt_plus,claude_code,anthropic_api,grok,ollama"
     assert config.ATHOS_ACCESS_TOKEN == "access-test"
     assert config.ATHOS_BIND_HOST == "127.0.0.1"
+    assert config.ATHOS_REQUIRE_TOKEN is False
     assert "http://127.0.0.1:7474" in config.ATHOS_ALLOWED_ORIGINS
     assert config.ENV_PATH == Path(config.ROOT / ".env")
     assert config.LOGS == config.DRIVE / "logs"
@@ -48,3 +49,15 @@ def test_config_paid_api_requires_explicit_spend_flag(tmp_path, monkeypatch):
     assert config.PAID_API_ENABLED is True
     assert config.spend_policy()["openai_enabled"] is True
     assert config.spend_policy()["whisper_enabled"] is True
+
+
+def test_config_requires_token_for_remote_bind_by_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("DRIVE_PATH", str(tmp_path / "memory"))
+    monkeypatch.setenv("ATHOS_BIND_HOST", "0.0.0.0")
+    monkeypatch.delenv("ATHOS_REQUIRE_TOKEN", raising=False)
+
+    import core.config as config
+    importlib.reload(config)
+
+    assert config.ATHOS_REQUIRE_TOKEN is True
+    assert config.server_security_policy()["token_required"] is True
