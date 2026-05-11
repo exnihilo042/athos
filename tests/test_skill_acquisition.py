@@ -231,6 +231,7 @@ class TestAcquire:
             )
 
         assert skill is None
+        assert not (tmp_path / "core" / "skills" / "bad.py").exists()
 
 
 class TestScanAndAcquire:

@@ -132,8 +132,11 @@ class SkillLibrary:
             self._save()
             return False, "dependency install blocked: ATHOS_SKILL_INSTALL_ENABLED=false or approval missing"
 
-        # Write skill file
-        skill.file_path().write_text(skill.code, "utf-8")
+        # Write skill file with rollback if validation fails.
+        path = skill.file_path()
+        previous_exists = path.exists()
+        previous_content = path.read_text("utf-8") if previous_exists else ""
+        path.write_text(skill.code, "utf-8")
 
         # Install dependencies if needed
         if skill.dependencies:
@@ -141,6 +144,7 @@ class SkillLibrary:
                 subprocess.run(
                     [sys.executable, "-m", "pip", "install", dep, "-q"],
                     capture_output=True,
+                    stdin=subprocess.DEVNULL,
                 )
 
         # Run test
@@ -148,9 +152,13 @@ class SkillLibrary:
             test_src = skill.code + "\n\n" + skill.test_code
             result = subprocess.run(
                 [sys.executable, "-c", test_src],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL,
             )
             if result.returncode != 0:
+                if previous_exists:
+                    path.write_text(previous_content, "utf-8")
+                else:
+                    path.unlink(missing_ok=True)
                 skill.status = "pending"
                 self._save()
                 return False, result.stderr[:400]

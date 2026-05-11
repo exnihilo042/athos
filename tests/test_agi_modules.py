@@ -97,6 +97,55 @@ class TestGoalManager:
         assert gm.top() is None
 
 
+class TestSkillLibraryRollback:
+    def test_failed_test_rolls_back_new_skill_file(self, tmp_path):
+        cfg = _mock_config(tmp_path)
+        with patch.dict(sys.modules, {"config": cfg}):
+            import importlib
+            import skill_library as sl_mod
+            importlib.reload(sl_mod)
+            sl_mod.SKILLS_DIR = tmp_path / "core" / "skills"
+            sl_mod.SKILLS_MANIFEST = sl_mod.SKILLS_DIR / "manifest.json"
+            sl_mod.SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+            lib = sl_mod.SkillLibrary()
+
+            skill = lib.propose(
+                name="bad_skill",
+                description="bad",
+                code="def bad_skill():\n    return 'bad'\n",
+                test_code="assert bad_skill() == 'ok'",
+            )
+            ok, msg = lib.test_and_integrate(skill.id, allow_mutation=True)
+
+        assert ok is False
+        assert msg
+        assert not (tmp_path / "core" / "skills" / "bad_skill.py").exists()
+
+    def test_failed_test_restores_existing_skill_file(self, tmp_path):
+        cfg = _mock_config(tmp_path)
+        with patch.dict(sys.modules, {"config": cfg}):
+            import importlib
+            import skill_library as sl_mod
+            importlib.reload(sl_mod)
+            sl_mod.SKILLS_DIR = tmp_path / "core" / "skills"
+            sl_mod.SKILLS_MANIFEST = sl_mod.SKILLS_DIR / "manifest.json"
+            sl_mod.SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+            existing = sl_mod.SKILLS_DIR / "bad_skill.py"
+            existing.write_text("def old():\n    return 'old'\n", "utf-8")
+            lib = sl_mod.SkillLibrary()
+
+            skill = lib.propose(
+                name="bad_skill",
+                description="bad",
+                code="def bad_skill():\n    return 'bad'\n",
+                test_code="assert bad_skill() == 'ok'",
+            )
+            ok, _ = lib.test_and_integrate(skill.id, allow_mutation=True)
+
+        assert ok is False
+        assert (tmp_path / "core" / "skills" / "bad_skill.py").read_text("utf-8") == "def old():\n    return 'old'\n"
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # BeliefStore
 # ══════════════════════════════════════════════════════════════════════════════
