@@ -8,11 +8,27 @@ def test_process_snapshot_contains_visible_runtime_sections(monkeypatch):
 
     snap = observability.process_snapshot([{"pid": 123, "running": True}])
 
-    assert {"git", "drive", "memory", "server_runtime", "ports", "launchd", "logs", "agent_processes", "summary"} <= set(snap)
+    assert {"git", "drive", "memory", "failover", "server_runtime", "ports", "launchd", "logs", "agent_processes", "summary"} <= set(snap)
     assert snap["agent_processes"] == [{"pid": 123, "running": True}]
     assert snap["summary"]["agent_processes"] == 1
     assert snap["server_runtime"]["pid"]
     assert snap["server_runtime"]["port"] == observability.config.ATHOS_PORT
+
+
+def test_recent_failover_events_reads_session_actions(tmp_path, monkeypatch):
+    monkeypatch.setattr(observability.session_kernel, "SESSION_FILE", tmp_path / "kernel.jsonl")
+    observability.session_kernel.record_action(
+        "failover_simulation",
+        "chatgpt_plus→claude_code",
+        "simulated_limit",
+        engine="athos_kernel",
+        meta={"context_hash": "abc123"},
+    )
+
+    rows = observability.recent_failover_events()
+
+    assert rows[-1]["label"] == "chatgpt_plus→claude_code"
+    assert rows[-1]["context_hash"] == "abc123"
 
 
 def test_stop_observed_pid_refuses_unlisted_pid(monkeypatch):

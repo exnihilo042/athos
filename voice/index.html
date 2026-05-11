@@ -1637,6 +1637,7 @@ function renderObservability(d) {
   const sec = d.server_security || {};
   const runtime = d.server_runtime || {};
   const memory = d.memory || {};
+  const failover = d.failover || [];
   const loop = d.loop || {};
   const syncRecent = sync.recent || [];
   const writeRoots = sec.allowed_write_roots || [];
@@ -1660,6 +1661,9 @@ function renderObservability(d) {
   }</div>`);
   parts.push(`<div class="obs-section"><div class="obs-title">Moteurs attachés</div>${
     attached.length ? attached.map(a => obsRow(a.engine || 'engine', `${a.attach_id || '-'} | ${a.scope || 'default'} | ${a.ts || '-'}`)).join('') : '<div class="obs-muted">Aucun moteur externe attaché.</div>'
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Failover</div>${
+    failover.length ? failover.map(f => obsRow(f.name || 'failover', `${f.label || '-'} | ${f.result || '-'} | ctx:${f.context_hash || '-'} | ${f.ts || '-'}`)).join('') : '<div class="obs-muted">Aucune bascule récente.</div>'
   }</div>`);
   parts.push(`<div class="obs-section"><div class="obs-title">Sync / Coût</div>${
     obsRow(sync.network_available ? 'online' : 'offline', `pending:${sync.pending || 0} ready:${sync.ready_for_replay || 0} file:${sync.file || '-'}`) +
@@ -1689,7 +1693,7 @@ function renderObservability(d) {
   }</div>`);
   body.innerHTML = parts.join('');
   const c = document.getElementById('obs-count');
-  if (c) c.textContent = (ports.length + jobs.length + attached.length + (sync.pending || 0) + (loop.running ? 1 : 0) + (runtime.pid ? 1 : 0) + ((memory.missing || []).length)).toString();
+  if (c) c.textContent = (ports.length + jobs.length + attached.length + failover.length + (sync.pending || 0) + (loop.running ? 1 : 0) + (runtime.pid ? 1 : 0) + ((memory.missing || []).length)).toString();
 }
 
 function refreshObservability() {
@@ -2540,7 +2544,7 @@ function updateStatus() {
       if (!d || !d.summary) return;
       const el = document.getElementById('hud-procs');
       if (el) {
-        const n = (d.summary.listening_ports || 0) + (d.summary.agent_processes || 0) + (d.summary.sync_pending || 0) + (d.summary.loop_running ? 1 : 0) + (d.summary.server_pid ? 1 : 0) + (d.summary.memory_missing || 0);
+        const n = (d.summary.listening_ports || 0) + (d.summary.agent_processes || 0) + (d.summary.sync_pending || 0) + (d.summary.loop_running ? 1 : 0) + (d.summary.server_pid ? 1 : 0) + (d.summary.memory_missing || 0) + (d.summary.failover_events || 0);
         el.textContent = n;
         el.className = 'hud-val' + (n > 0 ? ' warn' : '');
       }

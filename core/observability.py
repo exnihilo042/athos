@@ -193,6 +193,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
     devices = device_registry()
     hardware = hardware_registry()
     memory = memory_status.status()
+    failover = recent_failover_events()
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git": git_status(),
@@ -205,6 +206,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
         "attached_engines": attached,
         "sync": sync,
         "memory": memory,
+        "failover": failover,
         "loop": loop,
         "skills": skills,
         "devices": devices,
@@ -219,6 +221,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
             "attached_engines": len(attached),
             "sync_pending": sync.get("pending", 0),
             "memory_missing": len(memory.get("missing", [])),
+            "failover_events": len(failover),
             "loop_running": loop.get("running", False),
             "installed_skills": sum(1 for skill in skills if skill.get("installed")),
             "devices": len(devices),
@@ -281,3 +284,22 @@ def _loop_status() -> dict[str, Any]:
         return loop_status()
     except Exception as exc:
         return {"running": False, "error": str(exc)}
+
+
+def recent_failover_events(limit: int = 8) -> list[dict[str, Any]]:
+    rows = []
+    for event in session_kernel.read_events(limit=120):
+        if event.get("type") != "action":
+            continue
+        if event.get("name") not in {"failover", "failover_simulation"}:
+            continue
+        meta = event.get("meta") or {}
+        rows.append({
+            "ts": event.get("ts", ""),
+            "name": event.get("name", ""),
+            "label": event.get("label", ""),
+            "result": event.get("result", ""),
+            "engine": event.get("engine", ""),
+            "context_hash": meta.get("context_hash", ""),
+        })
+    return rows[-limit:]
