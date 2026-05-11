@@ -52,3 +52,4 @@ Thumbs.db
 # Budget and sensitive data
 budget.json
 memory/athos_session_kernel.jsonl
+.github/
