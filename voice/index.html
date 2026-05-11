@@ -689,6 +689,22 @@
   }
   #term-btn.active { border-color: var(--green); color: var(--green); }
 
+  #obs-btn {
+    position: fixed;
+    bottom: 76px;
+    right: 20px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted);
+    transition: border-color 0.3s, color 0.3s;
+    z-index: 50;
+    font-size: 11px; letter-spacing: .05em;
+  }
+  #obs-btn.active { border-color: var(--gold); color: var(--gold); }
+
   #think-btn {
     position: fixed;
     bottom: 28px;
@@ -732,6 +748,43 @@
   .think-line { display: flex; gap: 8px; margin-bottom: 5px; }
   .think-kind { color: var(--blue); width: 74px; flex-shrink: 0; text-transform: uppercase; }
   .think-text { color: #9a9ab4; word-break: break-word; }
+
+  #obs-panel {
+    display: none;
+    position: fixed;
+    top: 84px; right: 16px;
+    width: min(520px, calc(100vw - 32px));
+    max-height: 58vh;
+    background: rgba(5,5,8,0.97);
+    border: 1px solid #1a1a24;
+    z-index: 75;
+    flex-direction: column;
+    font-family: 'SF Mono', 'Menlo', monospace;
+  }
+  #obs-panel.open { display: flex; }
+  #obs-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-bottom: 1px solid #111118;
+    font-size: 10px; letter-spacing: 0.16em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  #obs-body { overflow-y: auto; padding: 10px 12px; font-size: 10px; line-height: 1.45; }
+  .obs-section { margin-bottom: 12px; }
+  .obs-title { color: var(--gold); letter-spacing: .12em; margin-bottom: 5px; text-transform: uppercase; }
+  .obs-row {
+    display: grid;
+    grid-template-columns: 70px 1fr auto;
+    gap: 8px; align-items: center;
+    border-top: 1px solid #111118;
+    padding: 5px 0;
+  }
+  .obs-muted { color: var(--muted); }
+  .obs-main { color: #9a9ab4; overflow-wrap: anywhere; }
+  .obs-stop {
+    border: 1px solid #442222; color: #aa4444; background: transparent;
+    border-radius: 4px; font-size: 10px; padding: 2px 7px; cursor: pointer;
+  }
 
   #terminal {
     display: none;
@@ -906,11 +959,19 @@
 <button id="stop-btn" onclick="stopConversation()">Arrêter</button>
 
 <div id="think-btn" onclick="toggleThinking()" title="Journal ATHOS">TH</div>
+<div id="obs-btn" onclick="toggleObservability()" title="Observabilité ATHOS">OBS</div>
 
 <div id="thinking-panel">
   <div id="thinking-header"><span>ATHOS — JOURNAL</span><span id="thinking-count">0</span></div>
   <div id="thinking-body">
     <div class="think-line"><span class="think-kind">READY</span><span class="think-text">Journal d'action visible initialisé.</span></div>
+  </div>
+</div>
+
+<div id="obs-panel">
+  <div id="obs-header"><span>ATHOS — OBSERVABILITÉ</span><span id="obs-count">0</span></div>
+  <div id="obs-body">
+    <div class="obs-muted">Chargement...</div>
   </div>
 </div>
 
@@ -990,6 +1051,7 @@ function authHeaders() {
 // ── Terminal ──────────────────────────────────────────────────────────────────
 let termOpen      = false;
 let thinkingOpen  = false;
+let obsOpen       = false;
 let thinkingCount = 0;
 let _runningProcs = {};
 let _pendingPermId = null;
@@ -1004,6 +1066,13 @@ function toggleThinking() {
   thinkingOpen = !thinkingOpen;
   document.getElementById('thinking-panel').classList.toggle('open', thinkingOpen);
   document.getElementById('think-btn').classList.toggle('active', thinkingOpen);
+}
+
+function toggleObservability() {
+  obsOpen = !obsOpen;
+  document.getElementById('obs-panel').classList.toggle('open', obsOpen);
+  document.getElementById('obs-btn').classList.toggle('active', obsOpen);
+  if (obsOpen) refreshObservability();
 }
 
 function escHtml(s) {
@@ -1072,6 +1141,52 @@ async function killProc(pid) {
   if (el) el.remove();
   updateProcList();
   termLog(`Process ${pid} tué.`, 'done-err');
+}
+
+async function killObserved(pid) {
+  await fetch(`${SERVER}/api/stop_observed`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({pid})
+  }).catch(() => {});
+  termLog(`Stop demandé pour PID ${pid}.`, 'done-err');
+  refreshObservability();
+}
+
+function obsRow(left, main, stopPid = '') {
+  const stop = stopPid ? `<button class="obs-stop" onclick="killObserved(${Number(stopPid)})">stop</button>` : '';
+  return `<div class="obs-row"><span class="obs-muted">${escHtml(left)}</span><span class="obs-main">${escHtml(main)}</span>${stop}</div>`;
+}
+
+function renderObservability(d) {
+  const body = document.getElementById('obs-body');
+  if (!body || !d) return;
+  const ports = d.ports || [];
+  const jobs = d.launchd || [];
+  const logs = d.logs || [];
+  const dirty = (d.git && d.git.dirty || []).join(' | ') || 'clean';
+  const parts = [];
+  parts.push(`<div class="obs-section"><div class="obs-title">Git / Drive</div>${
+    obsRow('git', `${d.git?.branch || '?'}@${d.git?.head || '?'} — ${dirty}`) +
+    obsRow('drive', `${d.drive?.exists ? 'ok' : 'missing'} — ${d.drive?.path || ''}`)
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Ports</div>${
+    ports.length ? ports.map(p => obsRow(`PID ${p.pid}`, `${p.command} ${p.name} | ${p.reason || ''} | log:${p.log || '-'} | stop:${p.stop_method || '-'}`, p.stoppable ? p.pid : '')).join('') : '<div class="obs-muted">Aucun port en écoute.</div>'
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Launchd</div>${
+    jobs.length ? jobs.map(j => obsRow(j.pid ? `PID ${j.pid}` : 'idle', `${j.label} | ${j.reason || ''} | log:${j.log || '-'} | stop:${j.stop_method || '-'}`)).join('') : '<div class="obs-muted">Aucune tâche suivie.</div>'
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Logs</div>${
+    logs.map(l => obsRow(l.exists ? 'ok' : 'missing', `${l.path} — ${l.size || 0} bytes`)).join('')
+  }</div>`);
+  body.innerHTML = parts.join('');
+  const c = document.getElementById('obs-count');
+  if (c) c.textContent = (ports.length + jobs.length).toString();
+}
+
+function refreshObservability() {
+  return fetch(`${SERVER}/api/observability`, { method: 'POST', headers: authHeaders() })
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d) renderObservability(d); return d; })
+    .catch(() => null);
 }
 
 // ── ToolBus ───────────────────────────────────────────────────────────────────
@@ -1769,6 +1884,7 @@ function updateStatus() {
         el.textContent = n;
         el.className = 'hud-val' + (n > 0 ? ' warn' : '');
       }
+      if (obsOpen) renderObservability(d);
     }).catch(() => {});
 }
 updateStatus();

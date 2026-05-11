@@ -13,7 +13,9 @@ from memory_extractor import extract_and_save_async
 from athos_memory import AthosMemory
 from athos_router import AthosRouter
 from athos_engine import AthosEngine
-from observability import process_snapshot
+from observability import process_snapshot, stop_observed_pid
+from capabilities import status_report
+from self_improvement import plan_self_improvement
 
 STATIC       = Path(__file__).parent
 ACCESS_TOKEN = config.ATHOS_ACCESS_TOKEN
@@ -101,6 +103,13 @@ class Handler(BaseHTTPRequestHandler):
             from agent import list_processes
             self._json(process_snapshot(list_processes())); return
 
+        if p == "/api/capabilities":
+            self._json({"text": status_report(), "session": session_kernel.status()}); return
+
+        if p == "/api/self_improvement_plan":
+            body = self._body()
+            self._json({"plan": plan_self_improvement(body.get("request", "")).to_dict()}); return
+
         # ── Alertes ─────────────────────────────────────────────────────────
         if p == "/api/budget_alert":
             self._json(_mem.pop_alert("budget_alert.json")); return
@@ -168,6 +177,13 @@ class Handler(BaseHTTPRequestHandler):
             if pid:
                 from agent import kill_process
                 self._json({"ok": True, "msg": kill_process(int(pid))}); return
+            self._json({"ok": False, "msg": "pid manquant"}, 400); return
+
+        if p == "/api/stop_observed":
+            body = self._body()
+            pid = body.get("pid")
+            if pid:
+                self._json({"ok": True, "msg": stop_observed_pid(int(pid))}); return
             self._json({"ok": False, "msg": "pid manquant"}, 400); return
 
         if p == "/api/permit":

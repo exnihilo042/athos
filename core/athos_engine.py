@@ -12,12 +12,22 @@ import threading
 import urllib.request
 import urllib.error
 
-import config
-import engine_router
-import session_kernel
-from reasoning_kernel import build_frame
-from athos_memory import AthosMemory
-from athos_router import AthosRouter
+try:
+    from . import config, engine_router, session_kernel
+    from .capabilities import matches_self_knowledge_request, status_report
+    from .reasoning_kernel import build_frame
+    from .self_improvement import matches_self_improvement_request, plan_self_improvement
+    from .athos_memory import AthosMemory
+    from .athos_router import AthosRouter
+except ImportError:
+    import config
+    import engine_router
+    import session_kernel
+    from capabilities import matches_self_knowledge_request, status_report
+    from reasoning_kernel import build_frame
+    from self_improvement import matches_self_improvement_request, plan_self_improvement
+    from athos_memory import AthosMemory
+    from athos_router import AthosRouter
 
 CHATGPT_LIMIT_MARKERS = ["usage limit", "upgrade to pro", "purchase more credits"]
 
@@ -63,6 +73,34 @@ class AthosEngine:
         self.mem.save_exchange(msg, reply)
         self.mem.log_exchange(msg, reply, engine)
         session_kernel.record_exchange(msg, reply, engine)
+
+    def _local_reply(self, msg: str) -> str | None:
+        if matches_self_knowledge_request(msg):
+            return status_report()
+        if matches_self_improvement_request(msg):
+            return plan_self_improvement(msg).as_text()
+        return None
+
+    def _call_engine(self, engine: str, msg: str) -> str:
+        if engine in config.FAILOVER_TEST_ENGINES:
+            raise RuntimeError(f"Failover test demandé pour {engine}")
+        if engine == "chatgpt_plus":
+            reply = self._chatgpt_plus(msg)
+            self._bubble(reply)
+            return reply
+        if engine == "claude_code":
+            reply = self._claude_code(msg)
+            self._bubble(reply)
+            return reply
+        if engine in ("anthropic_api", "claude"):
+            reply = self._anthropic_api(msg, engine)
+            self._bubble(reply)
+            return reply
+        if engine == "grok":
+            return self._grok(msg)
+        if engine == "ollama":
+            return self._ollama(msg)
+        raise RuntimeError(f"Moteur inconnu : {engine}")
 
     # ── Engines ───────────────────────────────────────────────────────────────
 
@@ -192,35 +230,43 @@ class AthosEngine:
         frame = build_frame(msg, available, self.router.current)
         for event in frame.events():
             self.sse(event)
+
+        local = self._local_reply(msg)
+        if local is not None:
+            self._bubble(local)
+            self._record(msg, local, "athos_kernel")
+            return local
+
         engine = self.router.current
+        session_kernel.checkpoint(
+            goal=msg[:240],
+            decisions=["contexte sauvegardé avant tentative moteur"],
+            tasks=[f"moteur initial: {engine}", "reprendre avec le moteur suivant si limite/erreur"],
+            files=[],
+        )
 
         while engine not in attempted:
             attempted.add(engine)
             self.sse({"action": engine, "label": ENGINE_LABELS.get(engine, engine), "result": ""})
 
             try:
-                if engine == "chatgpt_plus":
-                    reply = self._chatgpt_plus(msg)
-                    self._bubble(reply)
-                elif engine == "claude_code":
-                    reply = self._claude_code(msg)
-                    self._bubble(reply)
-                elif engine in ("anthropic_api", "claude"):
-                    reply = self._anthropic_api(msg, engine)
-                    self._bubble(reply)
-                elif engine == "grok":
-                    reply = self._grok(msg)
-                elif engine == "ollama":
-                    reply = self._ollama(msg)
-                else:
-                    raise RuntimeError(f"Moteur inconnu : {engine}")
-
+                reply = self._call_engine(engine, msg)
                 self._record(msg, reply, engine)
+                session_kernel.record_summary(
+                    f"Demande traitée via {engine}; fallback attempts={len(attempted)-1}; objectif={msg[:180]}",
+                    source="athos_engine",
+                )
                 return reply
 
             except urllib.error.HTTPError as e:
                 if e.code in (402, 413, 429, 529):
                     next_eng = self.router.degrade(f"HTTP {e.code}")
+                    session_kernel.checkpoint(
+                        goal=msg[:240],
+                        decisions=[f"{engine} indisponible HTTP {e.code}", f"bascule vers {next_eng}"],
+                        tasks=["reprendre la même demande avec le même contexte"],
+                        files=[],
+                    )
                     self.sse({"action": "failover", "label": f"{engine} → {next_eng}", "result": f"HTTP {e.code}"})
                     if next_eng == "none": self._bubble("Aucun moteur disponible."); return ""
                     engine = next_eng; continue
@@ -229,6 +275,12 @@ class AthosEngine:
             except RuntimeError as e:
                 next_eng = self.router.degrade(str(e)[:80])
                 session_kernel.record_action("failover", f"{engine} → {next_eng}", str(e)[:200], engine=engine)
+                session_kernel.checkpoint(
+                    goal=msg[:240],
+                    decisions=[f"{engine} indisponible: {str(e)[:120]}", f"bascule vers {next_eng}"],
+                    tasks=["reprendre la même demande avec le même contexte"],
+                    files=[],
+                )
                 self.sse({"action": "failover", "label": f"{engine} → {next_eng}", "result": str(e)[:80]})
                 if next_eng == "none": self._bubble("Aucun moteur disponible."); return ""
                 engine = next_eng; continue

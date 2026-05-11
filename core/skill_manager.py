@@ -7,9 +7,9 @@ from pathlib import Path
 from datetime import datetime
 
 try:
+    from . import config
+except ImportError:
     import config
-except ModuleNotFoundError:
-    from core import config
 
 SKILLS_DIR = Path(__file__).parent / "skills"
 SKILLS_DIR.mkdir(exist_ok=True)

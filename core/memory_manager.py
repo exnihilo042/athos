@@ -1,10 +1,10 @@
 """Athos — Memory Manager | Drive R/W + session temp"""
-import sys
 from datetime import datetime
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-import config
+try:
+    from . import config
+except ImportError:
+    import config
 
 DRIVE = config.DRIVE
 TEMP = config.TEMP

@@ -16,6 +16,11 @@ ATHOS_API_SPEND = os.getenv("ATHOS_API_SPEND", "off").strip().lower()
 PAID_API_ENABLED = ATHOS_API_SPEND in {"1", "true", "yes", "on", "allow", "enabled"}
 WHISPER_ENABLED = os.getenv("WHISPER_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 SKILL_INSTALL_ENABLED = os.getenv("ATHOS_SKILL_INSTALL_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+FAILOVER_TEST_ENGINES = {
+    item.strip()
+    for item in os.getenv("ATHOS_FAILOVER_TEST_ENGINES", "").split(",")
+    if item.strip()
+}
 GROK_KEY = os.getenv("GROK_API_KEY", "").strip()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1").strip()
 GROK_MODEL = os.getenv("GROK_MODEL", "grok-beta").strip()

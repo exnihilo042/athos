@@ -9,9 +9,9 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 try:
+    from . import config
+except ImportError:
     import config
-except ModuleNotFoundError:
-    from core import config
 
 
 @dataclass

@@ -13,9 +13,9 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from . import config
+except ImportError:
     import config
-except ModuleNotFoundError:
-    from core import config
 
 SESSION_FILE = config.DRIVE / "athos_session_kernel.jsonl"
 MAX_CONTEXT_CHARS = 4_000
@@ -74,6 +74,34 @@ def record_action(name: str, label: str = "", result: str = "", engine: str = ""
         "result": _safe_text(result, 2_000),
         "meta": meta or {},
     })
+
+
+def record_summary(summary: str, source: str = "athos") -> dict[str, Any]:
+    return _append({
+        "type": "summary",
+        "source": _safe_text(source, 120),
+        "summary": _safe_text(summary, 2_000),
+    })
+
+
+def summarize_recent(limit: int = 20) -> str:
+    events = read_events(limit=limit)
+    exchanges = [e for e in events if e.get("type") == "exchange"]
+    actions = [e for e in events if e.get("type") == "action"]
+    cp = latest_checkpoint()
+    parts = [
+        f"échanges récents: {len(exchanges)}",
+        f"actions récentes: {len(actions)}",
+    ]
+    if cp:
+        parts.append(f"objectif actif: {cp.get('goal', '')[:180]}")
+        tasks = cp.get("tasks") or []
+        if tasks:
+            parts.append("tâches: " + "; ".join(tasks[:4]))
+    if exchanges:
+        last = exchanges[-1]
+        parts.append(f"dernier échange via {last.get('engine', '')}: {last.get('user', '')[:160]}")
+    return " | ".join(parts)
 
 
 def checkpoint(goal: str, decisions: list[str] | None = None,
@@ -135,6 +163,8 @@ def context_pack(max_chars: int = MAX_CONTEXT_CHARS) -> str:
             chunks.append(
                 f"§act:{event.get('ts')}|{event.get('name', '')}:{event.get('label', '')[:100]}"
             )
+        elif event.get("type") == "summary":
+            chunks.append(f"§summary:{event.get('ts')}|{event.get('summary', '')[:400]}")
 
     pack = "\n".join(chunks)
     return pack[-max_chars:]
@@ -149,6 +179,8 @@ def status() -> dict[str, Any]:
         "events": len(events),
         "exchanges": sum(1 for e in events if e.get("type") == "exchange"),
         "actions": sum(1 for e in events if e.get("type") == "action"),
+        "summaries": sum(1 for e in events if e.get("type") == "summary"),
+        "recent_summary": summarize_recent(),
         "checkpoint": {
             "goal": cp.get("goal", "") if cp else None,
             "tasks": cp.get("tasks", []) if cp else [],

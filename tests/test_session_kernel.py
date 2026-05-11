@@ -42,3 +42,13 @@ def test_session_kernel_records_actions(tmp_path, monkeypatch):
     assert status["events"] == 1
     assert status["actions"] == 1
     assert "failover" in kernel.context_pack()
+
+
+def test_session_kernel_summary_is_in_status_and_context(tmp_path, monkeypatch):
+    import core.session_kernel as kernel
+    kernel.SESSION_FILE = tmp_path / "athos_session_kernel.jsonl"
+
+    kernel.record_summary("Athos a repris le contexte après failover.", source="test")
+
+    assert kernel.status()["summaries"] == 1
+    assert "Athos a repris" in kernel.context_pack()

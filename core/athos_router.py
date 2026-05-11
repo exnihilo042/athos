@@ -6,9 +6,13 @@ Encapsule : détection des engines disponibles, état courant, dégradation.
 import urllib.request
 import json
 
-import config
-import engine_router
-from athos_memory import AthosMemory
+try:
+    from . import config, engine_router
+    from .athos_memory import AthosMemory
+except ImportError:
+    import config
+    import engine_router
+    from athos_memory import AthosMemory
 
 
 class AthosRouter:

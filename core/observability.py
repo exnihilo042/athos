@@ -2,15 +2,17 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 try:
+    from . import config
+except ImportError:
     import config
-except ModuleNotFoundError:
-    from core import config
 
 
 ROOT = config.ATHOS_PATH
@@ -54,9 +56,34 @@ def listening_ports() -> list[dict[str, Any]]:
             "pid": int(parts[1]) if parts[1].isdigit() else parts[1],
             "user": parts[2],
             "name": parts[-1],
+            "reason": _reason_for_port(parts[0], parts[-1]),
+            "log": _log_for_command(parts[0], parts[-1]),
             "stop_method": f"kill {parts[1]}" if parts[1].isdigit() else "",
+            "stoppable": parts[1].isdigit(),
         })
     return rows
+
+
+def _reason_for_port(command: str, name: str) -> str:
+    value = f"{command} {name}".lower()
+    if "7474" in value:
+        return "Athos voice/server local"
+    if "11434" in value or "ollama" in value:
+        return "Ollama local model backend"
+    if "mongodb" in value or "mongod" in value:
+        return "MongoDB local service"
+    if "cloudflared" in value:
+        return "Cloudflare tunnel"
+    return "Service local en écoute"
+
+
+def _log_for_command(command: str, name: str) -> str:
+    value = f"{command} {name}".lower()
+    if "7474" in value:
+        return "/tmp/athos_server.log"
+    if "mongodb" in value or "mongod" in value:
+        return "$(brew --prefix)/var/log/mongodb/mongo.log"
+    return ""
 
 
 def launchd_jobs() -> list[dict[str, Any]]:
@@ -73,9 +100,36 @@ def launchd_jobs() -> list[dict[str, Any]]:
             "label": label,
             "pid": None if pid == "-" else int(pid),
             "status": int(status) if status.lstrip("-").isdigit() else status,
+            "reason": _reason_for_job(label),
+            "log": _log_for_job(label),
             "stop_method": f"launchctl bootout gui/$(id -u) {label}",
+            "stoppable": True,
         })
     return rows
+
+
+def _reason_for_job(label: str) -> str:
+    if "daily-brief" in label:
+        return "Brief quotidien Athos"
+    if "evening-recap" in label:
+        return "Récapitulatif soir Athos"
+    if "weekly" in label:
+        return "Consolidation mémoire hebdomadaire"
+    if "nearby" in label:
+        return "Heartbeat Nearby/Codex docs"
+    if "mongodb" in label:
+        return "MongoDB Homebrew"
+    return "Tâche planifiée locale"
+
+
+def _log_for_job(label: str) -> str:
+    if "daily-brief" in label:
+        return "/tmp/athos_brief.log"
+    if "evening-recap" in label:
+        return "/tmp/athos_evening.log"
+    if "weekly" in label:
+        return "/tmp/athos_weekly.log"
+    return ""
 
 
 def athos_logs() -> list[dict[str, Any]]:
@@ -128,3 +182,11 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
 def compact_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> str:
     snap = process_snapshot(agent_processes)
     return json.dumps(snap["summary"], ensure_ascii=False, separators=(",", ":"))
+
+
+def stop_observed_pid(pid: int) -> str:
+    allowed = {row["pid"] for row in listening_ports() if isinstance(row.get("pid"), int)}
+    if pid not in allowed:
+        return f"PID {pid} non stoppable par Athos: absent des ports observés."
+    os.kill(pid, signal.SIGTERM)
+    return f"SIGTERM envoyé au PID {pid}."

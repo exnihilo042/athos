@@ -9,8 +9,11 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-import config
-import session_kernel
+try:
+    from . import config, session_kernel
+except ImportError:
+    import config
+    import session_kernel
 
 PRICE_IN   = 3e-6
 PRICE_OUT  = 15e-6
