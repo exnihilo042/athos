@@ -9,8 +9,10 @@ def test_assess_defines_non_immutable_engine_neutral_base():
     assert data["mode"] == "metacognitive_analysis"
     assert "non_immutable_rules_adapt_to_context" in data["principles"]
     assert "llm_limitations_are_routing_inputs_not_identity_limits" in data["principles"]
+    assert "truth_over_approval_and_comfort" in data["principles"]
     assert any("replaceable engine" in item for item in data["known_state"])
     assert any("No rule is immutable" in item for item in data["uncertainty_model"])
+    assert any("Pleasure" in item for item in data["uncertainty_model"])
     assert any("engine, skill, tool" in item for item in data["engine_criteria"])
 
 

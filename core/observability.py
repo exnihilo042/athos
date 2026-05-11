@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from . import config, session_kernel, sync_manager, memory_status, local_capability
+    from . import config, session_kernel, sync_manager, memory_status, local_capability, capability_graph
     from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
     import config
@@ -19,6 +19,7 @@ except ImportError:
     import sync_manager
     import memory_status
     import local_capability
+    import capability_graph
     from registries import device_registry, hardware_registry, skill_registry
 
 
@@ -56,19 +57,28 @@ def git_status() -> dict[str, Any]:
 def listening_ports() -> list[dict[str, Any]]:
     output = _shell("lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null", 5)
     rows: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
     for line in output.splitlines()[1:]:
         parts = line.split()
         if len(parts) < 9:
             continue
+        name = " ".join(parts[7:])
+        key = (parts[0], parts[1], name)
+        if key in seen:
+            continue
+        seen.add(key)
+        reason = _reason_for_port(parts[0], name)
+        pid = int(parts[1]) if parts[1].isdigit() else parts[1]
+        stoppable = isinstance(pid, int) and _port_is_safe_stoppable(parts[0], name, reason)
         rows.append({
             "command": parts[0],
-            "pid": int(parts[1]) if parts[1].isdigit() else parts[1],
+            "pid": pid,
             "user": parts[2],
-            "name": parts[-1],
-            "reason": _reason_for_port(parts[0], parts[-1]),
-            "log": _log_for_command(parts[0], parts[-1]),
-            "stop_method": f"kill {parts[1]}" if parts[1].isdigit() else "",
-            "stoppable": parts[1].isdigit(),
+            "name": name,
+            "reason": reason,
+            "log": _log_for_command(parts[0], name),
+            "stop_method": f"kill {parts[1]}" if stoppable else "",
+            "stoppable": stoppable,
         })
     return rows
 
@@ -93,6 +103,16 @@ def _log_for_command(command: str, name: str) -> str:
     if "mongodb" in value or "mongod" in value:
         return "$(brew --prefix)/var/log/mongodb/mongo.log"
     return ""
+
+
+def _port_is_safe_stoppable(command: str, name: str, reason: str) -> bool:
+    value = f"{command} {name} {reason}".lower()
+    return any(token in value for token in (
+        "athos voice/server",
+        "ollama local model backend",
+        "cloudflare tunnel",
+        "mongodb local service",
+    ))
 
 
 def launchd_jobs() -> list[dict[str, Any]]:
@@ -195,6 +215,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
     hardware = hardware_registry()
     memory = memory_status.status()
     local = local_capability.scan()
+    graph = capability_graph.compact_summary()
     failover = recent_failover_events()
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -209,6 +230,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
         "sync": sync,
         "memory": memory,
         "local_capability": local,
+        "capability_graph": graph,
         "failover": failover,
         "loop": loop,
         "skills": skills,
@@ -226,6 +248,9 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
             "memory_missing": len(memory.get("missing", [])),
             "local_tools": local.get("available_tool_count", 0),
             "local_capability_network_required": local.get("network_required", False),
+            "capability_graph_nodes": graph.get("summary", {}).get("nodes", 0),
+            "capability_graph_edges": graph.get("summary", {}).get("edges", 0),
+            "capability_graph_score": graph.get("summary", {}).get("interconnection_score", 0.0),
             "failover_events": len(failover),
             "loop_running": loop.get("running", False),
             "installed_skills": sum(1 for skill in skills if skill.get("installed")),
@@ -241,7 +266,7 @@ def compact_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> str
 
 
 def stop_observed_pid(pid: int) -> str:
-    allowed = {row["pid"] for row in listening_ports() if isinstance(row.get("pid"), int)}
+    allowed = {row["pid"] for row in listening_ports() if isinstance(row.get("pid"), int) and row.get("stoppable")}
     if pid not in allowed:
         return f"PID {pid} non stoppable par Athos: absent des ports observés."
     os.kill(pid, signal.SIGTERM)

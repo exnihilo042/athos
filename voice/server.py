@@ -16,6 +16,8 @@ import situational_decision
 import athos_advantage
 import transformation_stack
 import local_capability
+import capability_graph
+import epistemic_guard
 import engine_router
 import failover_simulator
 from auth import request_authorized
@@ -182,7 +184,13 @@ class Handler(BaseHTTPRequestHandler):
         # ── Status ──────────────────────────────────────────────────────────
         if p == "/api/status":
             s = _router.status()
-            self._json({**s, "session": session_kernel.status(), "server_runtime": server_runtime()}); return
+            self._json({
+                **s,
+                "session": session_kernel.status(),
+                "server_runtime": server_runtime(),
+                "capability_graph": capability_graph.compact_summary(available_engines=_router.available()),
+                "epistemic_guard": epistemic_guard.guardrail_pack(),
+            }); return
 
         if p == "/api/observability":
             from agent import list_processes
@@ -193,6 +201,8 @@ class Handler(BaseHTTPRequestHandler):
                 "text": status_report(),
                 "session": session_kernel.status(),
                 "sync": sync_manager.status(),
+                "capability_graph": capability_graph.compact_summary(available_engines=_router.available()),
+                "epistemic_guard": epistemic_guard.guardrail_pack(),
             }); return
 
         if p == "/api/attach":
@@ -271,6 +281,16 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/local/capability":
             body = self._body()
             self._json(local_capability.austerity_pack(body.get("objective", ""))); return
+
+        if p == "/api/capability_graph":
+            body = self._body()
+            self._json(capability_graph.build_graph(
+                objective=body.get("objective", ""),
+                available_engines=body.get("available_engines") or _router.available(),
+            )); return
+
+        if p == "/api/epistemic_guard":
+            self._json(epistemic_guard.guardrail_pack()); return
 
         if p == "/api/self_improvement_plan":
             body = self._body()

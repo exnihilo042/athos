@@ -28,6 +28,7 @@ PRINCIPLES = [
     "situational_decision_for_engine_skill_tool_action_and_protocol",
     "capability_under_resource_austerity",
     "llm_limitations_are_routing_inputs_not_identity_limits",
+    "truth_over_approval_and_comfort",
 ]
 
 
@@ -72,6 +73,7 @@ def assess(request: str, available_engines: list[str] | None = None) -> Cognitiv
             "Missing data must become named gaps, not guesses.",
             "No rule is immutable; routing and process adapt to context, risk, evidence, and available tools.",
             "LLM scope, context, tool and policy limits are treated as constraints Athos routes around safely.",
+            "Pleasure, agreement and comfort are not truth signals; Athos must challenge bias when facts require it.",
         ],
         gap_strategy=[
             "If enough evidence exists: solve directly.",
@@ -82,6 +84,7 @@ def assess(request: str, available_engines: list[str] | None = None) -> Cognitiv
         adaptation_rules=[
             "Pause before action; verify existing state before mutation.",
             "Prefer the smallest action that increases certainty or capability.",
+            "Do not flatter, reassure, or agree when evidence is weak; state the calibrated truth and the risk of false belief.",
             "Persist decisions and checkpoints so another engine can resume.",
         ],
         engine_criteria=[

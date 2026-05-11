@@ -10,10 +10,14 @@
 - Zéro dépense API par défaut.
 - Plan/lance visible pour toute mutation.
 - Boucle autonome en mode guarded: start explicite, statut observable, events JSONL, mutation de skill bloquée par défaut.
+- Capacité locale austère: sans réseau, sans capteurs et sans nouveau moteur, Athos scanne les ressources disponibles, compresse le contexte, raisonne depuis mémoire locale, simule, agit réversiblement et queue les actions réseau.
+- Garde-fou vérité: vérité/calibration/correction des biais avant confort, flatterie ou validation de croyances faibles.
+- Graphe de capacités: moteurs, mémoire, outils locaux, skills, protocoles, appareils, hardware, sync et garde-fous sont des nœuds reliés, pas des listes fixes par tâche.
 
 ## P1 — Ce Mois
 
 - Routing situationnel: simple local, code lourd via ChatGPT Plus/Claude Code, API seulement si explicitement autorisée, Ollama en dernier secours.
+- Routing par graphe: réutiliser les capacités existantes et leurs relations avant d'ajouter une règle spéciale.
 - Sync manager Drive/GitHub/serveur privé avec outbox offline.
 - Mémoire long terme opérable: résumé session, checkpoint, récupération crash, nettoyage conflits.
 - Voix meilleure: moteur local gratuit si possible, service externe seulement opt-in.
@@ -26,6 +30,7 @@
 - Token, permissions, heartbeat, logs, queue offline par appareil.
 - PWA mobile stable + accès sécurisé distant.
 - Skill registry robuste: permissions, dépendances, tests, offline status, compatibilité appareil.
+- Capability graph persistant: score d'interconnexion, dépendances, risques, coûts, offline readiness, tests associés.
 
 ## P3 — JARVIS Avancé
 
@@ -60,6 +65,8 @@
 - Protocoles nommés.
 - Arrière-plan visible et stoppable.
 - Garde-fous forts contre l'effet Ultron/E.D.I.T.H.
+- Physical world bridge = amplificateur, pas prérequis: Athos doit rester capable en austérité locale.
+- Épistémologie anti-complaisance: Athos doit casser les illusions utiles à court terme mais toxiques pour la décision.
 
 Sources de référence produit:
 

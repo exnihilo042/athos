@@ -1,7 +1,8 @@
-# Athos - AI Assistant
+# A.T.H.O.S. - Autonomous Tactical Heuristic Operating System
 
-Athos est un assistant IA vocal avec interface web, utilisant Claude (Anthropic) et Ollama comme moteurs de conversation.
-Il conserve aussi une session kernel indépendante du moteur afin de reprendre le même travail après une bascule Claude, Grok, ChatGPT ou Ollama.
+Athos est une couche cognitive et runtime multi-moteur. ChatGPT Plus CLI, Claude Code Pro, APIs autorisées, Grok et Ollama sont des moteurs remplaçables; l'identité, la mémoire, l'observabilité, les permissions, le graphe de capacités et les checkpoints appartiennent à Athos.
+
+Objectif produit: transformer un LLM en organe d'un système opérant, local-first, observable, capable de fonctionner en austérité locale et de compenser les limites de contexte, scope, coût ou rigidité des moteurs.
 
 ## 📁 Structure du projet
 
@@ -26,7 +27,9 @@ Le cerveau d'Athos est composé de fichiers `.mem` contenant son contexte et app
 - **`memory/athos_projects.mem`** - Suivi des projets actifs
 - **`memory/cx_global.mem`** - Préférences utilisateur générales
 - **`memory/athos_session_kernel.jsonl`** - Session courante indépendante du moteur, utilisée pour reprendre le contexte après failover
-- **`docs/CLAUDE.md`** - Documentation système et contexte agence
+- **`ATHOS_ATTACH_PROMPT.md`** - Boot universel Athos pour tout moteur
+- **`ATHOS_ATTACH_PROTOCOL.md`** - Contrat d'attachement inter-moteur
+- **`docs/CLAUDE.md`** - Documentation système et contexte agence historique
 
 Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir la cohérence d'Athos.
 
@@ -35,7 +38,7 @@ Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir l
 ### Prérequis
 - Python 3.14+
 - Ollama (pour le mode dégradé)
-- Cloudflare Tunnel (cloudflared)
+- Cloudflare Tunnel (cloudflared) uniquement si exposition distante temporaire souhaitée
 
 ### Installation
 
@@ -54,7 +57,7 @@ Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir l
 3. **Configurer l'environnement**
    ```bash
    cp .env.example .env
-   # Éditer .env et ajouter votre ANTHROPIC_API_KEY
+   # Éditer .env si besoin.
    # Vous pouvez aussi définir DRIVE_PATH pour stocker la mémoire en dehors du repo.
    # Pour exposer Athos en ligne, définir ATHOS_ACCESS_TOKEN et le saisir dans les réglages de l'interface.
    # Ordre moteur par défaut : ATHOS_ENGINE_ORDER=chatgpt_plus,claude_code,anthropic_api,grok,ollama
@@ -75,7 +78,7 @@ Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir l
    python3 -m pytest
    ```
 
-L'application sera accessible via un tunnel Cloudflare temporaire.
+Par défaut, le serveur écoute en local sur `127.0.0.1:7474`. L'exposition distante doit rester protégée par `ATHOS_ACCESS_TOKEN`.
 
 ## 🏗️ Architecture
 
@@ -83,6 +86,9 @@ L'application sera accessible via un tunnel Cloudflare temporaire.
 - `core/operating_protocol.py` - Protocole de travail noyau injecté dans tous les moteurs
 - `core/reasoning_kernel.py` - Journal d'action visible et routage mental Athos
 - `core/observability.py` - Ports, processus, launchd, logs, Git et mémoire visibles
+- `core/capability_graph.py` - Graphe interconnecté des moteurs, outils, skills, appareils, mémoire et garde-fous
+- `core/local_capability.py` - Capacité locale austère sans réseau ni capteurs obligatoires
+- `core/epistemic_guard.py` - Vérité, calibration et correction des biais avant confort utilisateur
 - `voice/` - Interface web et serveur HTTP
 - `routines/` - Tâches automatisées (briefs quotidiens/hebdomadaires)
 - `temp/` - Fichiers temporaires de session
@@ -116,7 +122,7 @@ L'application sera accessible via un tunnel Cloudflare temporaire.
 - `./note` - Ajout rapide de notes en session
 - `./routines/run_brief.sh` - Génération du brief quotidien
 - `./routines/run_weekly.sh` - Consolidation hebdomadaire
-- `.github/workflows/python-app.yml` - tests automatisés sur push/PR
+- Aucune CI GitHub Actions n'est actuellement présente dans le repo; les tests sont lancés localement avant chaque push.
 
 ## 🔊 Voix
 

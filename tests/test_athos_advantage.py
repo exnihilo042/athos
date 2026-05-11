@@ -8,6 +8,7 @@ def test_advantage_pack_explains_functional_delta():
     assert pack["engine"] == "codex"
     assert "not a prompt mask" in pack["claim"]
     assert any(item["name"] == "situational_decision_kernel" for item in pack["athos_delta"])
+    assert any(item["name"] == "epistemic_integrity" for item in pack["athos_delta"])
     assert any(item["name"] == "llm_gap_compensation" for item in pack["athos_delta"])
     assert any(item["name"] == "austere_local_capability" for item in pack["athos_delta"])
     assert any(item["name"] == "physical_world_bridge" for item in pack["athos_delta"])

@@ -1,9 +1,10 @@
 §v:0.2|updated:2026-05-10|src:session_manual
 
 §proj:athos|status:building|priority:0
-§proj:athos|phase:2_voix_iphone|next:PWA+ElevenLabs+majordome_voice
+§proj:athos|phase:P0_cognition_runtime|next:capability_graph+truth_guard+attach_multi_engine+OBS+local_austerity
 §proj:athos|done[identity.mem,behaviors.mem,projects.mem,feedback.mem,session_writer,daily_brief,weekly_consolidator,hook_stop,venv,launchd_plists]
 §proj:athos|todo_p1[interview_identité,health.mem,social.mem,finance.mem,feedback_explicit,evening_recap]
+§proj:athos|todo_p1[capability_graph_persistant,metacognition_fluide,failover_live,OBS_clean,attach_all_engines]
 §proj:athos|todo_p2[voix_iphone,voix_mac,wake_word,mémoire_vocale]
 
 §proj:placerr|status:active|priority:1

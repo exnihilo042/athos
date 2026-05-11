@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 try:
-    from . import config, session_kernel, sync_manager, local_capability
+    from . import config, session_kernel, sync_manager, local_capability, capability_graph, epistemic_guard
     from .athos_advantage import CORE_AUGMENTATIONS
     from .autonomous_loop import status as loop_status
     from .metacognition import status as cognition_status
@@ -15,6 +15,8 @@ except ImportError:
     import session_kernel
     import sync_manager
     import local_capability
+    import capability_graph
+    import epistemic_guard
     from athos_advantage import CORE_AUGMENTATIONS
     from autonomous_loop import status as loop_status
     from metacognition import status as cognition_status
@@ -43,6 +45,10 @@ def _selected_lines(path: Path, prefixes: tuple[str, ...], limit: int = 12) -> l
 
 def status_report(compact: bool = False) -> str:
     security = config.server_security_policy()
+    local_scan = local_capability.scan()
+    graph_summary = capability_graph.compact_summary()["summary"]
+    loop = loop_status()
+    loop_policy = loop.get("policy", {})
     if compact:
         latest_done = []
         cap_file = config.DRIVE / "athos_capabilities.mem"
@@ -59,10 +65,12 @@ def status_report(compact: bool = False) -> str:
             f"Sécurité: host={security['bind_host']}; token={security['token_required']}; write_any={security['allow_any_write']}",
             f"Session: {session_kernel.summarize_recent()}",
             f"Sync: {sync_manager.status()['pending']} job(s) pending",
-        f"Loop: {'running' if loop_status()['running'] else 'off'}",
+            f"Loop: {'running' if loop.get('running') else 'off'}",
             f"Cognition: non_immutable={cognition_status()['non_immutable_base']}; all_engines={cognition_status()['applies_to_all_engines']}",
             f"Anti-LLM delta: {len(CORE_AUGMENTATIONS)} augmentations runtime",
-            f"Austérité locale: {local_capability.scan()['available_tool_count']} outils détectés sans réseau",
+            f"Austérité locale: {local_scan['available_tool_count']} outils détectés sans réseau",
+            f"Graphe capacités: {graph_summary['nodes']} noeuds; score={graph_summary['interconnection_score']}",
+            f"Vérité: {epistemic_guard.PRINCIPLE}",
         ]
         if latest_done:
             parts.append("Derniers done:")
@@ -78,10 +86,12 @@ def status_report(compact: bool = False) -> str:
         f"Session: {session_kernel.summarize_recent()}",
         f"Attach protocol: /api/attach → /api/context_pack → /api/report",
         f"Sync: {sync_manager.status()['pending']} job(s) pending",
-        f"Loop autonome: {'running' if loop_status()['running'] else 'off'}; skill mutation: {loop_status()['policy']['skill_mutation_enabled']}",
+        f"Loop autonome: {'running' if loop.get('running') else 'off'}; skill mutation: {loop_policy.get('skill_mutation_enabled', False)}",
         f"Cognition: non_immutable={cognition_status()['non_immutable_base']}; principles={len(cognition_status()['principles'])}",
         f"Anti-LLM delta: {', '.join(item['name'] for item in CORE_AUGMENTATIONS[:4])}",
-        f"Austérité locale: {local_capability.scan()['available_tool_count']} outils détectés; réseau requis=False",
+        f"Austérité locale: {local_scan['available_tool_count']} outils détectés; réseau requis={local_scan['network_required']}",
+        f"Graphe capacités: nodes={graph_summary['nodes']}; edges={graph_summary['edges']}; score={graph_summary['interconnection_score']}",
+        f"Garde-fou vérité: {epistemic_guard.PRINCIPLE}",
         f"Protocoles nommés: {', '.join(p['name'] for p in list_protocols())}",
         f"Skills installés: {sum(1 for s in skill_registry() if s['installed'])}/{len(skill_registry())}",
         f"Devices: {', '.join(d['id'] + ':' + d['status'] for d in device_registry())}",

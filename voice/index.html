@@ -1648,6 +1648,8 @@ function renderObservability(d) {
   const runtime = d.server_runtime || {};
   const memory = d.memory || {};
   const local = d.local_capability || {};
+  const graph = d.capability_graph || {};
+  const graphSummary = graph.summary || {};
   const failover = d.failover || [];
   const loop = d.loop || {};
   const syncRecent = sync.recent || [];
@@ -1671,6 +1673,11 @@ function renderObservability(d) {
     obsRow('tools', presentTools.join(', ') || '-') +
     obsRow('anti-rigidité', antiRigidity.slice(0, 2).join(' | ') || '-') +
     obsRow('sans réseau', localCaps.slice(0, 3).join(' | ') || '-')
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Graphe capacités</div>${
+    obsRow('graph', `nodes:${graphSummary.nodes || 0} | edges:${graphSummary.edges || 0} | score:${graphSummary.interconnection_score || 0}`) +
+    obsRow('offline', `ready:${!!graphSummary.austere_mode_ready} | offline_nodes:${graphSummary.offline_ready_nodes || 0}`) +
+    obsRow('policy', (graph.reuse_policy || []).slice(0, 2).join(' | ') || '-')
   }</div>`);
   parts.push(`<div class="obs-section"><div class="obs-title">Serveur ATHOS</div>${
     obsRow(runtime.pid ? `PID ${runtime.pid}` : 'pid:?', `uptime:${runtime.uptime_seconds ?? '-'}s | ${runtime.host || '-'}:${runtime.port || '-'} | log:${runtime.log || '-'}`, runtime.pid || '') +

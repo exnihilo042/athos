@@ -34,6 +34,10 @@ CORE_AUGMENTATIONS = [
         "gain": "Athos frames known facts, precise uncertainty, gap strategy, adaptation rules and stop conditions before acting",
     },
     {
+        "name": "epistemic_integrity",
+        "gain": "truth, calibration and bias correction override flattery, comfort and pleasing the user",
+    },
+    {
         "name": "llm_gap_compensation",
         "gain": "scope limits, context limits, provider rigidity and missing tools become routing, memory, queue or protocol problems",
     },

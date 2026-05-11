@@ -9,10 +9,13 @@
 
 # ── INFRASTRUCTURE ────────────────────────────────────────────────────────────
 §infra:serveur_python|port:7474|stack:HTTPServer_natif|venv:~/Sites/athos/venv
-§infra:engine_auto|priority:Claude_API>Ollama>none|fallback:transparent
+§infra:engine_auto|priority:chatgpt_plus>claude_code>anthropic_api_if_enabled>free_engines>ollama|fallback:transparent|zero_paid_api_default
 §infra:cloudflare_tunnel|url:trycloudflare.com|accès:mondial|HTTPS:oui
 §infra:ollama_local|modèles_voix:llama3.2:1b>phi3:mini>mistral|modèles_analyse:mistral>phi3:mini>llama3.2:1b
-§infra:best_model_auto|sélection:premier_disponible_par_priorité
+§infra:best_model_auto|sélection:situationnelle|pas_mapping_fixe|preserve:identity+memory+checkpoint
+§infra:capability_graph|nodes:engines+memory+tools+skills+protocols+devices+hardware+guards+sync|policy:reuse_existing_node_before_new_special_case
+§infra:local_austerity|network_required:false|capable_without_cloud_or_sensors|loop:scan+compress+infer+simulate+queue+checkpoint
+§infra:epistemic_guard|truth_over_comfort|no_flattery|bias_correction|calibrated_uncertainty
 
 # ── INTERFACE VOCALE PWA (iPhone + tout navigateur) ───────────────────────────
 §pwa:installable_iOS|safari:Partager→Sur_écran_accueil|standalone:oui|offline_shell:oui
@@ -51,7 +54,7 @@
 
 # ── INTERFACE MAC (voix locale) ───────────────────────────────────────────────
 §mac:athos-mac.py|sox_requis|brew_install_sox
-§mac:STT|openai_whisper_api>speech_recognition_google_fallback
+§mac:STT|web_speech_or_local_fallback|openai_whisper_only_if_OPENAI_ENABLED+WHISPER_ENABLED+ATHOS_API_SPEND_allow
 §mac:TTS|say_-v_Thomas_-r_175|macOS_natif
 §mac:flow|Entrée→enregistre→transcrit→ATHOS_répond→say→boucle
 
