@@ -14,7 +14,7 @@ import urllib.error
 
 try:
     from . import config, engine_router, session_kernel
-    from .capabilities import matches_self_knowledge_request, status_report
+    from .capabilities import matches_self_knowledge_request, status_report, wants_compact_status
     from .reasoning_kernel import build_frame
     from .self_improvement import matches_self_improvement_request, plan_self_improvement
     from .named_protocols import match_protocol, run_protocol
@@ -27,7 +27,7 @@ except ImportError:
     import config
     import engine_router
     import session_kernel
-    from capabilities import matches_self_knowledge_request, status_report
+    from capabilities import matches_self_knowledge_request, status_report, wants_compact_status
     from reasoning_kernel import build_frame
     from self_improvement import matches_self_improvement_request, plan_self_improvement
     from named_protocols import match_protocol, run_protocol
@@ -87,7 +87,7 @@ class AthosEngine:
         if protocol:
             return run_protocol(protocol, {"request": msg}).get("text", "")
         if matches_self_knowledge_request(msg):
-            return status_report()
+            return status_report(compact=wants_compact_status(msg))
         if matches_self_improvement_request(msg):
             return plan_self_improvement(msg).as_text()
         return None

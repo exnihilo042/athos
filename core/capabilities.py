@@ -36,7 +36,31 @@ def _selected_lines(path: Path, prefixes: tuple[str, ...], limit: int = 12) -> l
     return rows[-limit:]
 
 
-def status_report() -> str:
+def status_report(compact: bool = False) -> str:
+    security = config.server_security_policy()
+    if compact:
+        latest_done = []
+        cap_file = config.DRIVE / "athos_capabilities.mem"
+        if cap_file.exists():
+            latest_done = [
+                line for line in cap_file.read_text("utf-8", errors="ignore").splitlines()
+                if line.startswith("§done:")
+            ][-5:]
+        parts = [
+            "A.T.H.O.S. — statut court",
+            f"Repo: {config.ATHOS_PATH.name}@{_git_head()}",
+            f"Mémoire: {'ok' if config.DRIVE.exists() else 'missing'}",
+            f"Coût: {config.spend_policy()['mode']}",
+            f"Sécurité: host={security['bind_host']}; token={security['token_required']}; write_any={security['allow_any_write']}",
+            f"Session: {session_kernel.summarize_recent()}",
+            f"Sync: {sync_manager.status()['pending']} job(s) pending",
+            f"Loop: {'running' if loop_status()['running'] else 'off'}",
+        ]
+        if latest_done:
+            parts.append("Derniers done:")
+            parts.extend(latest_done)
+        return "\n".join(parts)[:1_500]
+
     lines = [
         "A.T.H.O.S. — statut local",
         f"Repo: {config.ATHOS_PATH}",
@@ -60,6 +84,21 @@ def status_report() -> str:
     return "\n".join(lines)[:5_000]
 
 
+def _git_head() -> str:
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(config.ATHOS_PATH),
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        return result.stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
+
+
 def matches_self_knowledge_request(msg: str) -> bool:
     q = msg.lower()
     return any(needle in q for needle in (
@@ -75,4 +114,17 @@ def matches_self_knowledge_request(msg: str) -> bool:
         "etat actuel",
         "capacités athos",
         "capabilities",
+    ))
+
+
+def wants_compact_status(msg: str) -> bool:
+    q = msg.lower()
+    return any(token in q for token in (
+        "court",
+        "rapide",
+        "synthèse",
+        "synthese",
+        "résumé",
+        "resume",
+        "bref",
     ))
