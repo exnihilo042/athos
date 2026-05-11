@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 
 try:
-    from . import config, session_compactor, session_kernel, sync_manager
+    from . import config, session_compactor, session_kernel, sync_manager, local_capability
     from .athos_advantage import pack as athos_advantage_pack
     from .capabilities import status_report
     from .named_protocols import list_protocols, match_protocol, run_protocol
@@ -15,6 +15,7 @@ except ImportError:
     import session_compactor
     import session_kernel
     import sync_manager
+    import local_capability
     from athos_advantage import pack as athos_advantage_pack
     from capabilities import status_report
     from named_protocols import list_protocols, match_protocol, run_protocol
@@ -55,6 +56,7 @@ def _capability_pack() -> dict[str, Any]:
         "devices": device_registry(),
         "hardware": hardware_registry(),
         "sync": sync_manager.status(),
+        "local_capability": local_capability.scan(),
     }
 
 

@@ -11,13 +11,14 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from . import config, session_kernel, sync_manager, memory_status
+    from . import config, session_kernel, sync_manager, memory_status, local_capability
     from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
     import config
     import session_kernel
     import sync_manager
     import memory_status
+    import local_capability
     from registries import device_registry, hardware_registry, skill_registry
 
 
@@ -193,6 +194,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
     devices = device_registry()
     hardware = hardware_registry()
     memory = memory_status.status()
+    local = local_capability.scan()
     failover = recent_failover_events()
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -206,6 +208,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
         "attached_engines": attached,
         "sync": sync,
         "memory": memory,
+        "local_capability": local,
         "failover": failover,
         "loop": loop,
         "skills": skills,
@@ -221,6 +224,8 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
             "attached_engines": len(attached),
             "sync_pending": sync.get("pending", 0),
             "memory_missing": len(memory.get("missing", [])),
+            "local_tools": local.get("available_tool_count", 0),
+            "local_capability_network_required": local.get("network_required", False),
             "failover_events": len(failover),
             "loop_running": loop.get("running", False),
             "installed_skills": sum(1 for skill in skills if skill.get("installed")),

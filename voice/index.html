@@ -1647,11 +1647,16 @@ function renderObservability(d) {
   const sec = d.server_security || {};
   const runtime = d.server_runtime || {};
   const memory = d.memory || {};
+  const local = d.local_capability || {};
   const failover = d.failover || [];
   const loop = d.loop || {};
   const syncRecent = sync.recent || [];
   const writeRoots = sec.allowed_write_roots || [];
   const dirty = (d.git && d.git.dirty || []).join(' | ') || 'clean';
+  const localTools = local.tools || {};
+  const presentTools = Object.keys(localTools).filter(k => localTools[k]);
+  const antiRigidity = local.anti_rigidity_policy || [];
+  const localCaps = local.capabilities_without_network || [];
   const parts = [];
   parts.push(`<div class="obs-section"><div class="obs-title">Git / Drive</div>${
     obsRow('git', `${d.git?.branch || '?'}@${d.git?.head || '?'} — ${dirty}`) +
@@ -1660,6 +1665,12 @@ function renderObservability(d) {
   parts.push(`<div class="obs-section"><div class="obs-title">Mémoire</div>${
     obsRow(memory.ok ? 'memory:ok' : 'memory:warn', `${memory.root || '-'} | missing:${(memory.missing || []).join(',') || 'none'}`) +
     ((memory.canonical_files || []).map(f => obsRow(f.exists ? 'ok' : 'missing', `${f.name} | lines:${f.lines || 0} | ${f.last_line || '-'}`)).join('') || '<div class="obs-muted">Mémoire non inspectée.</div>')
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Capacité locale</div>${
+    obsRow(local.network_required ? 'network:needed' : 'network:free', `${local.mode || '-'} | tools:${local.available_tool_count ?? presentTools.length} | repo:${local.local_assets?.repo_exists ? 'ok' : 'missing'} | memory:${local.memory?.ok ? 'ok' : 'warn'}`) +
+    obsRow('tools', presentTools.join(', ') || '-') +
+    obsRow('anti-rigidité', antiRigidity.slice(0, 2).join(' | ') || '-') +
+    obsRow('sans réseau', localCaps.slice(0, 3).join(' | ') || '-')
   }</div>`);
   parts.push(`<div class="obs-section"><div class="obs-title">Serveur ATHOS</div>${
     obsRow(runtime.pid ? `PID ${runtime.pid}` : 'pid:?', `uptime:${runtime.uptime_seconds ?? '-'}s | ${runtime.host || '-'}:${runtime.port || '-'} | log:${runtime.log || '-'}`, runtime.pid || '') +
@@ -1703,7 +1714,7 @@ function renderObservability(d) {
   }</div>`);
   body.innerHTML = parts.join('');
   const c = document.getElementById('obs-count');
-  if (c) c.textContent = (ports.length + jobs.length + attached.length + failover.length + (sync.pending || 0) + (loop.running ? 1 : 0) + (runtime.pid ? 1 : 0) + ((memory.missing || []).length)).toString();
+  if (c) c.textContent = (ports.length + jobs.length + attached.length + failover.length + (sync.pending || 0) + (loop.running ? 1 : 0) + (runtime.pid ? 1 : 0) + ((memory.missing || []).length) + (local.network_required ? 1 : 0)).toString();
 }
 
 function refreshObservability() {
@@ -2554,7 +2565,7 @@ function updateStatus() {
       if (!d || !d.summary) return;
       const el = document.getElementById('hud-procs');
       if (el) {
-        const n = (d.summary.listening_ports || 0) + (d.summary.agent_processes || 0) + (d.summary.sync_pending || 0) + (d.summary.loop_running ? 1 : 0) + (d.summary.server_pid ? 1 : 0) + (d.summary.memory_missing || 0) + (d.summary.failover_events || 0);
+        const n = (d.summary.listening_ports || 0) + (d.summary.agent_processes || 0) + (d.summary.sync_pending || 0) + (d.summary.loop_running ? 1 : 0) + (d.summary.server_pid ? 1 : 0) + (d.summary.memory_missing || 0) + (d.summary.failover_events || 0) + (d.summary.local_capability_network_required ? 1 : 0);
         el.textContent = n;
         el.className = 'hud-val' + (n > 0 ? ' warn' : '');
       }
