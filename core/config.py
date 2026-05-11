@@ -45,6 +45,13 @@ ATHOS_ALLOWED_ORIGINS = [
 ]
 TEMP = ROOT / "temp"
 LOGS = DRIVE / "logs"
+ATHOS_ALLOW_ANY_WRITE = os.getenv("ATHOS_ALLOW_ANY_WRITE", "false").strip().lower() in {"1", "true", "yes", "on"}
+_WRITE_ROOTS_RAW = os.getenv("ATHOS_ALLOWED_WRITE_ROOTS", "").strip()
+ATHOS_ALLOWED_WRITE_ROOTS = [
+    Path(item).expanduser().resolve()
+    for item in _WRITE_ROOTS_RAW.split(",")
+    if item.strip()
+] if _WRITE_ROOTS_RAW else []
 
 
 def paid_api_allowed(provider: str = "") -> bool:
@@ -70,7 +77,14 @@ def server_security_policy() -> dict:
         "token_required": ATHOS_REQUIRE_TOKEN,
         "token_configured": bool(ATHOS_ACCESS_TOKEN),
         "remote_exposure_guard": "token_required_when_bind_host_is_not_localhost",
+        "allow_any_write": ATHOS_ALLOW_ANY_WRITE,
+        "allowed_write_roots": [str(p) for p in allowed_write_roots()],
     }
+
+
+def allowed_write_roots() -> list[Path]:
+    roots = ATHOS_ALLOWED_WRITE_ROOTS or [ATHOS_PATH, DRIVE, TEMP]
+    return [Path(root).expanduser().resolve() for root in roots]
 
 # Ensure common directories exist if needed
 DRIVE.mkdir(parents=True, exist_ok=True)

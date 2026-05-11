@@ -4,10 +4,14 @@ from pathlib import Path
 from datetime import datetime
 from typing import Callable
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent))
-import config
-from operating_protocol import build_system_prompt
+try:
+    from . import config
+    from .operating_protocol import build_system_prompt
+except ImportError:  # pragma: no cover - direct script compatibility
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent))
+    import config
+    from operating_protocol import build_system_prompt
 
 DRIVE = config.DRIVE
 MAX_ITERATIONS = 10
@@ -555,6 +559,9 @@ def tool_http_request(url: str, method: str = "GET", body: str = "", headers: di
 def tool_write_file(path: str, content: str, mode: str = "write") -> str:
     try:
         p = Path(path).expanduser()
+        if not _write_path_allowed(p):
+            roots = ", ".join(str(root) for root in config.allowed_write_roots())
+            return f"REFUSÉ : écriture hors racines autorisées ({roots})."
         p.parent.mkdir(parents=True, exist_ok=True)
         if mode == "append":
             with open(p, "a") as f: f.write(content)
@@ -563,6 +570,13 @@ def tool_write_file(path: str, content: str, mode: str = "write") -> str:
         return f"Fichier écrit : {path} ({len(content)} chars)"
     except Exception as e:
         return f"Erreur écriture : {e}"
+
+
+def _write_path_allowed(path: Path) -> bool:
+    if config.ATHOS_ALLOW_ANY_WRITE:
+        return True
+    target = path.expanduser().resolve()
+    return any(target == root or root in target.parents for root in config.allowed_write_roots())
 
 def tool_memory_write(file: str, content: str) -> str:
     try:
