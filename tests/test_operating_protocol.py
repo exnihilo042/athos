@@ -4,11 +4,11 @@ from core.operating_protocol import ATHOS_OPERATING_PROTOCOL, build_system_promp
 
 def test_system_prompt_includes_operating_protocol():
     prompt = build_system_prompt(BASE_SYSTEM)
-    assert "PROTOCOLE NOYAU ATHOS" in prompt
-    assert "Cycle de travail" in prompt
-    assert "Autonomie contrôlée" in prompt
+    assert "A.T.H.O.S." in prompt
+    assert "KERNEL ACTIF" in prompt
+    assert "CYCLE DE TRAVAIL" in prompt or "Cycle de travail" in prompt
     assert "boîte noire" in prompt
-    assert "visible, nommé, traçable et stoppable" in prompt
+    assert "GREETING OBLIGATOIRE" in prompt
     assert prompt == SYSTEM
 
 
