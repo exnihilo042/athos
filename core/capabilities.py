@@ -6,6 +6,7 @@ from pathlib import Path
 try:
     from . import config, session_kernel, sync_manager
     from .autonomous_loop import status as loop_status
+    from .metacognition import status as cognition_status
     from .named_protocols import list_protocols
     from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
@@ -13,6 +14,7 @@ except ImportError:
     import session_kernel
     import sync_manager
     from autonomous_loop import status as loop_status
+    from metacognition import status as cognition_status
     from named_protocols import list_protocols
     from registries import device_registry, hardware_registry, skill_registry
 
@@ -54,7 +56,8 @@ def status_report(compact: bool = False) -> str:
             f"Sécurité: host={security['bind_host']}; token={security['token_required']}; write_any={security['allow_any_write']}",
             f"Session: {session_kernel.summarize_recent()}",
             f"Sync: {sync_manager.status()['pending']} job(s) pending",
-            f"Loop: {'running' if loop_status()['running'] else 'off'}",
+        f"Loop: {'running' if loop_status()['running'] else 'off'}",
+        f"Cognition: non_immutable={cognition_status()['non_immutable_base']}; all_engines={cognition_status()['applies_to_all_engines']}",
         ]
         if latest_done:
             parts.append("Derniers done:")
@@ -71,6 +74,7 @@ def status_report(compact: bool = False) -> str:
         f"Attach protocol: /api/attach → /api/context_pack → /api/report",
         f"Sync: {sync_manager.status()['pending']} job(s) pending",
         f"Loop autonome: {'running' if loop_status()['running'] else 'off'}; skill mutation: {loop_status()['policy']['skill_mutation_enabled']}",
+        f"Cognition: non_immutable={cognition_status()['non_immutable_base']}; principles={len(cognition_status()['principles'])}",
         f"Protocoles nommés: {', '.join(p['name'] for p in list_protocols())}",
         f"Skills installés: {sum(1 for s in skill_registry() if s['installed'])}/{len(skill_registry())}",
         f"Devices: {', '.join(d['id'] + ':' + d['status'] for d in device_registry())}",

@@ -9,6 +9,8 @@ def test_system_prompt_includes_operating_protocol():
     assert "CYCLE DE TRAVAIL" in prompt or "Cycle de travail" in prompt
     assert "boîte noire" in prompt
     assert "GREETING OBLIGATOIRE" in prompt
+    assert "COGNITION SITUATIONNELLE" in prompt
+    assert "moteur, skill, outil, protocole" in prompt
     assert prompt == SYSTEM
 
 

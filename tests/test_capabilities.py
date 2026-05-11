@@ -12,3 +12,8 @@ def test_compact_status_intent():
     assert capabilities.wants_compact_status("où en est Athos ? statut court")
     assert capabilities.wants_compact_status("résumé rapide")
     assert not capabilities.wants_compact_status("statut complet")
+
+
+def test_compact_status_mentions_cognition():
+    text = capabilities.status_report(compact=True)
+    assert "Cognition:" in text

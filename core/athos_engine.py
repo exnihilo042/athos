@@ -283,6 +283,8 @@ class AthosEngine:
         frame = build_frame(msg, available, self.router.current)
         for event in frame.events():
             self.sse(event)
+        for event in (frame.metacognition or {}).get("events", []):
+            self.sse(event)
 
         local = self._local_reply(msg)
         if local is not None:

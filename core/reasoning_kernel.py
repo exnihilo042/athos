@@ -10,10 +10,14 @@ from typing import Any
 
 try:
     from . import config
+    from .metacognition import assess
     from .named_protocols import match_protocol
+    from .situational_decision import decide, option_from_engine
 except ImportError:
     import config
+    from metacognition import assess
     from named_protocols import match_protocol
+    from situational_decision import decide, option_from_engine
 
 
 @dataclass
@@ -23,6 +27,8 @@ class ReasoningFrame:
     uncertainty: list[str] = field(default_factory=list)
     gaps: list[str] = field(default_factory=list)
     acquisition: list[str] = field(default_factory=list)
+    metacognition: dict[str, Any] = field(default_factory=dict)
+    decision: dict[str, Any] = field(default_factory=dict)
     selected_engine: str = "none"
     action_policy: str = "visible_approval_required_for_mutations"
     cost_policy: str = "zero_paid_api"
@@ -37,6 +43,15 @@ class ReasoningFrame:
         rows += [("uncertainty", item) for item in self.uncertainty]
         rows += [("gap", item) for item in self.gaps]
         rows += [("acquire", item) for item in self.acquisition]
+        meta = self.metacognition or {}
+        if meta:
+            rows.append(("metacognition", f"mode={meta.get('mode', 'unknown')}; non_immutable_base={meta.get('non_immutable_base', True)}"))
+        decision = self.decision or {}
+        if decision.get("chosen"):
+            chosen = decision["chosen"]
+            rows.append(("decision_choice", f"{chosen.get('kind')}:{chosen.get('name')}; score={chosen.get('score')}"))
+        if decision.get("should_pause"):
+            rows.append(("decision_pause", decision.get("pause_reason", "")))
         return [{"thinking": {"kind": kind, "text": text}} for kind, text in rows if text]
 
     def to_dict(self) -> dict[str, Any]:
@@ -86,12 +101,19 @@ def build_frame(msg: str, available_engines: list[str], current_engine: str) -> 
         uncertainty.append("Aucun moteur disponible détecté; Athos devra répondre via état local ou signaler le blocage.")
 
     selected = current_engine if current_engine in available_engines else (available_engines[0] if available_engines else "none")
+    meta = assess(msg, available_engines)
+    decision = decide(
+        goal,
+        [option_from_engine(engine, current=(engine == current_engine), available=True) for engine in available_engines],
+    )
     return ReasoningFrame(
         goal=goal,
         known_facts=facts,
         uncertainty=uncertainty,
         gaps=gaps,
         acquisition=acquisition,
+        metacognition=meta.to_dict(),
+        decision=decision.to_dict(),
         selected_engine=selected,
         cost_policy=config.spend_policy()["mode"],
     )

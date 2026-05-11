@@ -11,6 +11,8 @@ import session_kernel
 import sync_manager
 import memory_status
 import session_compactor
+import metacognition
+import situational_decision
 import engine_router
 import failover_simulator
 from auth import request_authorized
@@ -238,6 +240,16 @@ class Handler(BaseHTTPRequestHandler):
             if body.get("write", False):
                 self._json(session_compactor.write_summary(limit=int(body.get("limit", 120)))); return
             self._json(session_compactor.build_summary(limit=int(body.get("limit", 120)))); return
+
+        if p == "/api/cognition/status":
+            self._json(metacognition.status()); return
+
+        if p == "/api/decision/evaluate":
+            body = self._body()
+            self._json(situational_decision.decide(
+                body.get("objective", ""),
+                body.get("options", []),
+            ).to_dict()); return
 
         if p == "/api/self_improvement_plan":
             body = self._body()
