@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="ATHOS">
 <link rel="manifest" href="/manifest.json">
 <title>A.T.H.O.S.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
@@ -40,7 +43,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 60px 24px 48px;
+    padding: 52px 24px 48px;
+    gap: 10px;
   }
 
   /* Header */
@@ -84,12 +88,161 @@
   #engine-badge.ollama .dot { background: var(--gold); }
   #engine-badge.ollama { color: #3a3020; }
   #budget-indicator {
-    position: absolute;
-    top: 0; right: 0;
-    font-size: 10px;
-    color: #2a2a35;
-    letter-spacing: 0.05em;
+    display: none;
   }
+
+  /* ── HUD strip — FUI/JARVIS ─────────────────────────────────────────────── */
+  #hud {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    max-width: 360px;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    background: rgba(6, 7, 14, 0.98);
+    border: 1px solid rgba(74, 158, 255, 0.1);
+    border-radius: 6px;
+    position: relative;
+  }
+
+  /* Corner bracket accents */
+  #hud::before, #hud::after {
+    content: '';
+    position: absolute;
+    width: 7px; height: 7px;
+    transition: border-color 0.5s;
+    pointer-events: none;
+  }
+  #hud::before {
+    top: -1px; left: -1px;
+    border-top: 1px solid rgba(74, 158, 255, 0.45);
+    border-left: 1px solid rgba(74, 158, 255, 0.45);
+  }
+  #hud::after {
+    bottom: -1px; right: -1px;
+    border-bottom: 1px solid rgba(74, 158, 255, 0.45);
+    border-right: 1px solid rgba(74, 158, 255, 0.45);
+  }
+
+  /* Engine-colored corner accents */
+  #hud[data-engine="chatgpt_plus"]::before,
+  #hud[data-engine="chatgpt_plus"]::after { border-color: rgba(52, 199, 89, 0.5); }
+  #hud[data-engine="grok"]::before,
+  #hud[data-engine="grok"]::after { border-color: rgba(191, 90, 242, 0.5); }
+  #hud[data-engine="ollama"]::before,
+  #hud[data-engine="ollama"]::after { border-color: rgba(255, 214, 10, 0.4); }
+
+  /* Top scan line */
+  #hud-scan {
+    position: absolute;
+    top: 0; left: 8%; right: 8%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(74,158,255,0.5) 50%, transparent 100%);
+    animation: hud-scan 5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  #hud[data-engine="chatgpt_plus"] #hud-scan {
+    background: linear-gradient(90deg, transparent 0%, rgba(52,199,89,0.5) 50%, transparent 100%);
+  }
+  #hud[data-engine="grok"] #hud-scan {
+    background: linear-gradient(90deg, transparent 0%, rgba(191,90,242,0.5) 50%, transparent 100%);
+  }
+  #hud[data-engine="ollama"] #hud-scan {
+    background: linear-gradient(90deg, transparent 0%, rgba(255,214,10,0.4) 50%, transparent 100%);
+  }
+
+  @keyframes hud-scan {
+    0%, 100% { opacity: 0.2; transform: scaleX(0.7); }
+    50%       { opacity: 1;   transform: scaleX(1); }
+  }
+
+  .hud-cell {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 10px;
+    position: relative;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .hud-cell:last-child { flex: 1; justify-content: center; }
+  .hud-cell + .hud-cell::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 22%; bottom: 22%;
+    width: 1px;
+    background: rgba(74, 158, 255, 0.08);
+  }
+
+  .hud-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #252535;
+    flex-shrink: 0;
+    transition: background 0.5s, box-shadow 0.5s;
+    animation: hud-dot-idle 3s ease-in-out infinite;
+  }
+
+  @keyframes hud-dot-idle {
+    0%, 100% { opacity: 0.6; }
+    50%       { opacity: 1; }
+  }
+
+  #hud[data-engine="claude_code"]   .hud-dot,
+  #hud[data-engine="anthropic_api"] .hud-dot {
+    background: var(--blue);
+    box-shadow: 0 0 5px var(--blue), 0 0 10px rgba(74,158,255,0.25);
+    animation: hud-dot-pulse 2s ease-in-out infinite;
+  }
+  #hud[data-engine="chatgpt_plus"]  .hud-dot {
+    background: var(--green);
+    box-shadow: 0 0 5px var(--green), 0 0 10px rgba(52,199,89,0.25);
+    animation: hud-dot-pulse 2s ease-in-out infinite;
+  }
+  #hud[data-engine="grok"]          .hud-dot {
+    background: var(--purple);
+    box-shadow: 0 0 5px var(--purple), 0 0 10px rgba(191,90,242,0.25);
+    animation: hud-dot-pulse 2s ease-in-out infinite;
+  }
+  #hud[data-engine="ollama"]        .hud-dot {
+    background: var(--gold);
+    box-shadow: 0 0 5px var(--gold), 0 0 10px rgba(255,214,10,0.2);
+    animation: hud-dot-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes hud-dot-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.45; }
+  }
+
+  #hud-engine-name {
+    color: var(--text);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: color 0.5s;
+  }
+  #hud[data-engine="claude_code"]   #hud-engine-name,
+  #hud[data-engine="anthropic_api"] #hud-engine-name { color: var(--blue); }
+  #hud[data-engine="chatgpt_plus"]  #hud-engine-name { color: var(--green); }
+  #hud[data-engine="grok"]          #hud-engine-name { color: var(--purple); }
+  #hud[data-engine="ollama"]        #hud-engine-name { color: var(--gold); }
+
+  .hud-label {
+    color: #222232;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .hud-val {
+    color: #666677;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.4s;
+  }
+  .hud-val.warn  { color: var(--gold); }
+  .hud-val.alert { color: var(--red);  }
 
   /* Transcript */
   #transcript-area {
@@ -651,6 +804,27 @@
     <div id="budget-indicator"></div>
   </div>
 
+  <!-- HUD strip -->
+  <div id="hud" data-engine="none">
+    <div id="hud-scan"></div>
+    <div class="hud-cell">
+      <span class="hud-dot"></span>
+      <span id="hud-engine-name">—</span>
+    </div>
+    <div class="hud-cell">
+      <span class="hud-label">budget</span>
+      <span class="hud-val" id="hud-budget">—</span>
+    </div>
+    <div class="hud-cell">
+      <span class="hud-label">procs</span>
+      <span class="hud-val" id="hud-procs">0</span>
+    </div>
+    <div class="hud-cell">
+      <span class="hud-label">éch.</span>
+      <span class="hud-val" id="hud-sessions">—</span>
+    </div>
+  </div>
+
   <div id="transcript-area"></div>
 
   <!-- Terminal intégré -->
@@ -808,6 +982,7 @@ function updateProcList() {
       <button class="kill-btn" onclick="killProc(${pid})">kill</button>`;
     el.appendChild(div);
   }
+  updateHUDProcs();
 }
 
 async function killProc(pid) {
@@ -1459,30 +1634,48 @@ document.getElementById('modal').addEventListener('click', (e) => {
   if (e.target.id === 'modal') toggleModal();
 });
 
+// ── HUD ───────────────────────────────────────────────────────────────────────
+const ENGINE_NAMES = {
+  chatgpt_plus: 'ChatGPT+', claude_code: 'Claude Code',
+  anthropic_api: 'Anthropic', grok: 'Grok', ollama: 'Ollama', none: '—'
+};
+
+function updateHUD(d) {
+  const hud = document.getElementById('hud');
+  if (!hud) return;
+  hud.dataset.engine = d.engine || 'none';
+
+  const name = document.getElementById('hud-engine-name');
+  if (name) name.textContent = ENGINE_NAMES[d.engine] || d.engine || '—';
+
+  const budget = document.getElementById('hud-budget');
+  if (budget) {
+    const b = d.budget;
+    budget.textContent = b > 0 ? `${b.toFixed(2)}€` : '0€';
+    budget.className = 'hud-val' + (b > 5 ? ' warn' : '') + (b > 15 ? ' alert' : '');
+  }
+
+  const sessions = document.getElementById('hud-sessions');
+  if (sessions && d.session) sessions.textContent = d.session.exchanges || 0;
+}
+
+function updateHUDProcs() {
+  const el = document.getElementById('hud-procs');
+  if (!el) return;
+  const n = Object.keys(_runningProcs).length;
+  el.textContent = n;
+  el.className = 'hud-val' + (n > 0 ? ' warn' : '');
+}
+
 // ── Status header ─────────────────────────────────────────────────────────────
 function updateStatus() {
   fetch(`${SERVER}/api/status`, { method: 'POST', headers: authHeaders() })
     .then(r => {
-      if (r.status === 401) {
-        handleAuthRequired();
-        return null;
-      }
+      if (r.status === 401) { handleAuthRequired(); return null; }
       return r.json();
     })
-    .then(d => {
-      if (!d) return;
-      const badge  = document.getElementById('engine-badge');
-      const label  = document.getElementById('engine-label');
-      const budget = document.getElementById('budget-indicator');
-      if (badge && label) {
-        badge.className = d.engine || '';
-        const names = { chatgpt_plus: 'ChatGPT+', claude_code: 'Claude Code', anthropic_api: 'Anthropic API', claude: 'Claude', grok: 'Grok', chatgpt: 'ChatGPT API', ollama: 'Ollama', none: '—' };
-        label.textContent = names[d.engine] || d.engine || '—';
-      }
-      if (budget && d.budget_eur > 0) {
-        budget.textContent = `${d.budget_eur.toFixed(2)}€`;
-      }
-    }).catch(() => {});
+    .then(d => { if (d) updateHUD(d); })
+    .catch(() => {});
 }
 updateStatus();
 setInterval(updateStatus, 30000);
