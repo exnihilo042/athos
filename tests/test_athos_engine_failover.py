@@ -63,6 +63,23 @@ def test_engine_failover_keeps_same_message_and_records_claude(monkeypatch, tmp_
     assert session_kernel.latest_checkpoint()["tasks"] == ["reprendre la même demande avec le même contexte"]
 
 
+def test_local_status_reply_emits_sse_text_and_records(monkeypatch):
+    import core.athos_engine as athos_engine
+
+    events = []
+    mem = FakeMem()
+    engine = AthosEngine(mem, FakeRouter(), events.append, lambda: (lambda *_: True))
+    monkeypatch.setattr(athos_engine, "matches_self_knowledge_request", lambda msg: True)
+    monkeypatch.setattr(athos_engine, "wants_compact_status", lambda msg: True)
+    monkeypatch.setattr(athos_engine, "status_report", lambda compact=False: "A.T.H.O.S. compact")
+
+    reply = engine.respond("où en est Athos ? statut court")
+
+    assert reply == "A.T.H.O.S. compact"
+    assert {"t": "A.T.H.O.S. compact"} in events
+    assert mem.exchanges == [("où en est Athos ? statut court", "A.T.H.O.S. compact")]
+
+
 def test_chatgpt_plus_cli_closes_stdin(monkeypatch):
     import core.athos_engine as athos_engine
 
