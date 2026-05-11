@@ -16,4 +16,4 @@ def test_voice_server_import_initializes_engine(monkeypatch):
     import voice.server as server
     importlib.reload(server)
 
-    assert "anthropic_api" in server._available_engines()
+    assert "anthropic_api" in server._router.available()
