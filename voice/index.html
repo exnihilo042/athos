@@ -1474,14 +1474,24 @@ async function refreshSkills() {
   const list = document.getElementById('agi-skills-list');
   try {
     const r = await apiFetch('/api/skills', {action: 'list'});
-    if (!r.skills || !r.skills.length) {
-      list.innerHTML = '<div style="color:var(--muted);font-size:11px">Aucun skill acquis.</div>'; return;
+    const active = r.skills || [];
+    const pending = (r.pending_drive && r.pending_drive.recent) || [];
+    if (!active.length && !pending.length) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:11px">Aucun skill acquis ou en attente.</div>'; return;
     }
-    list.innerHTML = r.skills.map(s => `
+    const activeHtml = active.map(s => `
       <div class="agi-belief-item">
         <b style="color:#9b6bff">${escHtml(s.name)}</b> · <span style="color:var(--muted)">${escHtml(s.description)}</span>
         <div style="font-size:9px;color:#333340;margin-top:2px">uses: ${s.use_count} · ${s.tags.join(', ')}</div>
       </div>`).join('');
+    const pendingHtml = pending.map(p => {
+      const s = p.skill || {};
+      return `<div class="agi-belief-item">
+        <b style="color:#ffd60a">${escHtml(s.name || 'pending')}</b> · <span style="color:var(--muted)">${escHtml(p.gap || s.description || '')}</span>
+        <div style="font-size:9px;color:#333340;margin-top:2px">${escHtml(p.status || 'pending_review')} · Drive-only · mutation bloquée sans accord</div>
+      </div>`;
+    }).join('');
+    list.innerHTML = activeHtml + pendingHtml;
   } catch(e) { list.innerHTML = `<div style="color:#ff5555;font-size:11px">${e.message}</div>`; }
 }
 

@@ -192,6 +192,9 @@ class TestAcquire:
         assert skill.status == "pending_review"
         assert not skill.file_path().exists()
         assert not sl_mod.SKILLS_MANIFEST.exists()
+        pending = sa_mod.pending_status()
+        assert pending["pending"] == 1
+        assert pending["recent"][0]["skill"]["name"] == "safe_plan"
 
     def test_returns_none_on_bad_code(self, tmp_path):
         import importlib, types

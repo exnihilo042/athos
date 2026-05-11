@@ -238,3 +238,23 @@ def _record_pending_skill(skill: Skill, gap_description: str) -> None:
             f.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
     except Exception:
         pass
+
+
+def pending_status(limit: int = 20) -> dict:
+    rows = []
+    if PENDING_SKILLS_FILE.exists():
+        for line in PENDING_SKILLS_FILE.read_text("utf-8", errors="ignore").splitlines():
+            if not line.strip():
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                rows.append({"status": "corrupt", "raw": line[:500]})
+    recent = rows[-limit:]
+    return {
+        "file": str(PENDING_SKILLS_FILE),
+        "exists": PENDING_SKILLS_FILE.exists(),
+        "pending": sum(1 for row in rows if row.get("status") == "pending_review"),
+        "total": len(rows),
+        "recent": recent,
+    }

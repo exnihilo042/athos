@@ -415,6 +415,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == "/api/skills":
             from skill_library import get_library
+            from skill_acquisition import pending_status
             body = self._body()
             lib = get_library()
             action = body.get("action", "list")
@@ -459,9 +460,12 @@ class Handler(BaseHTTPRequestHandler):
             if action == "search":
                 results = lib.search(body.get("query", ""), limit=int(body.get("limit", 5)))
                 self._json({"skills": [s.to_dict() for s in results]}); return
+            if action == "pending":
+                self._json(pending_status(limit=int(body.get("limit", 20)))); return
             self._json({
                 "skills": [s.to_dict() for s in lib.list_active()],
                 "summary": lib.summary(),
+                "pending_drive": pending_status(limit=int(body.get("limit", 8))),
             }); return
 
         if p == "/api/search":
