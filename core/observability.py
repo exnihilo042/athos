@@ -11,12 +11,13 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from . import config, session_kernel, sync_manager
+    from . import config, session_kernel, sync_manager, memory_status
     from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
     import config
     import session_kernel
     import sync_manager
+    import memory_status
     from registries import device_registry, hardware_registry, skill_registry
 
 
@@ -191,6 +192,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
     skills = skill_registry()
     devices = device_registry()
     hardware = hardware_registry()
+    memory = memory_status.status()
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git": git_status(),
@@ -202,6 +204,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
         "agent_processes": agent_processes or [],
         "attached_engines": attached,
         "sync": sync,
+        "memory": memory,
         "loop": loop,
         "skills": skills,
         "devices": devices,
@@ -215,6 +218,7 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
             "agent_processes": len(agent_processes or []),
             "attached_engines": len(attached),
             "sync_pending": sync.get("pending", 0),
+            "memory_missing": len(memory.get("missing", [])),
             "loop_running": loop.get("running", False),
             "installed_skills": sum(1 for skill in skills if skill.get("installed")),
             "devices": len(devices),

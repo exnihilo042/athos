@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
 import config
 import session_kernel
 import sync_manager
+import memory_status
 import engine_router
 from auth import request_authorized
 from memory_extractor import extract_and_save_async
@@ -226,6 +227,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == "/api/sync/run":
             self._json(sync_manager.run_once()); return
+
+        if p == "/api/memory/status":
+            self._json(memory_status.status()); return
 
         if p == "/api/self_improvement_plan":
             body = self._body()

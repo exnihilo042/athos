@@ -1636,6 +1636,7 @@ function renderObservability(d) {
   const hardware = d.hardware || [];
   const sec = d.server_security || {};
   const runtime = d.server_runtime || {};
+  const memory = d.memory || {};
   const loop = d.loop || {};
   const syncRecent = sync.recent || [];
   const writeRoots = sec.allowed_write_roots || [];
@@ -1644,6 +1645,10 @@ function renderObservability(d) {
   parts.push(`<div class="obs-section"><div class="obs-title">Git / Drive</div>${
     obsRow('git', `${d.git?.branch || '?'}@${d.git?.head || '?'} — ${dirty}`) +
     obsRow('drive', `${d.drive?.exists ? 'ok' : 'missing'} — ${d.drive?.path || ''}`)
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Mémoire</div>${
+    obsRow(memory.ok ? 'memory:ok' : 'memory:warn', `${memory.root || '-'} | missing:${(memory.missing || []).join(',') || 'none'}`) +
+    ((memory.canonical_files || []).map(f => obsRow(f.exists ? 'ok' : 'missing', `${f.name} | lines:${f.lines || 0} | ${f.last_line || '-'}`)).join('') || '<div class="obs-muted">Mémoire non inspectée.</div>')
   }</div>`);
   parts.push(`<div class="obs-section"><div class="obs-title">Serveur ATHOS</div>${
     obsRow(runtime.pid ? `PID ${runtime.pid}` : 'pid:?', `uptime:${runtime.uptime_seconds ?? '-'}s | ${runtime.host || '-'}:${runtime.port || '-'} | log:${runtime.log || '-'}`, runtime.pid || '') +
@@ -1684,7 +1689,7 @@ function renderObservability(d) {
   }</div>`);
   body.innerHTML = parts.join('');
   const c = document.getElementById('obs-count');
-  if (c) c.textContent = (ports.length + jobs.length + attached.length + (sync.pending || 0) + (loop.running ? 1 : 0) + (runtime.pid ? 1 : 0)).toString();
+  if (c) c.textContent = (ports.length + jobs.length + attached.length + (sync.pending || 0) + (loop.running ? 1 : 0) + (runtime.pid ? 1 : 0) + ((memory.missing || []).length)).toString();
 }
 
 function refreshObservability() {
@@ -2535,7 +2540,7 @@ function updateStatus() {
       if (!d || !d.summary) return;
       const el = document.getElementById('hud-procs');
       if (el) {
-        const n = (d.summary.listening_ports || 0) + (d.summary.agent_processes || 0) + (d.summary.sync_pending || 0) + (d.summary.loop_running ? 1 : 0) + (d.summary.server_pid ? 1 : 0);
+        const n = (d.summary.listening_ports || 0) + (d.summary.agent_processes || 0) + (d.summary.sync_pending || 0) + (d.summary.loop_running ? 1 : 0) + (d.summary.server_pid ? 1 : 0) + (d.summary.memory_missing || 0);
         el.textContent = n;
         el.className = 'hud-val' + (n > 0 ? ' warn' : '');
       }

@@ -4,10 +4,11 @@ from core import observability
 def test_process_snapshot_contains_visible_runtime_sections(monkeypatch):
     monkeypatch.setattr(observability, "_run", lambda *a, **k: "")
     monkeypatch.setattr(observability, "_shell", lambda *a, **k: "")
+    monkeypatch.setattr(observability.memory_status, "status", lambda: {"missing": [], "ok": True})
 
     snap = observability.process_snapshot([{"pid": 123, "running": True}])
 
-    assert {"git", "drive", "server_runtime", "ports", "launchd", "logs", "agent_processes", "summary"} <= set(snap)
+    assert {"git", "drive", "memory", "server_runtime", "ports", "launchd", "logs", "agent_processes", "summary"} <= set(snap)
     assert snap["agent_processes"] == [{"pid": 123, "running": True}]
     assert snap["summary"]["agent_processes"] == 1
     assert snap["server_runtime"]["pid"]
