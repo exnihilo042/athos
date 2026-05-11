@@ -27,6 +27,36 @@ ACCESS_TOKEN = config.ATHOS_ACCESS_TOKEN
 _mem    = AthosMemory()
 _router = AthosRouter(_mem)
 
+
+def _make_loop_llm():
+    """Return a blocking llm_call for the autonomous loop — uses best available engine."""
+    def _call(prompt: str) -> str:
+        # Prefer Anthropic API if key present and budget allows
+        if config.ANTHROPIC_KEY and config.paid_api_allowed("anthropic"):
+            try:
+                import anthropic as _ant
+                client = _ant.Anthropic(api_key=config.ANTHROPIC_KEY)
+                msg = client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=1024,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return msg.content[0].text
+            except Exception:
+                pass
+        # Fallback: claude CLI subprocess
+        try:
+            result = subprocess.run(
+                ["claude", "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
+                capture_output=True, text=True, timeout=120, cwd=str(config.ATHOS_PATH),
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except Exception:
+            pass
+        return "[loop_llm_unavailable]"
+    return _call
+
 # ── Permission prompts (bloquants) ────────────────────────────────────────────
 _permits:      dict[str, dict] = {}
 _permits_lock: threading.Lock  = threading.Lock()
@@ -371,11 +401,10 @@ class Handler(BaseHTTPRequestHandler):
             loop = get_loop()
             if action == "start":
                 if not loop or not loop.is_alive():
-                    def _llm(prompt: str) -> str:
-                        import athos_engine as ae
-                        engine = AthosEngine(_mem, _router, lambda e: None, lambda: lambda t, i: True)
-                        return engine._call_engine(_router.current, prompt)
-                    start_loop(_llm, tick_interval=float(body.get("tick_interval", 30)))
+                    start_loop(
+                        _make_loop_llm(),
+                        tick_interval=float(body.get("tick_interval", 30)),
+                    )
                 self._json({"ok": True, "running": True}); return
             if action == "stop":
                 stop_loop()
