@@ -399,6 +399,17 @@ class Handler(BaseHTTPRequestHandler):
             lib = get_library()
             action = body.get("action", "list")
             if action == "propose":
+                if not (config.SKILL_INSTALL_ENABLED and bool(body.get("allow_mutation", False))):
+                    self._json({
+                        "ok": False,
+                        "requires_confirmation": True,
+                        "msg": "skill proposal mutation blocked: set ATHOS_SKILL_INSTALL_ENABLED=true and allow_mutation=true",
+                        "plan": {
+                            "name": body.get("name", ""),
+                            "description": body.get("description", ""),
+                            "mutations": ["write skill proposal to core/skills/manifest.json"],
+                        },
+                    }); return
                 s = lib.propose(
                     name=body.get("name", ""),
                     description=body.get("description", ""),
@@ -410,6 +421,13 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 self._json(s.to_dict()); return
             if action == "integrate":
+                if not config.SKILL_INSTALL_ENABLED:
+                    self._json({
+                        "ok": False,
+                        "requires_confirmation": True,
+                        "msg": "skill integration blocked: ATHOS_SKILL_INSTALL_ENABLED=false",
+                        "plan": lib.integration_plan(body.get("id", "")),
+                    }); return
                 ok, msg = lib.test_and_integrate(
                     body.get("id", ""),
                     allow_mutation=bool(body.get("allow_mutation", False)),
