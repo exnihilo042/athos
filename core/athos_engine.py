@@ -159,6 +159,7 @@ class AthosEngine:
         result = subprocess.run(
             [codex, "exec", "--dangerously-bypass-approvals-and-sandbox", prompt],
             capture_output=True, text=True, timeout=180, cwd=str(config.ATHOS_PATH),
+            stdin=subprocess.DEVNULL,
         )
         for line in result.stderr.strip().splitlines():
             if line: self._terminal(line)
@@ -173,7 +174,7 @@ class AthosEngine:
         proc   = subprocess.Popen(
             ["claude", "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
             cwd=str(config.ATHOS_PATH),
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, text=True, bufsize=1,
         )
         def drain():
             for line in proc.stderr:

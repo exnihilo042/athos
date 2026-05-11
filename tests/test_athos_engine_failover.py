@@ -1,3 +1,12 @@
+import io
+import subprocess
+import sys
+from pathlib import Path
+
+CORE_DIR = Path(__file__).parent.parent / "core"
+if str(CORE_DIR) not in sys.path:
+    sys.path.insert(0, str(CORE_DIR))
+
 from core.athos_engine import AthosEngine
 
 
@@ -52,3 +61,47 @@ def test_engine_failover_keeps_same_message_and_records_claude(monkeypatch, tmp_
     assert reply == "repris:continue le travail"
     assert any(e.get("action") == "failover" for e in events)
     assert session_kernel.latest_checkpoint()["tasks"] == ["reprendre la même demande avec le même contexte"]
+
+
+def test_chatgpt_plus_cli_closes_stdin(monkeypatch):
+    import core.athos_engine as athos_engine
+
+    events = []
+    engine = AthosEngine(FakeMem(), FakeRouter(), events.append, lambda: (lambda *_: True))
+    monkeypatch.setattr(athos_engine.engine_router, "chatgpt_plus_path", lambda: "/usr/local/bin/codex")
+    seen = {}
+
+    def fake_run(*args, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(athos_engine.subprocess, "run", fake_run)
+
+    assert engine._chatgpt_plus("hello") == "ok"
+    assert seen["stdin"] is subprocess.DEVNULL
+
+
+def test_claude_code_cli_closes_stdin(monkeypatch):
+    import core.athos_engine as athos_engine
+
+    events = []
+    engine = AthosEngine(FakeMem(), FakeRouter(), events.append, lambda: (lambda *_: True))
+    seen = {}
+
+    class FakeProc:
+        def __init__(self):
+            self.stdout = io.StringIO("ok")
+            self.stderr = io.StringIO("")
+            self.returncode = 0
+
+        def wait(self, timeout=None):
+            return 0
+
+    def fake_popen(*args, **kwargs):
+        seen.update(kwargs)
+        return FakeProc()
+
+    monkeypatch.setattr(athos_engine.subprocess, "Popen", fake_popen)
+
+    assert engine._claude_code("hello") == "ok"
+    assert seen["stdin"] is subprocess.DEVNULL
