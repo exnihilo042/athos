@@ -17,6 +17,7 @@ try:
     from .capabilities import matches_self_knowledge_request, status_report
     from .reasoning_kernel import build_frame
     from .self_improvement import matches_self_improvement_request, plan_self_improvement
+    from .named_protocols import match_protocol, run_protocol
     from .athos_memory import AthosMemory
     from .athos_router import AthosRouter
 except ImportError:
@@ -26,6 +27,7 @@ except ImportError:
     from capabilities import matches_self_knowledge_request, status_report
     from reasoning_kernel import build_frame
     from self_improvement import matches_self_improvement_request, plan_self_improvement
+    from named_protocols import match_protocol, run_protocol
     from athos_memory import AthosMemory
     from athos_router import AthosRouter
 
@@ -75,6 +77,9 @@ class AthosEngine:
         session_kernel.record_exchange(msg, reply, engine)
 
     def _local_reply(self, msg: str) -> str | None:
+        protocol = match_protocol(msg)
+        if protocol:
+            return run_protocol(protocol, {"request": msg}).get("text", "")
         if matches_self_knowledge_request(msg):
             return status_report()
         if matches_self_improvement_request(msg):

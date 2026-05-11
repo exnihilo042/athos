@@ -1162,11 +1162,23 @@ function renderObservability(d) {
   const ports = d.ports || [];
   const jobs = d.launchd || [];
   const logs = d.logs || [];
+  const attached = d.attached_engines || [];
+  const sync = d.sync || {};
+  const skills = d.skills || [];
+  const devices = d.devices || [];
+  const hardware = d.hardware || [];
   const dirty = (d.git && d.git.dirty || []).join(' | ') || 'clean';
   const parts = [];
   parts.push(`<div class="obs-section"><div class="obs-title">Git / Drive</div>${
     obsRow('git', `${d.git?.branch || '?'}@${d.git?.head || '?'} — ${dirty}`) +
     obsRow('drive', `${d.drive?.exists ? 'ok' : 'missing'} — ${d.drive?.path || ''}`)
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Moteurs attachés</div>${
+    attached.length ? attached.map(a => obsRow(a.engine || 'engine', `${a.attach_id || '-'} | ${a.scope || 'default'} | ${a.ts || '-'}`)).join('') : '<div class="obs-muted">Aucun moteur externe attaché.</div>'
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Sync / Coût</div>${
+    obsRow(sync.network_available ? 'online' : 'offline', `pending:${sync.pending || 0} ready:${sync.ready_for_replay || 0} file:${sync.file || '-'}`) +
+    obsRow('cost', `${d.cost_policy?.mode || 'unknown'} | paid:${!!d.cost_policy?.paid_api_enabled} | whisper:${!!d.cost_policy?.whisper_enabled}`)
   }</div>`);
   parts.push(`<div class="obs-section"><div class="obs-title">Ports</div>${
     ports.length ? ports.map(p => obsRow(`PID ${p.pid}`, `${p.command} ${p.name} | ${p.reason || ''} | log:${p.log || '-'} | stop:${p.stop_method || '-'}`, p.stoppable ? p.pid : '')).join('') : '<div class="obs-muted">Aucun port en écoute.</div>'
@@ -1177,9 +1189,18 @@ function renderObservability(d) {
   parts.push(`<div class="obs-section"><div class="obs-title">Logs</div>${
     logs.map(l => obsRow(l.exists ? 'ok' : 'missing', `${l.path} — ${l.size || 0} bytes`)).join('')
   }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Skills</div>${
+    skills.length ? skills.slice(0, 10).map(s => obsRow(s.installed ? 'installed' : 'available', `${s.name} | ${s.description || ''} | offline:${!!s.offline}`)).join('') : '<div class="obs-muted">Aucune compétence déclarée.</div>'
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Appareils</div>${
+    devices.length ? devices.map(dev => obsRow(dev.status || 'unknown', `${dev.id || dev.label} | scopes:${(dev.scopes || []).join(',') || '-'} | queue:${!!dev.offline_queue}`)).join('') : '<div class="obs-muted">Aucun appareil déclaré.</div>'
+  }</div>`);
+  parts.push(`<div class="obs-section"><div class="obs-title">Hardware</div>${
+    hardware.length ? hardware.map(h => obsRow(h.status || 'planned', `${h.name} | ${h.mode || ''} | permission:${h.permission || '-'}`)).join('') : '<div class="obs-muted">Aucun hardware déclaré.</div>'
+  }</div>`);
   body.innerHTML = parts.join('');
   const c = document.getElementById('obs-count');
-  if (c) c.textContent = (ports.length + jobs.length).toString();
+  if (c) c.textContent = (ports.length + jobs.length + attached.length + (sync.pending || 0)).toString();
 }
 
 function refreshObservability() {

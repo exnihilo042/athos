@@ -4,10 +4,15 @@ from __future__ import annotations
 from pathlib import Path
 
 try:
-    from . import config, session_kernel
+    from . import config, session_kernel, sync_manager
+    from .named_protocols import list_protocols
+    from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
     import config
     import session_kernel
+    import sync_manager
+    from named_protocols import list_protocols
+    from registries import device_registry, hardware_registry, skill_registry
 
 
 MEM_FILES = [
@@ -36,6 +41,12 @@ def status_report() -> str:
         f"Mémoire: {config.DRIVE}",
         f"Politique coût: {config.spend_policy()['mode']}",
         f"Session: {session_kernel.summarize_recent()}",
+        f"Attach protocol: /api/attach → /api/context_pack → /api/report",
+        f"Sync: {sync_manager.status()['pending']} job(s) pending",
+        f"Protocoles nommés: {', '.join(p['name'] for p in list_protocols())}",
+        f"Skills installés: {sum(1 for s in skill_registry() if s['installed'])}/{len(skill_registry())}",
+        f"Devices: {', '.join(d['id'] + ':' + d['status'] for d in device_registry())}",
+        f"Hardware planned: {', '.join(h['name'] for h in hardware_registry())}",
     ]
     for fname in MEM_FILES:
         rows = _selected_lines(config.DRIVE / fname, ("§",), 8)

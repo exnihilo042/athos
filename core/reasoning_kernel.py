@@ -10,8 +10,10 @@ from typing import Any
 
 try:
     from . import config
+    from .named_protocols import match_protocol
 except ImportError:
     import config
+    from named_protocols import match_protocol
 
 
 @dataclass
@@ -74,6 +76,11 @@ def build_frame(msg: str, available_engines: list[str], current_engine: str) -> 
     if _looks_like_research(msg):
         gaps.append("Sources externes à vérifier avant d'intégrer une nouvelle capacité.")
         acquisition.append("Chercher documentation officielle, GitHub ou source académique selon le besoin.")
+
+    protocol = match_protocol(msg)
+    if protocol:
+        facts.append(f"Protocole nommé détecté: {protocol}.")
+        acquisition.append("Produire un plan protocolaire visible avant action.")
 
     if not available_engines:
         uncertainty.append("Aucun moteur disponible détecté; Athos devra répondre via état local ou signaler le blocage.")

@@ -84,10 +84,44 @@ def record_summary(summary: str, source: str = "athos") -> dict[str, Any]:
     })
 
 
+def record_attach(attach_id: str, engine: str, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    return _append({
+        "type": "attach",
+        "attach_id": _safe_text(attach_id, 120),
+        "engine": _safe_text(engine, 160),
+        "meta": meta or {},
+    })
+
+
+def record_delegate(attach_id: str, engine: str, request: str, decision: str,
+                    meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    return _append({
+        "type": "delegate",
+        "attach_id": _safe_text(attach_id, 120),
+        "engine": _safe_text(engine, 160),
+        "request": _safe_text(request, 2_000),
+        "decision": _safe_text(decision, 500),
+        "meta": meta or {},
+    })
+
+
+def record_report(attach_id: str, engine: str, summary: str, status: str = "reported",
+                  meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    return _append({
+        "type": "report",
+        "attach_id": _safe_text(attach_id, 120),
+        "engine": _safe_text(engine, 160),
+        "summary": _safe_text(summary, 2_000),
+        "status": _safe_text(status, 120),
+        "meta": meta or {},
+    })
+
+
 def summarize_recent(limit: int = 20) -> str:
     events = read_events(limit=limit)
     exchanges = [e for e in events if e.get("type") == "exchange"]
     actions = [e for e in events if e.get("type") == "action"]
+    attaches = [e for e in events if e.get("type") == "attach"]
     cp = latest_checkpoint()
     parts = [
         f"échanges récents: {len(exchanges)}",
@@ -101,6 +135,8 @@ def summarize_recent(limit: int = 20) -> str:
     if exchanges:
         last = exchanges[-1]
         parts.append(f"dernier échange via {last.get('engine', '')}: {last.get('user', '')[:160]}")
+    if attaches:
+        parts.append(f"moteur attaché: {attaches[-1].get('engine', '')}")
     return " | ".join(parts)
 
 
@@ -165,6 +201,21 @@ def context_pack(max_chars: int = MAX_CONTEXT_CHARS) -> str:
             )
         elif event.get("type") == "summary":
             chunks.append(f"§summary:{event.get('ts')}|{event.get('summary', '')[:400]}")
+        elif event.get("type") == "attach":
+            chunks.append(
+                f"§attach:{event.get('ts')}|id:{event.get('attach_id', '')}"
+                f"|engine:{event.get('engine', '')}"
+            )
+        elif event.get("type") == "delegate":
+            chunks.append(
+                f"§delegate:{event.get('ts')}|id:{event.get('attach_id', '')}"
+                f"|decision:{event.get('decision', '')[:180]}"
+            )
+        elif event.get("type") == "report":
+            chunks.append(
+                f"§report:{event.get('ts')}|id:{event.get('attach_id', '')}"
+                f"|{event.get('status', '')}:{event.get('summary', '')[:220]}"
+            )
 
     pack = "\n".join(chunks)
     return pack[-max_chars:]
@@ -180,6 +231,9 @@ def status() -> dict[str, Any]:
         "exchanges": sum(1 for e in events if e.get("type") == "exchange"),
         "actions": sum(1 for e in events if e.get("type") == "action"),
         "summaries": sum(1 for e in events if e.get("type") == "summary"),
+        "attaches": sum(1 for e in events if e.get("type") == "attach"),
+        "delegates": sum(1 for e in events if e.get("type") == "delegate"),
+        "reports": sum(1 for e in events if e.get("type") == "report"),
         "recent_summary": summarize_recent(),
         "checkpoint": {
             "goal": cp.get("goal", "") if cp else None,

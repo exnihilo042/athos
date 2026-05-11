@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
 
 import config
 import session_kernel
+import sync_manager
 from auth import request_authorized
 from memory_extractor import extract_and_save_async
 from athos_memory import AthosMemory
@@ -16,6 +17,8 @@ from athos_engine import AthosEngine
 from observability import process_snapshot, stop_observed_pid
 from capabilities import status_report
 from self_improvement import plan_self_improvement
+from attach_protocol import attach_engine, attach_prompt, context_for_attach, delegate as delegate_request, report as attach_report
+from named_protocols import run_protocol
 
 STATIC       = Path(__file__).parent
 ACCESS_TOKEN = config.ATHOS_ACCESS_TOKEN
@@ -64,6 +67,13 @@ class Handler(BaseHTTPRequestHandler):
             if not self._auth(): return
             self._json(session_kernel.status()); return
 
+        if p == "/api/attach_prompt":
+            if not self._auth(): return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/markdown;charset=utf-8")
+            self.cors(); self.end_headers()
+            self.wfile.write(attach_prompt().encode("utf-8")); return
+
         routes = {"/": "index.html", "/index.html": "index.html",
                   "/manifest.json": "manifest.json",
                   "/icon-192.png": "icon-192.png", "/icon-512.png": "icon-512.png"}
@@ -104,7 +114,51 @@ class Handler(BaseHTTPRequestHandler):
             self._json(process_snapshot(list_processes())); return
 
         if p == "/api/capabilities":
-            self._json({"text": status_report(), "session": session_kernel.status()}); return
+            self._json({
+                "text": status_report(),
+                "session": session_kernel.status(),
+                "sync": sync_manager.status(),
+            }); return
+
+        if p == "/api/attach":
+            self._json(attach_engine(self._body())); return
+
+        if p == "/api/context_pack":
+            self._json(context_for_attach(self._body())); return
+
+        if p == "/api/delegate":
+            self._json(delegate_request(self._body())); return
+
+        if p == "/api/report":
+            self._json(attach_report(self._body())); return
+
+        if p == "/api/checkpoint":
+            body = self._body()
+            self._json(session_kernel.checkpoint(
+                body.get("goal", "checkpoint Athos"),
+                decisions=body.get("decisions", []),
+                tasks=body.get("tasks", []),
+                files=body.get("files", []),
+            )); return
+
+        if p == "/api/protocol":
+            body = self._body()
+            self._json(run_protocol(body.get("name", ""), body)); return
+
+        if p == "/api/sync/status":
+            self._json(sync_manager.status()); return
+
+        if p == "/api/sync/queue":
+            body = self._body()
+            self._json(sync_manager.queue_job(
+                body.get("kind", "manual"),
+                payload=body.get("payload", {}),
+                requires_network=bool(body.get("requires_network", True)),
+                source=body.get("source", "api"),
+            )); return
+
+        if p == "/api/sync/run":
+            self._json(sync_manager.run_once()); return
 
         if p == "/api/self_improvement_plan":
             body = self._body()

@@ -10,9 +10,13 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from . import config
+    from . import config, session_kernel, sync_manager
+    from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
     import config
+    import session_kernel
+    import sync_manager
+    from registries import device_registry, hardware_registry, skill_registry
 
 
 ROOT = config.ATHOS_PATH
@@ -163,6 +167,11 @@ def drive_status() -> dict[str, Any]:
 def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     ports = listening_ports()
     jobs = launchd_jobs()
+    sync = sync_manager.status()
+    attached = _attached_engines()
+    skills = skill_registry()
+    devices = device_registry()
+    hardware = hardware_registry()
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "git": git_status(),
@@ -171,10 +180,21 @@ def process_snapshot(agent_processes: list[dict[str, Any]] | None = None) -> dic
         "launchd": jobs,
         "logs": athos_logs(),
         "agent_processes": agent_processes or [],
+        "attached_engines": attached,
+        "sync": sync,
+        "skills": skills,
+        "devices": devices,
+        "hardware": hardware,
+        "permissions": _permission_summary(skills, devices, hardware),
+        "cost_policy": config.spend_policy(),
         "summary": {
             "listening_ports": len(ports),
             "launchd_jobs": len(jobs),
             "agent_processes": len(agent_processes or []),
+            "attached_engines": len(attached),
+            "sync_pending": sync.get("pending", 0),
+            "installed_skills": sum(1 for skill in skills if skill.get("installed")),
+            "devices": len(devices),
         },
     }
 
@@ -190,3 +210,32 @@ def stop_observed_pid(pid: int) -> str:
         return f"PID {pid} non stoppable par Athos: absent des ports observés."
     os.kill(pid, signal.SIGTERM)
     return f"SIGTERM envoyé au PID {pid}."
+
+
+def _attached_engines(limit: int = 12) -> list[dict[str, Any]]:
+    rows = []
+    for event in session_kernel.read_events(limit=limit * 4):
+        if event.get("type") != "attach":
+            continue
+        rows.append({
+            "attach_id": event.get("attach_id", ""),
+            "engine": event.get("engine", ""),
+            "ts": event.get("ts", ""),
+            "scope": (event.get("meta") or {}).get("scope", ""),
+        })
+    return rows[-limit:]
+
+
+def _permission_summary(skills: list[dict[str, Any]], devices: list[dict[str, Any]],
+                        hardware: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "active_device_scopes": [
+            {"device": device["id"], "scopes": device.get("scopes", [])}
+            for device in devices if device.get("status") == "active"
+        ],
+        "installed_skill_permissions": [
+            {"skill": skill["name"], "permissions": skill.get("permissions", [])}
+            for skill in skills if skill.get("installed")
+        ],
+        "hardware_requires_explicit_scope": [item["name"] for item in hardware],
+    }
