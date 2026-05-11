@@ -270,6 +270,118 @@ class Handler(BaseHTTPRequestHandler):
             from agent import list_processes
             self._json({"processes": list_processes()}); return
 
+        # ── AGI cognition endpoints ──────────────────────────────────────────
+        if p == "/api/goals":
+            from goal_manager import get_manager
+            body = self._body()
+            gm = get_manager()
+            action = body.get("action", "list")
+            if action == "add":
+                g = gm.add(
+                    description=body.get("description", ""),
+                    priority=int(body.get("priority", 5)),
+                    steps=body.get("steps", []),
+                    source=body.get("source", "user"),
+                )
+                self._json(g.to_dict()); return
+            if action == "clear_done":
+                self._json({"cleared": gm.clear_done()}); return
+            if action == "fail":
+                g = gm.get(body.get("id", ""))
+                if g:
+                    g.fail(body.get("reason", "user request"))
+                    gm.update(g)
+                    self._json(g.to_dict()); return
+            self._json({
+                "goals": [g.to_dict() for g in gm.list_all()],
+                "summary": gm.status_summary(),
+                "top": gm.top().to_dict() if gm.top() else None,
+            }); return
+
+        if p == "/api/beliefs":
+            from belief_store import get_store
+            body = self._body()
+            bs = get_store()
+            action = body.get("action", "query")
+            if action == "add":
+                b = bs.add(
+                    subject=body.get("subject", ""),
+                    predicate=body.get("predicate", ""),
+                    confidence=float(body.get("confidence", 0.8)),
+                    source=body.get("source", "user"),
+                    tags=body.get("tags", []),
+                    ttl_seconds=body.get("ttl_seconds"),
+                    verified=bool(body.get("verified", False)),
+                )
+                self._json(b.to_dict()); return
+            if action == "forget":
+                self._json({"ok": bs.forget(body.get("id", ""))}); return
+            beliefs = bs.query(
+                subject=body.get("subject"),
+                tag=body.get("tag"),
+                min_confidence=float(body.get("min_confidence", 0.0)),
+            )
+            self._json({
+                "beliefs": [b.to_dict() for b in beliefs],
+                "summary": bs.summary(),
+            }); return
+
+        if p == "/api/skills":
+            from skill_library import get_library
+            body = self._body()
+            lib = get_library()
+            action = body.get("action", "list")
+            if action == "propose":
+                s = lib.propose(
+                    name=body.get("name", ""),
+                    description=body.get("description", ""),
+                    code=body.get("code", ""),
+                    dependencies=body.get("dependencies", []),
+                    tags=body.get("tags", []),
+                    test_code=body.get("test_code", ""),
+                    source_repo=body.get("source_repo", ""),
+                )
+                self._json(s.to_dict()); return
+            if action == "integrate":
+                ok, msg = lib.test_and_integrate(body.get("id", ""))
+                self._json({"ok": ok, "msg": msg}); return
+            if action == "search":
+                results = lib.search(body.get("query", ""), limit=int(body.get("limit", 5)))
+                self._json({"skills": [s.to_dict() for s in results]}); return
+            self._json({
+                "skills": [s.to_dict() for s in lib.list_active()],
+                "summary": lib.summary(),
+            }); return
+
+        if p == "/api/search":
+            from tools.web_search import search, search_github, fetch_raw
+            body = self._body()
+            kind = body.get("kind", "web")
+            query = body.get("query", "")
+            if kind == "github":
+                self._json({"results": search_github(query, max_results=int(body.get("max_results", 5)))}); return
+            if kind == "fetch":
+                self._json({"content": fetch_raw(body.get("url", ""))}); return
+            self._json({"results": search(query, max_results=int(body.get("max_results", 5)))}); return
+
+        if p == "/api/loop":
+            from autonomous_loop import get_loop, start_loop, stop_loop
+            body = self._body()
+            action = body.get("action", "status")
+            loop = get_loop()
+            if action == "start":
+                if not loop or not loop.is_alive():
+                    def _llm(prompt: str) -> str:
+                        import athos_engine as ae
+                        engine = AthosEngine(_mem, _router, lambda e: None, lambda: lambda t, i: True)
+                        return engine._call_engine(_router.current, prompt)
+                    start_loop(_llm, tick_interval=float(body.get("tick_interval", 30)))
+                self._json({"ok": True, "running": True}); return
+            if action == "stop":
+                stop_loop()
+                self._json({"ok": True, "running": False}); return
+            self._json({"running": bool(loop and loop.is_alive())}); return
+
         self.send_response(404); self.end_headers()
 
 

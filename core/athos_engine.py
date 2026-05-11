@@ -20,6 +20,9 @@ try:
     from .named_protocols import match_protocol, run_protocol
     from .athos_memory import AthosMemory
     from .athos_router import AthosRouter
+    from .goal_manager import get_manager as get_goal_manager
+    from .belief_store import get_store as get_belief_store
+    from .skill_library import get_library as get_skill_library
 except ImportError:
     import config
     import engine_router
@@ -30,6 +33,9 @@ except ImportError:
     from named_protocols import match_protocol, run_protocol
     from athos_memory import AthosMemory
     from athos_router import AthosRouter
+    from goal_manager import get_manager as get_goal_manager
+    from belief_store import get_store as get_belief_store
+    from skill_library import get_library as get_skill_library
 
 CHATGPT_LIMIT_MARKERS = ["usage limit", "upgrade to pro", "purchase more credits"]
 
@@ -111,10 +117,30 @@ class AthosEngine:
 
     @staticmethod
     def _build_prompt(system: str, ctx: str, history: list, msg: str) -> str:
-        """Identité ATHOS complète + contexte mémoire + historique + message — moteur-agnostique."""
+        """Identité ATHOS complète + contexte mémoire + cognition AGI + historique + message."""
         parts = [system]
         if ctx:
             parts.append(f"CONTEXTE MÉMOIRE:\n{ctx}")
+        # AGI cognition context
+        try:
+            beliefs_ctx = get_belief_store().context_for(msg, limit=5)
+            if beliefs_ctx:
+                parts.append(beliefs_ctx)
+        except Exception:
+            pass
+        try:
+            skills_ctx = get_skill_library().context_for_llm(limit=10)
+            if skills_ctx and "Aucun" not in skills_ctx:
+                parts.append(skills_ctx)
+        except Exception:
+            pass
+        try:
+            gm = get_goal_manager()
+            top = gm.top()
+            if top:
+                parts.append(f"OBJECTIF ACTIF: [{top.priority}] {top.description} (step {top.current_step}/{len(top.steps)})")
+        except Exception:
+            pass
         if history:
             hist_lines = "\n".join(
                 f"{m['role'].upper()}: {m['content'][:300]}"
