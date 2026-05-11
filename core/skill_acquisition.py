@@ -12,19 +12,23 @@ from __future__ import annotations
 
 import logging
 import re
-import textwrap
+import json
+import time
 from typing import Callable
 
 try:
+    from . import config
     from .skill_library import get_library, Skill
     from .tools.web_search import search_github, summarize_search
     from .belief_store import get_store
 except ImportError:
+    import config
     from skill_library import get_library, Skill
     from tools.web_search import search_github, summarize_search
     from belief_store import get_store
 
 logger = logging.getLogger("athos.skill_acquisition")
+PENDING_SKILLS_FILE = config.DRIVE / "athos_pending_skills.jsonl"
 
 # Keywords that signal a missing capability
 GAP_SIGNALS = [
@@ -145,15 +149,16 @@ def acquire(
         if lib.get_by_name(name):
             name = f"{name}_v{attempt + 2}"
 
-        skill = lib.propose(
-            name=name,
-            description=gap_description[:200],
-            code=code,
-            test_code=test_code,
-            tags=["auto_acquired"],
-        )
-
         if not allow_mutation:
+            skill = Skill(
+                name=name,
+                description=gap_description[:200],
+                code=code,
+                test_code=test_code,
+                tags=["auto_acquired"],
+                status="pending_review",
+            )
+            _record_pending_skill(skill, gap_description)
             store.add(
                 subject="skill_library",
                 predicate=f"skill proposal '{name}' pending approval for gap: {gap_description[:80]}",
@@ -162,6 +167,14 @@ def acquire(
                 tags=["pending_approval"],
             )
             return skill
+
+        skill = lib.propose(
+            name=name,
+            description=gap_description[:200],
+            code=code,
+            test_code=test_code,
+            tags=["auto_acquired"],
+        )
 
         ok, msg = lib.test_and_integrate(
             skill.id,
@@ -209,3 +222,19 @@ def scan_and_acquire(
         allow_mutation=allow_mutation,
         allow_dependency_install=allow_dependency_install,
     )
+
+
+def _record_pending_skill(skill: Skill, gap_description: str) -> None:
+    try:
+        PENDING_SKILLS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "ts": time.time(),
+            "gap": gap_description[:500],
+            "skill": skill.to_dict(),
+            "status": "pending_review",
+            "note": "Recorded in Drive only; no repo mutation without approval.",
+        }
+        with PENDING_SKILLS_FILE.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
+    except Exception:
+        pass

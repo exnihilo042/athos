@@ -189,8 +189,9 @@ class TestAcquire:
             skill = sa_mod.acquire("make a plan", lambda p: llm_resp)
 
         assert skill is not None
-        assert skill.status == "pending"
+        assert skill.status == "pending_review"
         assert not skill.file_path().exists()
+        assert not sl_mod.SKILLS_MANIFEST.exists()
 
     def test_returns_none_on_bad_code(self, tmp_path):
         import importlib, types

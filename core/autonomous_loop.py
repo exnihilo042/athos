@@ -248,6 +248,9 @@ RÉSULTAT:"""
     # ── Skill acquisition ─────────────────────────────────────────────────────
 
     def _maybe_acquire(self, text: str) -> None:
+        if text.startswith("[loop_llm_unavailable]") or text.startswith("[erreur]"):
+            self._emit("skill_acquisition_skipped", {"reason": "engine_error"})
+            return
         try:
             from skill_acquisition import scan_and_acquire
         except ImportError:

@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
 import config
 import session_kernel
 import sync_manager
+import engine_router
 from auth import request_authorized
 from memory_extractor import extract_and_save_async
 from athos_memory import AthosMemory
@@ -31,6 +32,7 @@ _router = AthosRouter(_mem)
 def _make_loop_llm():
     """Return a blocking llm_call for the autonomous loop — uses best available engine."""
     def _call(prompt: str) -> str:
+        failures = []
         # Prefer Anthropic API if key present and budget allows
         if config.ANTHROPIC_KEY and config.paid_api_allowed("anthropic"):
             try:
@@ -42,19 +44,41 @@ def _make_loop_llm():
                     messages=[{"role": "user", "content": prompt}],
                 )
                 return msg.content[0].text
-            except Exception:
-                pass
+            except Exception as exc:
+                failures.append(f"anthropic_api:{exc}")
         # Fallback: claude CLI subprocess
         try:
             result = subprocess.run(
                 ["claude", "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
                 capture_output=True, text=True, timeout=120, cwd=str(config.ATHOS_PATH),
+                stdin=subprocess.DEVNULL,
             )
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
-        except Exception:
-            pass
-        return "[loop_llm_unavailable]"
+            failures.append(f"claude_code:{(result.stdout + result.stderr).strip()[:240]}")
+        except Exception as exc:
+            failures.append(f"claude_code:{exc}")
+        # Fallback: ChatGPT Plus / Codex CLI subscription, no API spend.
+        codex = engine_router.chatgpt_plus_path()
+        if codex:
+            try:
+                result = subprocess.run(
+                    [codex, "exec", "--dangerously-bypass-approvals-and-sandbox", prompt],
+                    capture_output=True, text=True, timeout=180, cwd=str(config.ATHOS_PATH),
+                    stdin=subprocess.DEVNULL,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return result.stdout.strip()
+                failures.append(f"chatgpt_plus:{(result.stdout + result.stderr).strip()[:240]}")
+            except Exception as exc:
+                failures.append(f"chatgpt_plus:{exc}")
+        session_kernel.record_action(
+            "loop_llm_unavailable",
+            "all providers failed",
+            " | ".join(failures)[-1000:],
+            engine="athos_kernel",
+        )
+        return "[loop_llm_unavailable] " + " | ".join(failures)[-500:]
     return _call
 
 # ── Permission prompts (bloquants) ────────────────────────────────────────────

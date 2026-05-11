@@ -10,7 +10,13 @@ except ImportError:
 
 
 def skill_registry() -> list[dict[str, Any]]:
-    installed = skill_manager.load_manifest()
+    installed_raw = skill_manager.load_manifest()
+    if isinstance(installed_raw, list):
+        installed = {item.get("name", item.get("id", "")): item for item in installed_raw if isinstance(item, dict)}
+    elif isinstance(installed_raw, dict):
+        installed = installed_raw
+    else:
+        installed = {}
     rows: list[dict[str, Any]] = []
     for name, spec in sorted(skill_manager.KNOWN_SKILLS.items()):
         info = installed.get(name, {})

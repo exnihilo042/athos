@@ -5,6 +5,7 @@ import sys
 
 def test_voice_server_import_initializes_engine(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "openai-test")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "anthropic-test")
     monkeypatch.setenv("OPENAI_ENABLED", "true")
     monkeypatch.setenv("ATHOS_API_SPEND", "allow")
     root = os.getcwd()
@@ -12,6 +13,8 @@ def test_voice_server_import_initializes_engine(monkeypatch):
     if voice_path not in sys.path:
         sys.path.insert(0, voice_path)
     sys.modules.pop("config", None)
+    sys.modules.pop("athos_router", None)
+    sys.modules.pop("engine_router", None)
     sys.modules.pop("server", None)
 
     import voice.server as server

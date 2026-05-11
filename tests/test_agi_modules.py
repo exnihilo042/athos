@@ -381,3 +381,15 @@ class TestAutonomousLoop:
             assert "allow_autonomous" in str(exc)
         else:
             raise AssertionError("start_loop should require explicit authorization")
+
+    def test_loop_does_not_acquire_skill_from_engine_error(self, tmp_path, monkeypatch):
+        mod, *_ = self._loop_mod(tmp_path)
+        called = []
+        monkeypatch.setitem(sys.modules, "skill_acquisition", MagicMock(scan_and_acquire=lambda *a, **k: called.append(a)))
+        events = []
+        loop = mod.AutonomousLoop(lambda p: "[]", on_event=lambda t, d: events.append(t))
+
+        loop._maybe_acquire("[loop_llm_unavailable] claude limit")
+
+        assert called == []
+        assert "skill_acquisition_skipped" in events
