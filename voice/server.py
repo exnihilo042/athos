@@ -1,5 +1,5 @@
 """ATHOS Voice Server — couche HTTP pure. Toute la logique est dans core/."""
-import sys, json, subprocess, threading, uuid, tempfile
+import sys, json, subprocess, threading, uuid, tempfile, shutil
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from pathlib import Path
@@ -158,8 +158,14 @@ class Handler(BaseHTTPRequestHandler):
                 tmp.write(audio_bytes); tmp_path = tmp.name
             wav_path = tmp_path.replace(".webm", ".wav")
             try:
-                subprocess.run(["ffmpeg", "-y", "-i", tmp_path, "-ar", "16000", "-ac", "1", wav_path],
-                               capture_output=True, timeout=30)
+                if not shutil.which("ffmpeg"):
+                    self._json({"error": "ffmpeg manquant: installe `brew install ffmpeg` pour le fallback vocal serveur."}, 500)
+                    return
+                conv = subprocess.run(["ffmpeg", "-y", "-i", tmp_path, "-ar", "16000", "-ac", "1", wav_path],
+                                      capture_output=True, text=True, timeout=30)
+                if conv.returncode != 0:
+                    self._json({"error": f"conversion audio impossible: {conv.stderr[-240:]}"}, 500)
+                    return
                 rec = sr.Recognizer()
                 with sr.AudioFile(wav_path) as src:
                     audio = rec.record(src)

@@ -49,6 +49,7 @@ Ces fichiers sont automatiquement chargés à chaque démarrage pour maintenir l
    ```bash
    ./install.sh
    ```
+   Le fallback vocal serveur nécessite aussi `ffmpeg` (`brew install ffmpeg` sur macOS).
 
 3. **Configurer l'environnement**
    ```bash

@@ -1345,6 +1345,10 @@ function terminalLine(text, kind = '') {
   out.scrollTop = out.scrollHeight;
 }
 
+function sttLog(text, kind = 'muted') {
+  terminalLine(`§stt:${text}`, kind);
+}
+
 function authHeaders(extra = {}) {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY) || '';
   return token ? { ...extra, 'Authorization': `Bearer ${token}` } : extra;
@@ -1590,20 +1594,30 @@ let _mediaRecorder  = null;
 
 async function startListeningMediaRecorder() {
   if (state !== 'idle') return;
+  sttLog('media_recorder:start');
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch(e) {
+    sttLog(`media_recorder:micro_blocked:${e.message}`, 'error');
     addBubble('athos', "Micro bloqué — autorise le micro dans Chrome.");
     setState('idle'); return;
   }
   const chunks = [];
-  _mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+  const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+  _mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
   _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
   _mediaRecorder.onstop = async () => {
     stream.getTracks().forEach(t => t.stop());
     setState('thinking');
     const blob = new Blob(chunks, { type: 'audio/webm' });
+    sttLog(`media_recorder:stop|bytes:${blob.size}`);
+    if (!blob.size) {
+      addBubble('athos', "Je n'ai rien entendu.");
+      setState('idle');
+      if (convActive) autoListen();
+      return;
+    }
     try {
       const res  = await fetch('/api/transcribe', {
         method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'audio/webm' },
@@ -1611,12 +1625,16 @@ async function startListeningMediaRecorder() {
       });
       const data = await res.json();
       if (data.text && data.text.trim()) {
+        sttLog(`transcribe:ok|${data.text.slice(0, 80)}`, 'success');
         handleTranscript(data.text.trim());
       } else {
+        sttLog(`transcribe:empty|${data.error || 'no_text'}`, 'error');
+        if (data.error) addBubble('athos', `Transcription impossible : ${data.error}`);
         setState('idle');
         if (convActive) autoListen();
       }
     } catch(e) {
+      sttLog(`transcribe:error:${e.message}`, 'error');
       addBubble('athos', `Erreur transcription : ${e.message}`);
       setState('idle');
     }
@@ -1629,9 +1647,11 @@ async function startListeningMediaRecorder() {
 
 function startListening(auto = false) {
   if (state !== 'idle') return;
+  sttLog(`listen:start|auto:${auto}|fails:${_sttNetworkFails}`);
 
   // Si trop d'échecs réseau → passer directement au MediaRecorder
   if (_sttNetworkFails >= 2 || !('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    sttLog('listen:fallback_media_recorder');
     startListeningMediaRecorder(); return;
   }
 
@@ -1644,9 +1664,11 @@ function startListening(auto = false) {
   recognition.onresult = (e) => {
     _sttNetworkFails = 0;
     const text = e.results[0][0].transcript;
+    sttLog(`webkit:result|${text.slice(0, 80)}`, 'success');
     handleTranscript(text);
   };
   recognition.onerror = (e) => {
+    sttLog(`webkit:error:${e.error}`, 'error');
     if (e.error === 'no-speech') {
       setState('idle');
       if (convActive) autoListen();
@@ -1663,23 +1685,25 @@ function startListening(auto = false) {
     if (e.error === 'network') {
       _sttNetworkFails++;
       setState('idle');
-      // Après 2 échecs → bascule sur MediaRecorder+Whisper
-      if (_sttNetworkFails >= 2) {
-        startListeningMediaRecorder();
-      } else {
-        setTimeout(() => { if (state === 'idle') startListening(auto); }, 800);
-      }
+      startListeningMediaRecorder();
       return;
     }
     addBubble('athos', `Erreur micro : ${e.error}`);
     setState('idle');
   };
   recognition.onend = () => {
+    sttLog(`webkit:end|state:${state}`);
     if (state === 'listening') setState('idle');
   };
 
-  recognition.start();
-  setState('listening');
+  try {
+    recognition.start();
+    setState('listening');
+  } catch(e) {
+    sttLog(`webkit:start_error:${e.message}`, 'error');
+    setState('idle');
+    startListeningMediaRecorder();
+  }
 }
 
 let _pendingPlan = null;  // plan en attente de confirmation
