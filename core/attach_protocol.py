@@ -198,6 +198,13 @@ def report(payload: dict[str, Any] | None = None) -> dict[str, Any]:
             tasks=cp.get("tasks", []),
             files=cp.get("files", []),
         )
+    elif str(payload.get("event") or "").lower() == "checkpoint":
+        checkpoint_event = session_kernel.checkpoint(
+            payload.get("goal", summary),
+            decisions=payload.get("decisions", []),
+            tasks=payload.get("tasks", []),
+            files=payload.get("files", []),
+        )
     warnings = []
     if not attach_id:
         warnings.append("attach_id manquant: report accepté mais non relié à une IA attachée")

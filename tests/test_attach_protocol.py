@@ -84,3 +84,21 @@ def test_report_without_attach_id_is_readable_but_warns(tmp_path, monkeypatch):
     assert response["ok"] is True
     assert response["warnings"]
     assert session_kernel.status()["reports"] == 1
+
+
+def test_checkpoint_report_writes_session_checkpoint(tmp_path, monkeypatch):
+    session_kernel, attach_protocol = _reload_for_tmp(tmp_path, monkeypatch)
+    attach = attach_protocol.attach_engine({"engine": "codex"})
+
+    response = attach_protocol.report({
+        "attach_id": attach["attach_id"],
+        "engine": "codex",
+        "event": "checkpoint",
+        "goal": "publish Athos checkpoint",
+        "summary": "done",
+        "tasks": ["tests passed"],
+        "files": ["core/attach_protocol.py"],
+    })
+
+    assert response["checkpoint"]["goal"] == "publish Athos checkpoint"
+    assert session_kernel.latest_checkpoint()["goal"] == "publish Athos checkpoint"
