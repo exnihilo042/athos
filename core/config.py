@@ -35,6 +35,7 @@ if _REQUIRE_TOKEN_RAW:
     ATHOS_REQUIRE_TOKEN = _REQUIRE_TOKEN_RAW in {"1", "true", "yes", "on", "required"}
 else:
     ATHOS_REQUIRE_TOKEN = ATHOS_BIND_HOST not in {"127.0.0.1", "localhost", "::1"}
+ATHOS_TOKEN_ENFORCED = ATHOS_REQUIRE_TOKEN or bool(ATHOS_ACCESS_TOKEN)
 ATHOS_ALLOWED_ORIGINS = [
     item.strip()
     for item in os.getenv(
@@ -74,8 +75,10 @@ def server_security_policy() -> dict:
     return {
         "bind_host": ATHOS_BIND_HOST,
         "allowed_origins": ATHOS_ALLOWED_ORIGINS,
-        "token_required": ATHOS_REQUIRE_TOKEN,
+        "token_required": ATHOS_TOKEN_ENFORCED,
+        "remote_token_required": ATHOS_REQUIRE_TOKEN,
         "token_configured": bool(ATHOS_ACCESS_TOKEN),
+        "token_enforced_reason": "remote_bind" if ATHOS_REQUIRE_TOKEN else ("token_configured" if ATHOS_ACCESS_TOKEN else "not_required_local"),
         "remote_exposure_guard": "token_required_when_bind_host_is_not_localhost",
         "allow_any_write": ATHOS_ALLOW_ANY_WRITE,
         "allowed_write_roots": [str(p) for p in allowed_write_roots()],

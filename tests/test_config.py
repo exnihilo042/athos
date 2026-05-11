@@ -32,6 +32,9 @@ def test_config_uses_drive_path_env(tmp_path, monkeypatch):
     assert config.ATHOS_ACCESS_TOKEN == "access-test"
     assert config.ATHOS_BIND_HOST == "127.0.0.1"
     assert config.ATHOS_REQUIRE_TOKEN is False
+    assert config.ATHOS_TOKEN_ENFORCED is True
+    assert config.server_security_policy()["token_required"] is True
+    assert config.server_security_policy()["remote_token_required"] is False
     assert "http://127.0.0.1:7474" in config.ATHOS_ALLOWED_ORIGINS
     assert config.ATHOS_ALLOW_ANY_WRITE is False
     assert config.allowed_write_roots()
@@ -62,4 +65,6 @@ def test_config_requires_token_for_remote_bind_by_default(tmp_path, monkeypatch)
     importlib.reload(config)
 
     assert config.ATHOS_REQUIRE_TOKEN is True
+    assert config.ATHOS_TOKEN_ENFORCED is True
     assert config.server_security_policy()["token_required"] is True
+    assert config.server_security_policy()["remote_token_required"] is True
