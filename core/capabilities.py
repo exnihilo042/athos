@@ -53,6 +53,11 @@ def matches_self_knowledge_request(msg: str) -> bool:
         "où en est athos",
         "ou en est athos",
         "statut athos",
+        "topo sur ce que tu es",
+        "topo sur athos",
+        "ce que tu es actuellement",
+        "état actuel",
+        "etat actuel",
         "capacités athos",
         "capabilities",
     ))

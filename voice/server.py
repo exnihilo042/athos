@@ -123,10 +123,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control",  "no-cache")
             self.cors(); self.end_headers()
+            stream_open = True
 
             def sse(obj):
-                self.wfile.write(f"data: {json.dumps(obj, ensure_ascii=False)}\n\n".encode())
-                self.wfile.flush()
+                nonlocal stream_open
+                if not stream_open:
+                    return False
+                try:
+                    self.wfile.write(f"data: {json.dumps(obj, ensure_ascii=False)}\n\n".encode())
+                    self.wfile.flush()
+                    return True
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    stream_open = False
+                    return False
 
             try:
                 athos = AthosEngine(_mem, _router, sse, lambda: _make_permission_checker(sse))

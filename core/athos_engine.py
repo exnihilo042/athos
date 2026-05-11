@@ -53,7 +53,7 @@ class AthosEngine:
         self.sse({"t": text})
 
     def _terminal(self, line: str):
-        self.sse({"toolbus": "stderr", "data": {"chunk": line, "pid": 0}})
+        self.sse({"toolbus": "stderr", "chunk": line, "pid": 0})
 
     def _thinking(self, kind: str, text: str):
         self.sse({"thinking": {"kind": kind, "text": text}})
