@@ -62,9 +62,24 @@ class AthosEngine:
 
     # ── Engines ───────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _build_prompt(system: str, ctx: str, history: list, msg: str) -> str:
+        """Identité ATHOS complète + contexte mémoire + historique + message — moteur-agnostique."""
+        parts = [system]
+        if ctx:
+            parts.append(f"CONTEXTE MÉMOIRE:\n{ctx}")
+        if history:
+            hist_lines = "\n".join(
+                f"{m['role'].upper()}: {m['content'][:300]}"
+                for m in history[-6:]
+            )
+            parts.append(f"HISTORIQUE RÉCENT:\n{hist_lines}")
+        parts.append(f"USER: {msg}")
+        return "\n\n".join(parts)
+
     def _chatgpt_plus(self, msg: str) -> str:
-        ctx    = self.mem.context()
-        prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
+        from agent import SYSTEM
+        prompt = self._build_prompt(SYSTEM, self.mem.context(), self.mem.get_history(), msg)
         codex  = engine_router.chatgpt_plus_path()
         if not codex:
             raise RuntimeError("ChatGPT Plus CLI introuvable")
@@ -80,8 +95,8 @@ class AthosEngine:
         return result.stdout.strip()
 
     def _claude_code(self, msg: str) -> str:
-        ctx    = self.mem.context()
-        prompt = f"Tu es Athos. Réponds en français, directement.\n\nCONTEXTE:\n{ctx}\n\nUSER:\n{msg}"
+        from agent import SYSTEM
+        prompt = self._build_prompt(SYSTEM, self.mem.context(), self.mem.get_history(), msg)
         proc   = subprocess.Popen(
             ["claude", "-p", prompt, "--output-format", "text"],
             cwd=str(config.ATHOS_PATH),
