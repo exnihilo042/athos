@@ -378,6 +378,77 @@
   .copy-btn:hover { color: var(--text); border-color: #3a3a50; }
   .copy-btn.copied { color: var(--green); border-color: var(--green); }
 
+  /* ── Inline thinking block ───────────────────────────────────────────────── */
+  .thinking-block {
+    margin-bottom: 4px;
+    padding-left: 14px;
+    border-left: 2px solid #1e1e30;
+    animation: fadeUp 0.2s ease;
+  }
+  .thinking-toggle {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; padding: 7px 0;
+    font-size: 11px; color: #444455;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.1em;
+    user-select: none; -webkit-user-select: none;
+    transition: color 0.2s;
+  }
+  .thinking-toggle:hover { color: #6666aa; }
+  .t-chevron { font-size: 8px; transition: transform 0.2s; display: inline-block; }
+  .thinking-toggle.open .t-chevron { transform: rotate(90deg); }
+  .t-dur { color: #222233; margin-left: auto; font-size: 10px; }
+  .thinking-lines { display: none; padding: 4px 0 10px; }
+  .thinking-toggle.open + .thinking-lines { display: block; }
+  .thinking-lines .think-line { display: flex; gap: 10px; margin-bottom: 5px; }
+  .thinking-lines .think-kind {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: #3a4a88; width: 82px; flex-shrink: 0;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .thinking-lines .think-text {
+    font-size: 12px; color: #6060a0; font-style: italic;
+    word-break: break-word; line-height: 1.55;
+  }
+
+  /* ── Artifact panel ──────────────────────────────────────────────────────── */
+  #artifact-panel {
+    display: none; position: fixed;
+    top: 0; right: 0;
+    width: min(52vw, 780px); height: 100vh;
+    background: #07070e;
+    border-left: 1px solid #1e1e30;
+    z-index: 65; flex-direction: column;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  #artifact-panel.open { display: flex; }
+  #artifact-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #1a1a24;
+    font-size: 10px; letter-spacing: 0.15em;
+    color: var(--muted); text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  #artifact-label { flex: 1; }
+  #artifact-close {
+    cursor: pointer; padding: 2px 8px;
+    border: 1px solid var(--border); border-radius: 4px;
+    font-size: 10px; transition: color 0.2s;
+  }
+  #artifact-close:hover { color: var(--text); }
+  #artifact-iframe { flex: 1; border: none; background: #fff; }
+  .artifact-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 8px;
+    background: transparent; border: 1px solid #2a2a4a;
+    border-radius: 6px; color: var(--blue);
+    font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    padding: 4px 14px; cursor: pointer; letter-spacing: 0.06em;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .artifact-btn:hover { background: #0a0a20; border-color: var(--blue); }
+
   /* Actions agent */
   .action-line {
     display: flex;
@@ -1078,6 +1149,14 @@
   </div>
 </div>
 
+<div id="artifact-panel">
+  <div id="artifact-header">
+    <span id="artifact-label">APERÇU</span>
+    <span id="artifact-close" title="Fermer">✕</span>
+  </div>
+  <iframe id="artifact-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+</div>
+
 <!-- Terminal panel -->
 <div id="term-btn" onclick="toggleTerminal()" title="Terminal">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -1390,6 +1469,81 @@ function renderMarkdown(container, text) {
     };
     pre.appendChild(btn);
   });
+  detectAndLinkArtifacts(container);
+}
+
+// ── Artifact panel ────────────────────────────────────────────────────────────
+let _artifactOpen = false;
+
+function openArtifact(html, label) {
+  const panel  = document.getElementById('artifact-panel');
+  const iframe = document.getElementById('artifact-iframe');
+  const lbl    = document.getElementById('artifact-label');
+  if (lbl) lbl.textContent = label || 'APERÇU';
+  iframe.srcdoc = html;
+  panel.classList.add('open');
+  _artifactOpen = true;
+}
+
+function closeArtifact() {
+  document.getElementById('artifact-panel').classList.remove('open');
+  _artifactOpen = false;
+}
+document.getElementById('artifact-close').addEventListener('click', closeArtifact);
+
+function detectAndLinkArtifacts(container) {
+  const ARTIFACT_LANGS = ['html', 'svg', 'jsx', 'tsx', 'vue'];
+  container.querySelectorAll('pre code').forEach(block => {
+    const lang = [...block.classList].find(c => c.startsWith('language-'))?.replace('language-', '') || '';
+    if (!ARTIFACT_LANGS.includes(lang)) return;
+    const code = block.textContent.trim();
+    if (code.length < 40) return;
+    const btn = document.createElement('button');
+    btn.className = 'artifact-btn';
+    btn.innerHTML = '▶ Visualiser';
+    btn.onclick = () => {
+      let html = code;
+      if (lang === 'svg') {
+        html = `<!DOCTYPE html><html><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f8f8f8">${html}</body></html>`;
+      } else if (!html.includes('<!DOCTYPE') && !html.includes('<html')) {
+        html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:system-ui;padding:20px;margin:0}</style></head><body>${html}</body></html>`;
+      }
+      openArtifact(html, lang.toUpperCase());
+    };
+    block.parentNode.insertAdjacentElement('afterend', btn);
+  });
+}
+
+// ── Inline thinking ───────────────────────────────────────────────────────────
+let _thinkBlock = null;
+
+function addInlineThinking(kind, text, beforeEl) {
+  if (!_thinkBlock) {
+    const area  = document.getElementById('transcript-area');
+    const block = document.createElement('div');
+    block.className = 'thinking-block';
+    const toggle = document.createElement('div');
+    toggle.className = 'thinking-toggle';
+    toggle.innerHTML = `<span class="t-chevron">▶</span><span>Raisonnement</span><span class="t-dur"></span>`;
+    const lines = document.createElement('div');
+    lines.className = 'thinking-lines';
+    toggle.onclick = () => toggle.classList.toggle('open');
+    block.appendChild(toggle);
+    block.appendChild(lines);
+    if (beforeEl && beforeEl.parentNode === area) {
+      area.insertBefore(block, beforeEl);
+    } else {
+      area.appendChild(block);
+    }
+    _thinkBlock = { block, toggle, lines, count: 0, start: Date.now() };
+  }
+  const line = document.createElement('div');
+  line.className = 'think-line';
+  line.innerHTML = `<span class="think-kind">${kind}</span><span class="think-text">${text}</span>`;
+  _thinkBlock.lines.appendChild(line);
+  _thinkBlock.count++;
+  const dur = ((Date.now() - _thinkBlock.start) / 1000).toFixed(1);
+  _thinkBlock.toggle.querySelector('.t-dur').textContent = `${_thinkBlock.count} · ${dur}s`;
 }
 
 const GREETINGS = [
@@ -1601,10 +1755,11 @@ async function callAthos(text, streamTarget) {
   setState('thinking');
   setTerminalState('RUNNING');
   terminalLine(`§user:${text.slice(0, 180)}`, 'muted');
+  _thinkBlock = null;
   return new Promise((resolve) => {
     let full      = '';
     let streamEl  = streamTarget || null;
-    let agentBub  = null;   // bulle agent (créée si on reçoit des actions)
+    let agentBub  = null;
     activeStream  = new AbortController();
 
     fetch(`${SERVER}/api/stream`, {
@@ -1662,6 +1817,7 @@ async function callAthos(text, streamTarget) {
 
               if (obj.thinking) {
                 addThinking(obj.thinking.kind, obj.thinking.text);
+                addInlineThinking(obj.thinking.kind, obj.thinking.text, streamEl ? streamEl.closest('.bubble') : null);
               }
 
               // Permission requise
