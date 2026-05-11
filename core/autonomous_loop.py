@@ -141,6 +141,9 @@ class AutonomousLoop:
 
         self._emit("step_done", {"goal_id": goal.id, "step": step, "result": result[:300]})
 
+        # Auto-acquire skill if step result signals a gap
+        self._maybe_acquire(result)
+
     # ── Decomposition ─────────────────────────────────────────────────────────
 
     def _decompose(self, goal: Goal) -> None:
@@ -224,6 +227,23 @@ RÉSULTAT:"""
             )
 
         return result
+
+    # ── Skill acquisition ─────────────────────────────────────────────────────
+
+    def _maybe_acquire(self, text: str) -> None:
+        try:
+            from skill_acquisition import scan_and_acquire
+        except ImportError:
+            try:
+                from .skill_acquisition import scan_and_acquire
+            except ImportError:
+                return
+        try:
+            skill = scan_and_acquire(text, self.llm)
+            if skill:
+                self._emit("skill_acquired", {"name": skill.name, "description": skill.description})
+        except Exception as e:
+            logger.debug("skill acquisition skipped: %s", e)
 
     # ── Events ────────────────────────────────────────────────────────────────
 

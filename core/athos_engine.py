@@ -253,6 +253,26 @@ class AthosEngine:
                 except Exception: continue
         return full
 
+    def _async_gap_check(self, reply: str) -> None:
+        """Fire-and-forget: detect skill gap in reply and acquire in background."""
+        def _run():
+            try:
+                from skill_acquisition import scan_and_acquire
+            except ImportError:
+                try:
+                    from .skill_acquisition import scan_and_acquire
+                except ImportError:
+                    return
+            try:
+                from server import _make_loop_llm  # reuse same llm factory
+                skill = scan_and_acquire(reply, _make_loop_llm())
+                if skill:
+                    self.sse({"action": "skill_acquired", "label": skill.name,
+                              "result": skill.description})
+            except Exception:
+                pass
+        threading.Thread(target=_run, daemon=True).start()
+
     # ── Point d'entrée unique ─────────────────────────────────────────────────
 
     def respond(self, msg: str) -> str:
@@ -287,6 +307,7 @@ class AthosEngine:
                     f"Demande traitée via {engine}; fallback attempts={len(attempted)-1}; objectif={msg[:180]}",
                     source="athos_engine",
                 )
+                self._async_gap_check(reply)
                 return reply
 
             except urllib.error.HTTPError as e:
