@@ -55,6 +55,43 @@ class AthosRouter:
     def _detect(self) -> str:
         return engine_router.first_available(self.available())
 
+    # ── Routing situationnel ──────────────────────────────────────────────────
+
+    def best_for(self, msg: str) -> str:
+        """Choose the optimal engine for this message based on content signals."""
+        available = self.available()
+        if not available:
+            return "none"
+
+        m = msg.lower()
+
+        # Code / self-modification → Claude Code (can edit files)
+        if any(k in m for k in ["code", "modifie", "écris", "génère", "script",
+                                  "corrige", "refactor", "implement", "fichier"]):
+            if "claude_code" in available:
+                return "claude_code"
+
+        # Tools / web / research → Anthropic API (ReAct agent with tools)
+        if any(k in m for k in ["cherche", "recherche", "web", "email", "calendar",
+                                  "screenshot", "wikipedia", "youtube", "note"]):
+            if "anthropic_api" in available:
+                return "anthropic_api"
+
+        # Short factual / conversational → Ollama (free, fast, local)
+        if len(msg) < 120 and not any(k in m for k in ["explique", "analyse", "rédige",
+                                                         "plan", "stratégie"]):
+            if "ollama" in available:
+                return "ollama"
+
+        # Grok for real-time / news topics
+        if any(k in m for k in ["actualité", "news", "aujourd'hui", "dernières",
+                                  "twitter", "x.com"]):
+            if "grok" in available:
+                return "grok"
+
+        # Default: keep current (waterfall handles rest)
+        return self.current if self.current in available else available[0]
+
     # ── Failover ──────────────────────────────────────────────────────────────
 
     def degrade(self, reason: str) -> str:

@@ -288,7 +288,10 @@ class AthosEngine:
             self._record(msg, local, "athos_kernel")
             return local
 
-        engine = self.router.current
+        engine = self.router.best_for(msg)
+        if engine != self.router.current:
+            self._thinking("routing", f"moteur optimal pour cette demande: {engine}")
+            self.router.current = engine
         session_kernel.checkpoint(
             goal=msg[:240],
             decisions=["contexte sauvegardé avant tentative moteur"],

@@ -29,6 +29,9 @@ class FakeRouter:
     def available(self):
         return ["chatgpt_plus", "claude_code"]
 
+    def best_for(self, msg):
+        return self.current
+
     def degrade(self, reason):
         self.current = "claude_code"
         self.degraded = True
