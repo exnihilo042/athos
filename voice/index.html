@@ -883,6 +883,118 @@
   }
   #think-btn.active { border-color: var(--blue); color: var(--blue); }
 
+  #agi-btn {
+    position: fixed;
+    bottom: 76px;
+    left: 20px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted);
+    transition: border-color 0.3s, color 0.3s;
+    z-index: 50;
+    font-size: 10px; letter-spacing: .04em;
+  }
+  #agi-btn.active { border-color: #9b6bff; color: #9b6bff; }
+
+  #agi-panel {
+    display: none;
+    position: fixed;
+    top: 84px; right: 16px;
+    width: min(380px, calc(100vw - 32px));
+    height: min(52vh, 480px);
+    background: rgba(5,5,8,0.97);
+    border: 1px solid #1a1a24;
+    z-index: 70;
+    flex-direction: column;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    resize: both; overflow: hidden;
+    min-width: 260px; min-height: 200px;
+  }
+  #agi-panel.open { display: flex; }
+  #agi-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 12px;
+    border-bottom: 1px solid #111118;
+    font-size: 10px; letter-spacing: 0.18em;
+    color: var(--muted); text-transform: uppercase;
+    cursor: move; flex-shrink: 0;
+    user-select: none;
+  }
+  #agi-header span { display: flex; align-items: center; gap: 8px; }
+  #agi-loop-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #333340; transition: background .4s;
+  }
+  #agi-loop-dot.running { background: #9b6bff; animation: pulse 1.6s infinite; }
+  #agi-close { cursor: pointer; opacity: .5; }
+  #agi-close:hover { opacity: 1; }
+  #agi-tabs {
+    display: flex; border-bottom: 1px solid #111118;
+    flex-shrink: 0;
+  }
+  .agi-tab {
+    flex: 1; padding: 6px; font-size: 9px;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); text-align: center;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: color .2s, border-color .2s;
+  }
+  .agi-tab.active { color: #9b6bff; border-color: #9b6bff; }
+  .agi-section { display: none; flex: 1; overflow-y: auto; padding: 10px 12px; }
+  .agi-section.active { display: block; }
+  .agi-section::-webkit-scrollbar { width: 3px; }
+  .agi-section::-webkit-scrollbar-thumb { background: #1e1e2c; }
+  .agi-goal-item {
+    border: 1px solid #1a1a24; border-radius: 4px;
+    padding: 8px 10px; margin-bottom: 6px;
+    font-size: 11px;
+  }
+  .agi-goal-item .goal-desc { color: var(--text); margin-bottom: 4px; }
+  .agi-goal-item .goal-meta { color: var(--muted); font-size: 9px; letter-spacing: .08em; }
+  .agi-goal-item.status-active { border-color: #9b6bff44; }
+  .agi-goal-item.status-done { border-color: #00b37444; opacity: .6; }
+  .agi-goal-item.status-failed { border-color: #ff444444; opacity: .6; }
+  .agi-belief-item {
+    padding: 5px 0; border-bottom: 1px solid #0d0d14;
+    font-size: 10px; color: var(--muted);
+    line-height: 1.5;
+  }
+  .agi-belief-item .belief-conf {
+    display: inline-block; font-size: 9px;
+    padding: 1px 4px; border-radius: 2px;
+    background: #1a1a28; color: #9b6bff; margin-right: 4px;
+  }
+  .agi-add-form { margin-top: 10px; }
+  .agi-add-form input, .agi-add-form textarea {
+    width: 100%; background: #0a0a12; border: 1px solid #1a1a24;
+    color: var(--text); padding: 6px 8px; font-size: 11px;
+    border-radius: 3px; margin-bottom: 5px; box-sizing: border-box;
+    font-family: inherit; resize: vertical;
+  }
+  .agi-add-form button {
+    background: #1a1228; border: 1px solid #9b6bff55;
+    color: #9b6bff; padding: 5px 12px; font-size: 10px;
+    cursor: pointer; border-radius: 3px; letter-spacing: .08em;
+  }
+  .agi-add-form button:hover { background: #2a1a44; }
+  .agi-loop-controls {
+    display: flex; gap: 8px; padding: 8px 12px;
+    border-top: 1px solid #111118; flex-shrink: 0;
+  }
+  .agi-loop-controls button {
+    flex: 1; padding: 6px; font-size: 10px; letter-spacing: .08em;
+    border-radius: 3px; cursor: pointer;
+  }
+  #btn-loop-start {
+    background: #1a1228; border: 1px solid #9b6bff55; color: #9b6bff;
+  }
+  #btn-loop-stop {
+    background: #1a0d0d; border: 1px solid #ff444455; color: #ff5555;
+  }
+
   #thinking-panel {
     display: none;
     position: fixed;
@@ -1134,6 +1246,7 @@
 
 <div id="think-btn" onclick="toggleThinking()" title="Journal ATHOS">TH</div>
 <div id="obs-btn" onclick="toggleObservability()" title="Observabilité ATHOS">OBS</div>
+<div id="agi-btn" onclick="toggleAGI()" title="Cognition ATHOS — Goals / Beliefs">AGI</div>
 
 <div id="thinking-panel">
   <div id="thinking-header"><span>ATHOS — JOURNAL</span><span id="thinking-count">0</span></div>
@@ -1146,6 +1259,41 @@
   <div id="obs-header"><span>ATHOS — OBSERVABILITÉ</span><span id="obs-count">0</span></div>
   <div id="obs-body">
     <div class="obs-muted">Chargement...</div>
+  </div>
+</div>
+
+<div id="agi-panel">
+  <div id="agi-header">
+    <span><span id="agi-loop-dot"></span>A.T.H.O.S. — COGNITION</span>
+    <span id="agi-close" onclick="toggleAGI()">✕</span>
+  </div>
+  <div id="agi-tabs">
+    <div class="agi-tab active" onclick="switchAGITab('goals')">GOALS</div>
+    <div class="agi-tab" onclick="switchAGITab('beliefs')">BELIEFS</div>
+    <div class="agi-tab" onclick="switchAGITab('skills')">SKILLS</div>
+  </div>
+  <div id="agi-goals" class="agi-section active">
+    <div id="agi-goals-list"><div style="color:var(--muted);font-size:11px">Chargement...</div></div>
+    <div class="agi-add-form">
+      <input id="agi-goal-input" type="text" placeholder="Nouvel objectif..." />
+      <input id="agi-goal-prio" type="number" min="0" max="9" value="5" placeholder="Priorité (0=haute)" style="width:100px" />
+      <button onclick="addGoal()">+ Ajouter objectif</button>
+    </div>
+  </div>
+  <div id="agi-beliefs" class="agi-section">
+    <div id="agi-beliefs-list"><div style="color:var(--muted);font-size:11px">Chargement...</div></div>
+    <div class="agi-add-form">
+      <input id="agi-belief-subject" type="text" placeholder="Sujet..." />
+      <input id="agi-belief-pred" type="text" placeholder="Prédicate (croyance)..." />
+      <button onclick="addBelief()">+ Ajouter croyance</button>
+    </div>
+  </div>
+  <div id="agi-skills" class="agi-section">
+    <div id="agi-skills-list"><div style="color:var(--muted);font-size:11px">Chargement...</div></div>
+  </div>
+  <div class="agi-loop-controls">
+    <button id="btn-loop-start" onclick="loopAction('start')">▶ LOOP ON</button>
+    <button id="btn-loop-stop" onclick="loopAction('stop')">■ LOOP OFF</button>
   </div>
 </div>
 
@@ -1256,6 +1404,126 @@ function toggleObservability() {
   document.getElementById('obs-btn').classList.toggle('active', obsOpen);
   if (obsOpen) refreshObservability();
 }
+
+// ── AGI Panel ─────────────────────────────────────────────────────────────────
+
+let agiOpen = false;
+let _agiTab = 'goals';
+let _loopRunning = false;
+
+function toggleAGI() {
+  agiOpen = !agiOpen;
+  document.getElementById('agi-panel').classList.toggle('open', agiOpen);
+  document.getElementById('agi-btn').classList.toggle('active', agiOpen);
+  if (agiOpen) { refreshAGITab(_agiTab); refreshLoopStatus(); }
+}
+
+function switchAGITab(tab) {
+  _agiTab = tab;
+  document.querySelectorAll('.agi-tab').forEach((el, i) => {
+    const names = ['goals','beliefs','skills'];
+    el.classList.toggle('active', names[i] === tab);
+  });
+  document.querySelectorAll('.agi-section').forEach(el => el.classList.remove('active'));
+  document.getElementById('agi-' + tab)?.classList.add('active');
+  refreshAGITab(tab);
+}
+
+function refreshAGITab(tab) {
+  if (tab === 'goals') refreshGoals();
+  else if (tab === 'beliefs') refreshBeliefs();
+  else if (tab === 'skills') refreshSkills();
+}
+
+async function refreshGoals() {
+  const list = document.getElementById('agi-goals-list');
+  try {
+    const r = await apiFetch('/api/goals', {action: 'list'});
+    if (!r.goals || !r.goals.length) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:11px">Aucun objectif.</div>'; return;
+    }
+    list.innerHTML = r.goals.map(g => `
+      <div class="agi-goal-item status-${g.status}">
+        <div class="goal-desc">${escHtml(g.description)}</div>
+        <div class="goal-meta">P${g.priority} · ${g.status} · step ${g.current_step}/${g.steps.length}</div>
+      </div>`).join('');
+  } catch(e) { list.innerHTML = `<div style="color:#ff5555;font-size:11px">${e.message}</div>`; }
+}
+
+async function refreshBeliefs() {
+  const list = document.getElementById('agi-beliefs-list');
+  try {
+    const r = await apiFetch('/api/beliefs', {action: 'query'});
+    if (!r.beliefs || !r.beliefs.length) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:11px">Aucune croyance.</div>'; return;
+    }
+    list.innerHTML = r.beliefs.map(b => `
+      <div class="agi-belief-item">
+        <span class="belief-conf">${Math.round(b.confidence*100)}%</span>
+        <b>${escHtml(b.subject)}</b>: ${escHtml(b.predicate)}
+      </div>`).join('');
+  } catch(e) { list.innerHTML = `<div style="color:#ff5555;font-size:11px">${e.message}</div>`; }
+}
+
+async function refreshSkills() {
+  const list = document.getElementById('agi-skills-list');
+  try {
+    const r = await apiFetch('/api/skills', {action: 'list'});
+    if (!r.skills || !r.skills.length) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:11px">Aucun skill acquis.</div>'; return;
+    }
+    list.innerHTML = r.skills.map(s => `
+      <div class="agi-belief-item">
+        <b style="color:#9b6bff">${escHtml(s.name)}</b> · <span style="color:var(--muted)">${escHtml(s.description)}</span>
+        <div style="font-size:9px;color:#333340;margin-top:2px">uses: ${s.use_count} · ${s.tags.join(', ')}</div>
+      </div>`).join('');
+  } catch(e) { list.innerHTML = `<div style="color:#ff5555;font-size:11px">${e.message}</div>`; }
+}
+
+async function addGoal() {
+  const desc = document.getElementById('agi-goal-input').value.trim();
+  if (!desc) return;
+  const prio = parseInt(document.getElementById('agi-goal-prio').value) || 5;
+  await apiFetch('/api/goals', {action: 'add', description: desc, priority: prio, source: 'user'});
+  document.getElementById('agi-goal-input').value = '';
+  refreshGoals();
+}
+
+async function addBelief() {
+  const subject = document.getElementById('agi-belief-subject').value.trim();
+  const pred = document.getElementById('agi-belief-pred').value.trim();
+  if (!subject || !pred) return;
+  await apiFetch('/api/beliefs', {action: 'add', subject, predicate: pred, source: 'user', confidence: 0.9});
+  document.getElementById('agi-belief-subject').value = '';
+  document.getElementById('agi-belief-pred').value = '';
+  refreshBeliefs();
+}
+
+async function loopAction(action) {
+  await apiFetch('/api/loop', {action, tick_interval: 30});
+  refreshLoopStatus();
+}
+
+async function refreshLoopStatus() {
+  try {
+    const r = await apiFetch('/api/loop', {action: 'status'});
+    _loopRunning = r.running;
+    const dot = document.getElementById('agi-loop-dot');
+    dot?.classList.toggle('running', _loopRunning);
+  } catch(e) {}
+}
+
+async function apiFetch(path, body) {
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY) || '';
+  const headers = {'Content-Type': 'application/json'};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const r = await fetch(path, {method: 'POST', headers, body: JSON.stringify(body)});
+  if (!r.ok) throw new Error(`${r.status}`);
+  return r.json();
+}
+
+// Poll loop status every 10s when panel is open
+setInterval(() => { if (agiOpen) refreshLoopStatus(); }, 10000);
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2262,6 +2530,7 @@ setInterval(pollAlerts, 30000);
   const PANELS = [
     ['thinking-panel', 'thinking-header'],
     ['obs-panel',      'obs-header'],
+    ['agi-panel',      'agi-header'],
   ];
 
   function saveLayout() {
