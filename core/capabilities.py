@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 try:
-    from . import config, session_kernel, sync_manager, local_capability, capability_graph, epistemic_guard
+    from . import config, session_kernel, sync_manager, local_capability, capability_graph, epistemic_guard, external_sources, model_profiles, review_pipeline, truth_ledger
     from .athos_advantage import CORE_AUGMENTATIONS
     from .autonomous_loop import status as loop_status
     from .metacognition import status as cognition_status
@@ -17,6 +17,10 @@ except ImportError:
     import local_capability
     import capability_graph
     import epistemic_guard
+    import external_sources
+    import model_profiles
+    import review_pipeline
+    import truth_ledger
     from athos_advantage import CORE_AUGMENTATIONS
     from autonomous_loop import status as loop_status
     from metacognition import status as cognition_status
@@ -47,6 +51,8 @@ def status_report(compact: bool = False) -> str:
     security = config.server_security_policy()
     local_scan = local_capability.scan()
     graph_summary = capability_graph.compact_summary()["summary"]
+    source_catalog = external_sources.catalog()["summary"]
+    model_summary = model_profiles.summary()
     loop = loop_status()
     loop_policy = loop.get("policy", {})
     if compact:
@@ -71,6 +77,8 @@ def status_report(compact: bool = False) -> str:
             f"Austérité locale: {local_scan['available_tool_count']} outils détectés sans réseau",
             f"Graphe capacités: {graph_summary['nodes']} noeuds; score={graph_summary['interconnection_score']}",
             f"Vérité: {epistemic_guard.PRINCIPLE}",
+            f"Sources externes: {source_catalog['open_source_count']} OSS; {source_catalog['academic_count']} academic",
+            f"Profils moteurs: {model_summary['runtime_profiles']} profils; {model_summary['available_runtime_profiles']} disponibles",
         ]
         if latest_done:
             parts.append("Derniers done:")
@@ -92,6 +100,10 @@ def status_report(compact: bool = False) -> str:
         f"Austérité locale: {local_scan['available_tool_count']} outils détectés; réseau requis={local_scan['network_required']}",
         f"Graphe capacités: nodes={graph_summary['nodes']}; edges={graph_summary['edges']}; score={graph_summary['interconnection_score']}",
         f"Garde-fou vérité: {epistemic_guard.PRINCIPLE}",
+        f"Truth ledger: {truth_ledger.policy()['principle']}",
+        f"Sources externes: {source_catalog['open_source_count']} OSS MIT; {source_catalog['academic_count']} academic",
+        f"Profils moteurs: {model_summary['runtime_profiles']} profils; {model_summary['available_runtime_profiles']} disponibles; {model_summary['planned_connectors']} connecteurs planifiés",
+        f"Pipeline revue: {len(review_pipeline.stages())} stages situational",
         f"Protocoles nommés: {', '.join(p['name'] for p in list_protocols())}",
         f"Skills installés: {sum(1 for s in skill_registry() if s['installed'])}/{len(skill_registry())}",
         f"Devices: {', '.join(d['id'] + ':' + d['status'] for d in device_registry())}",

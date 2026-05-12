@@ -10,14 +10,18 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 try:
-    from . import engine_router, local_capability, memory_status, sync_manager
+    from . import engine_router, external_sources, local_capability, memory_status, model_profiles, review_pipeline, sync_manager, truth_ledger
     from .named_protocols import list_protocols
     from .registries import device_registry, hardware_registry, skill_registry
 except ImportError:
     import engine_router
+    import external_sources
     import local_capability
     import memory_status
+    import model_profiles
+    import review_pipeline
     import sync_manager
+    import truth_ledger
     from named_protocols import list_protocols
     from registries import device_registry, hardware_registry, skill_registry
 
@@ -180,6 +184,88 @@ def build_graph(objective: str = "", available_engines: list[str] | None = None)
             meta={"mode": hardware.get("mode", ""), "permission": hardware.get("permission", "")},
         ))
 
+    for source in external_sources.OPEN_SOURCE_SOURCES:
+        nodes.append(CapabilityNode(
+            f"source.{source['id'].replace('/', '.')}",
+            "external_source",
+            source["id"],
+            "integrated",
+            True,
+            cost="free_mit",
+            tags=["source", "open_source", source.get("kind", "")],
+            meta={
+                "url": source.get("url", ""),
+                "license": source.get("license", ""),
+                "patterns": source.get("imported_patterns", []),
+                "athos_use": source.get("athos_use", ""),
+            },
+        ))
+
+    for source in external_sources.ACADEMIC_SOURCES:
+        nodes.append(CapabilityNode(
+            f"academic.{source['id']}",
+            "academic_source",
+            source["title"],
+            "referenced",
+            True,
+            cost="free_reference",
+            tags=["source", "academic", "principle"],
+            meta={
+                "url": source.get("url", ""),
+                "principle": source.get("principle", ""),
+                "athos_use": source.get("athos_use", ""),
+            },
+        ))
+
+    for profile in model_profiles.runtime_profiles(available):
+        nodes.append(CapabilityNode(
+            f"model_profile.{profile.id}",
+            "model_profile",
+            profile.label,
+            profile.status,
+            profile.local_first,
+            cost=profile.cost,
+            tags=["model_profile", "runtime", profile.provider],
+            meta={
+                "provider": profile.provider,
+                "engine": profile.engine,
+                "preserves_athos_identity": profile.preserves_athos_identity,
+                "notes": profile.notes,
+            },
+        ))
+
+    for stage in review_pipeline.stages():
+        nodes.append(CapabilityNode(
+            f"review.{stage['id']}",
+            "review_stage",
+            stage["label"],
+            "available",
+            True,
+            risk=stage.get("risk", "low"),
+            tags=["review", "situational"],
+            meta={"purpose": stage.get("purpose", ""), "outputs": stage.get("outputs", [])},
+        ))
+
+    nodes.append(CapabilityNode(
+        "memory.truth_ledger",
+        "memory",
+        "Truth ledger",
+        "available",
+        True,
+        tags=["truth", "provenance", "facts_vs_takes"],
+        meta=truth_ledger.policy(),
+    ))
+
+    nodes.append(CapabilityNode(
+        "transport.sse_parser",
+        "transport",
+        "SSE parser",
+        "available",
+        True,
+        tags=["stream", "ui", "observable"],
+        meta={"source": "fathah/hermes-desktop", "license": "MIT"},
+    ))
+
     edges = _edges_for(nodes)
     node_ids = {node.id for node in nodes}
     available_nodes = [node.id for node in nodes if node.status in {"active", "available", "installed", "ok", "clear"}]
@@ -222,6 +308,9 @@ def _edges_for(nodes: list[CapabilityNode]) -> list[CapabilityEdge]:
         CapabilityEdge("athos_core", "local.austere_core", "degrades_to"),
         CapabilityEdge("athos_core", "guard.epistemic_integrity", "must_obey"),
         CapabilityEdge("guard.epistemic_integrity", "memory.session_kernel", "records_corrections"),
+        CapabilityEdge("guard.epistemic_integrity", "memory.truth_ledger", "writes_calibrated_claims_to"),
+        CapabilityEdge("memory.truth_ledger", "memory.drive", "persists_sourced_claims_in"),
+        CapabilityEdge("athos_core", "transport.sse_parser", "streams_observable_events_through"),
         CapabilityEdge("local.austere_core", "sync.outbox", "queues_missing_network_work"),
         CapabilityEdge("memory.drive", "sync.outbox", "syncs_through"),
     ]
@@ -242,6 +331,21 @@ def _edges_for(nodes: list[CapabilityNode]) -> list[CapabilityEdge]:
             edges.append(CapabilityEdge(node.id, "sync.outbox", "uses_offline_queue"))
         elif node.kind == "hardware":
             edges.append(CapabilityEdge("athos_core", node.id, "can_amplify_with_permission"))
+        elif node.kind == "external_source":
+            edges.append(CapabilityEdge("athos_core", node.id, "imports_pattern_with_attribution"))
+            edges.append(CapabilityEdge(node.id, "memory.truth_ledger", "informs"))
+        elif node.kind == "academic_source":
+            edges.append(CapabilityEdge(node.id, "athos_core", "grounds_principle"))
+            edges.append(CapabilityEdge(node.id, "guard.epistemic_integrity", "supports_calibration"))
+        elif node.kind == "model_profile":
+            edges.append(CapabilityEdge("athos_core", node.id, "can_select_runtime_profile"))
+            engine = str(node.meta.get("engine", ""))
+            if engine:
+                edges.append(CapabilityEdge(node.id, f"engine.{engine}", "wraps_engine"))
+        elif node.kind == "review_stage":
+            edges.append(CapabilityEdge("athos_core", node.id, "runs_when_situationally_relevant"))
+            edges.append(CapabilityEdge(node.id, "guard.epistemic_integrity", "must_preserve"))
+            edges.append(CapabilityEdge(node.id, "memory.session_kernel", "reports_findings_to"))
     return edges
 
 

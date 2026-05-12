@@ -20,3 +20,4 @@ def test_compact_status_mentions_cognition():
     assert "Anti-LLM delta:" in text
     assert "Graphe capacités:" in text
     assert "Vérité:" in text
+    assert "Profils moteurs:" in text

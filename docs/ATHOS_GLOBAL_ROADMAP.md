@@ -13,6 +13,7 @@
 - Capacité locale austère: sans réseau, sans capteurs et sans nouveau moteur, Athos scanne les ressources disponibles, compresse le contexte, raisonne depuis mémoire locale, simule, agit réversiblement et queue les actions réseau.
 - Garde-fou vérité: vérité/calibration/correction des biais avant confort, flatterie ou validation de croyances faibles.
 - Graphe de capacités: moteurs, mémoire, outils locaux, skills, protocoles, appareils, hardware, sync et garde-fous sont des nœuds reliés, pas des listes fixes par tâche.
+- Sources externes intégrées: Hermes → profils moteurs/SSE; gbrain → ledger vérité/provenance; gstack → pipeline de revue situationnel.
 
 ## P1 — Ce Mois
 
@@ -31,6 +32,7 @@
 - PWA mobile stable + accès sécurisé distant.
 - Skill registry robuste: permissions, dépendances, tests, offline status, compatibilité appareil.
 - Capability graph persistant: score d'interconnexion, dépendances, risques, coûts, offline readiness, tests associés.
+- Connecteurs moteurs supplémentaires depuis le registre Hermes/Athos: OpenRouter, Google, Qwen, MiniMax, LM Studio, vLLM, llama.cpp, Groq, DeepSeek, Together, Fireworks, Cerebras, Mistral. Tous restent soumis à la politique coût/scopes.
 
 ## P3 — JARVIS Avancé
 

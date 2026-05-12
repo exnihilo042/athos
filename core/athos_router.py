@@ -48,6 +48,9 @@ class AthosRouter:
             anthropic_enabled = config.paid_api_allowed("anthropic"),
             grok_key        = config.GROK_KEY,
             has_ollama      = lambda: bool(self._ollama_models()),
+            has_lmstudio    = lambda: engine_router.local_openai_compatible_available("lmstudio"),
+            has_vllm        = lambda: engine_router.local_openai_compatible_available("vllm"),
+            has_llamacpp    = lambda: engine_router.local_openai_compatible_available("llamacpp"),
             has_chatgpt_plus= engine_router.chatgpt_plus_available,
             has_claude_code = engine_router.claude_code_available,
         )
@@ -65,6 +68,11 @@ class AthosRouter:
 
         m = msg.lower()
 
+        if any(k in m for k in ["offline", "hors ligne", "hors réseau", "hors reseau", "local", "sans réseau", "sans reseau"]):
+            for engine in ("lmstudio", "vllm", "llamacpp", "ollama"):
+                if engine in available:
+                    return engine
+
         # Code / self-modification → Claude Code (can edit files)
         if any(k in m for k in ["code", "modifie", "écris", "génère", "script",
                                   "corrige", "refactor", "implement", "fichier"]):
@@ -80,8 +88,9 @@ class AthosRouter:
         # Short factual / conversational → Ollama (free, fast, local)
         if len(msg) < 120 and not any(k in m for k in ["explique", "analyse", "rédige",
                                                          "plan", "stratégie"]):
-            if "ollama" in available:
-                return "ollama"
+            for engine in ("lmstudio", "vllm", "llamacpp", "ollama"):
+                if engine in available:
+                    return engine
 
         # Grok for real-time / news topics
         if any(k in m for k in ["actualité", "news", "aujourd'hui", "dernières",

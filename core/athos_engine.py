@@ -44,6 +44,9 @@ ENGINE_LABELS = {
     "claude_code":   "Athos via Claude Code Pro",
     "anthropic_api": "Athos via Anthropic API",
     "grok":          "Athos via Grok",
+    "lmstudio":      "Athos via LM Studio local",
+    "vllm":          "Athos via vLLM local",
+    "llamacpp":      "Athos via llama.cpp local",
     "ollama":        "Athos via Ollama local",
 }
 
@@ -109,6 +112,8 @@ class AthosEngine:
             return reply
         if engine == "grok":
             return self._grok(msg)
+        if engine in ("lmstudio", "vllm", "llamacpp"):
+            return self._openai_compatible_local(engine, msg)
         if engine == "ollama":
             return self._ollama(msg)
         raise RuntimeError(f"Moteur inconnu : {engine}")
@@ -229,6 +234,39 @@ class AthosEngine:
                     if t: full += t; self._bubble(t)
                 except Exception: continue
         return full
+
+    def _openai_compatible_local(self, engine: str, msg: str) -> str:
+        from agent import SYSTEM
+        base = engine_router.LOCAL_OPENAI_BASE_URLS.get(engine)
+        if not base:
+            raise RuntimeError(f"Runtime local inconnu : {engine}")
+        model = self._local_openai_model(base)
+        ctx = self.mem.context()
+        msgs = ([{"role": "system", "content": SYSTEM + (f"\n\nCONTEXTE:\n{ctx}" if ctx else "")}]
+                + self.mem.get_history()
+                + [{"role": "user", "content": msg}])
+        payload = json.dumps({"model": model, "stream": False, "messages": msgs}).encode()
+        req = urllib.request.Request(
+            base.rstrip("/") + "/chat/completions",
+            data=payload,
+            headers={"content-type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=120) as response:
+            parsed = json.loads(response.read())
+        reply = parsed.get("choices", [{}])[0].get("message", {}).get("content", "")
+        if not reply:
+            raise RuntimeError(f"{engine} n'a retourné aucun contenu")
+        self._bubble(reply)
+        return reply
+
+    def _local_openai_model(self, base: str) -> str:
+        try:
+            with urllib.request.urlopen(base.rstrip("/") + "/models", timeout=2) as response:
+                models = json.loads(response.read()).get("data", [])
+            first = models[0].get("id") if models else ""
+            return first or "local-model"
+        except Exception:
+            return "local-model"
 
     def _ollama(self, msg: str) -> str:
         from agent import SYSTEM

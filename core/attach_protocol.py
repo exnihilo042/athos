@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 
 try:
-    from . import config, session_compactor, session_kernel, sync_manager, local_capability, capability_graph, epistemic_guard
+    from . import config, session_compactor, session_kernel, sync_manager, local_capability, capability_graph, epistemic_guard, external_sources, model_profiles, review_pipeline, truth_ledger
     from .athos_advantage import pack as athos_advantage_pack
     from .capabilities import status_report
     from .named_protocols import list_protocols, match_protocol, run_protocol
@@ -18,6 +18,10 @@ except ImportError:
     import local_capability
     import capability_graph
     import epistemic_guard
+    import external_sources
+    import model_profiles
+    import review_pipeline
+    import truth_ledger
     from athos_advantage import pack as athos_advantage_pack
     from capabilities import status_report
     from named_protocols import list_protocols, match_protocol, run_protocol
@@ -62,6 +66,10 @@ def _capability_pack() -> dict[str, Any]:
         "local_capability": local_capability.scan(),
         "capability_graph": capability_graph.compact_summary(),
         "epistemic_guard": epistemic_guard.guardrail_pack(),
+        "external_sources": external_sources.catalog(),
+        "model_profiles": model_profiles.catalog(),
+        "truth_ledger": truth_ledger.policy(),
+        "review_pipeline": review_pipeline.stages(),
     }
 
 

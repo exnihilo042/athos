@@ -8,10 +8,16 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-DEFAULT_ENGINE_ORDER = ["chatgpt_plus", "claude_code", "anthropic_api", "grok", "ollama"]
+DEFAULT_ENGINE_ORDER = ["chatgpt_plus", "claude_code", "anthropic_api", "grok", "lmstudio", "vllm", "llamacpp", "ollama"]
+LOCAL_OPENAI_BASE_URLS = {
+    "lmstudio": "http://localhost:1234/v1",
+    "vllm": "http://localhost:8000/v1",
+    "llamacpp": "http://localhost:8080/v1",
+}
 
 
 def configured_order(raw: str | None = None) -> list[str]:
@@ -31,6 +37,9 @@ def available_engines(
     anthropic_enabled: bool = True,
     grok_key: str = "",
     has_ollama: Callable[[], bool] | None = None,
+    has_lmstudio: Callable[[], bool] | None = None,
+    has_vllm: Callable[[], bool] | None = None,
+    has_llamacpp: Callable[[], bool] | None = None,
     has_chatgpt_plus: Callable[[], bool] | None = None,
     has_claude_code: Callable[[], bool] | None = None,
     order: list[str] | None = None,
@@ -42,6 +51,9 @@ def available_engines(
         "chatgpt": bool(openai_enabled and openai_key),
         "claude": bool(anthropic_enabled and anthropic_key and not anthropic_key.startswith("sk-ant-...")),
         "grok": bool(grok_key),
+        "lmstudio": bool(has_lmstudio and has_lmstudio()),
+        "vllm": bool(has_vllm and has_vllm()),
+        "llamacpp": bool(has_llamacpp and has_llamacpp()),
         "ollama": bool(has_ollama and has_ollama()),
     }
     return [engine for engine in (order or configured_order()) if checks.get(engine)]
@@ -70,6 +82,17 @@ def claude_code_available() -> bool:
     except Exception:
         return False
     return result.returncode == 0 and '"loggedIn": true' in result.stdout
+
+
+def local_openai_compatible_available(engine: str) -> bool:
+    base = LOCAL_OPENAI_BASE_URLS.get(engine, "")
+    if not base:
+        return False
+    try:
+        with urllib.request.urlopen(base.rstrip("/") + "/models", timeout=0.45) as response:
+            return response.status < 500
+    except Exception:
+        return False
 
 
 def first_available(available: list[str]) -> str:

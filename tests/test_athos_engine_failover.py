@@ -122,3 +122,37 @@ def test_claude_code_cli_closes_stdin(monkeypatch):
 
     assert engine._claude_code("hello") == "ok"
     assert seen["stdin"] is subprocess.DEVNULL
+
+
+def test_local_openai_compatible_runtime_calls_chat_completions(monkeypatch):
+    import json
+    import core.athos_engine as athos_engine
+
+    events = []
+    engine = AthosEngine(FakeMem(), FakeRouter(), events.append, lambda: (lambda *_: True))
+    opened = []
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps(self.payload).encode()
+
+    def fake_urlopen(req, timeout=0):
+        url = req.full_url if hasattr(req, "full_url") else req
+        opened.append(url)
+        if url.endswith("/models"):
+            return FakeResponse({"data": [{"id": "local-test"}]})
+        return FakeResponse({"choices": [{"message": {"content": "local ok"}}]})
+
+    monkeypatch.setattr(athos_engine.urllib.request, "urlopen", fake_urlopen)
+
+    assert engine._openai_compatible_local("lmstudio", "hello") == "local ok"
+    assert opened == ["http://localhost:1234/v1/models", "http://localhost:1234/v1/chat/completions"]

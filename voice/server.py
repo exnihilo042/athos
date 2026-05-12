@@ -18,6 +18,11 @@ import transformation_stack
 import local_capability
 import capability_graph
 import epistemic_guard
+import external_sources
+import model_profiles
+import review_pipeline
+import sse_parser
+import truth_ledger
 import engine_router
 import failover_simulator
 from auth import request_authorized
@@ -291,6 +296,42 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == "/api/epistemic_guard":
             self._json(epistemic_guard.guardrail_pack()); return
+
+        if p == "/api/external_sources":
+            self._json(external_sources.catalog()); return
+
+        if p == "/api/model_profiles":
+            body = self._body()
+            if body.get("objective") or body.get("request"):
+                self._json(model_profiles.choose_profile(
+                    body.get("objective") or body.get("request") or "",
+                    available_engines=body.get("available_engines") or _router.available(),
+                )); return
+            self._json(model_profiles.catalog(_router.available())); return
+
+        if p == "/api/review_pipeline":
+            body = self._body()
+            self._json(review_pipeline.plan(
+                body.get("objective") or body.get("request") or "",
+                changed_files=body.get("changed_files") or [],
+            )); return
+
+        if p == "/api/truth_ledger/scan":
+            body = self._body()
+            self._json(truth_ledger.signal_scan(
+                body.get("text") or body.get("message") or "",
+                source=body.get("source"),
+            )); return
+
+        if p == "/api/sse/parse":
+            body = self._body()
+            if body.get("block"):
+                self._json(sse_parser.process_sse_block(body.get("block", ""), body.get("state"))); return
+            if body.get("event_type"):
+                custom = sse_parser.process_custom_event(body.get("event_type", ""), body.get("data", ""))
+                if custom.get("handled"):
+                    self._json(custom); return
+            self._json(sse_parser.process_sse_data(body.get("data", ""), body.get("state"))); return
 
         if p == "/api/self_improvement_plan":
             body = self._body()
