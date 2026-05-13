@@ -1,0 +1,24 @@
+[
+  {
+    "id": "reference_led_reproduction_v1",
+    "name": "reference_led_reproduction_workflow",
+    "description": "Build or adapt complex surfaces by keeping references and editor visible, reusing nearest primitives, reproducing section-by-section, exposing operator controls, testing rendered output, then polishing.",
+    "code": "",
+    "dependencies": [],
+    "tags": [
+      "workflow",
+      "metacognition",
+      "ui",
+      "shopify",
+      "reproduction",
+      "operator_loop",
+      "self_improvement"
+    ],
+    "test_code": "",
+    "status": "active",
+    "created_at": 1778637600.0,
+    "last_used": null,
+    "use_count": 0,
+    "source_repo": ""
+  }
+]
