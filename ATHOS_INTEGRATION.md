@@ -64,9 +64,10 @@ Après toute modification durable, le moteur doit :
 
 1. écrire agentmemory si `:8765` est en ligne ;
 2. écrire une note offline dans `~/Sites/athos/memory/session_YYYYMMDD.mem` si agentmemory est offline ;
-3. mettre à jour `memory/athos_projects.mem` si un statut/prochain checkpoint change ;
-4. pour ATHOS, synchroniser aussi le Drive `Mon Drive/CLAUDE AI/` et GitHub `exnihilo042/athos`, sauf blocage explicite ou demande contraire ;
-5. ne jamais stage/push les caches, venv, DB locales, PID, logs temporaires ou secrets.
+3. reporter l'action dans ATHOS Room via `/api/message` ou `athos_report` ;
+4. mettre à jour `memory/athos_projects.mem` si un statut/prochain checkpoint change ;
+5. pour ATHOS, synchroniser aussi le Drive `Mon Drive/CLAUDE AI/` et GitHub `exnihilo042/athos`, sauf blocage explicite ou demande contraire ;
+6. ne jamais stage/push les caches, venv, DB locales, PID, logs temporaires ou secrets.
 
 ---
 

@@ -11,6 +11,10 @@ def _reload_for_tmp(tmp_path, monkeypatch):
     importlib.reload(sync_manager)
     import core.session_compactor as session_compactor
     importlib.reload(session_compactor)
+    import core.athos_room as athos_room
+    importlib.reload(athos_room)
+    athos_room._ROOM_FILE = tmp_path / "athos_conversation.jsonl"
+    athos_room._DRIVE_MIRROR = tmp_path / "drive" / "athos_conversation.jsonl"
     import core.attach_protocol as attach_protocol
     importlib.reload(attach_protocol)
     session_kernel.SESSION_FILE = tmp_path / "athos_session_kernel.jsonl"

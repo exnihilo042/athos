@@ -21,20 +21,18 @@ if [ -z "$CONTENT" ]; then
   exit 1
 fi
 
-# Construire le JSON files array
-FILES_JSON="[]"
-if [ ${#FILES[@]} -gt 0 ]; then
-  FILES_JSON="[$(printf '"%s",' "${FILES[@]}" | sed 's/,$//')]"
-fi
+PAYLOAD=$(python3 - "$ACTOR" "$TYPE" "$CONTENT" "${FILES[@]}" <<'PY'
+import json
+import sys
 
-PAYLOAD=$(cat <<JSON
-{
-  "actor": "$ACTOR",
-  "type": "$TYPE",
-  "content": $(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$CONTENT"),
-  "files": $FILES_JSON
-}
-JSON
+actor, msg_type, content, *files = sys.argv[1:]
+print(json.dumps({
+    "actor": actor,
+    "type": msg_type,
+    "content": content,
+    "files": files,
+}, ensure_ascii=False))
+PY
 )
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$ATHOS_URL/api/message" \
@@ -49,6 +47,7 @@ if [ "$HTTP_CODE" = "200" ]; then
 else
   # Fallback local si ATHOS offline
   FALLBACK="$HOME/Sites/athos/memory/room_offline_$(date +%Y%m%d).jsonl"
+  mkdir -p "$(dirname "$FALLBACK")"
   echo "$PAYLOAD" | python3 -c "
 import json,sys,time
 d = json.load(sys.stdin)

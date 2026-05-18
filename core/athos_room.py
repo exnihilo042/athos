@@ -17,6 +17,18 @@ _lock = threading.Lock()
 
 ACTORS   = {"clement", "athos", "claude", "codex"}
 MSG_TYPES = {"message", "action", "result", "decision", "error", "checkpoint", "delegate", "attach"}
+ACTOR_ALIASES = {
+    "claude_code": "claude",
+    "claude-code": "claude",
+    "anthropic": "claude",
+    "anthropic_api": "claude",
+    "chatgpt": "codex",
+    "chatgpt_plus": "codex",
+    "chatgpt-plus": "codex",
+    "codex_cli": "codex",
+    "codex-cli": "codex",
+    "openai": "codex",
+}
 
 
 def _now() -> str:
@@ -25,11 +37,35 @@ def _now() -> str:
 
 def _write_mirror(line: str):
     try:
-        if _DRIVE_MIRROR.parent.exists():
-            with _DRIVE_MIRROR.open("a", encoding="utf-8") as f:
-                f.write(line)
+        _DRIVE_MIRROR.parent.mkdir(parents=True, exist_ok=True)
+        with _DRIVE_MIRROR.open("a", encoding="utf-8") as f:
+            f.write(line)
     except Exception:
         pass
+
+
+def _actor(value: str) -> str:
+    key = str(value or "athos").strip().lower()
+    return ACTOR_ALIASES.get(key, key if key in ACTORS else "athos")
+
+
+def _msg_type(value: str) -> str:
+    key = str(value or "message").strip().lower()
+    return key if key in MSG_TYPES else "message"
+
+
+def _files(value) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple, set)):
+        return [str(v) for v in value if str(v)]
+    return [str(value)]
+
+
+def _meta(value) -> dict:
+    return value if isinstance(value, dict) else {}
 
 
 def add(
@@ -44,13 +80,13 @@ def add(
     entry = {
         "id":       uuid.uuid4().hex[:12],
         "ts":       _now(),
-        "actor":    actor if actor in ACTORS else "athos",
-        "type":     msg_type if msg_type in MSG_TYPES else "message",
+        "actor":    _actor(actor),
+        "type":     _msg_type(msg_type),
         "content":  content,
         "task_id":  task_id or "",
-        "files":    files or [],
+        "files":    _files(files),
         "status":   status or "",
-        "meta":     meta or {},
+        "meta":     _meta(meta),
     }
     line = json.dumps(entry, ensure_ascii=False) + "\n"
     with _lock:
@@ -64,6 +100,7 @@ def add(
 def get_thread(limit: int = 100, task_id: Optional[str] = None) -> list[dict]:
     if not _ROOM_FILE.exists():
         return []
+    limit = max(1, min(int(limit or 100), 10_000))
     entries = []
     with _lock:
         with _ROOM_FILE.open(encoding="utf-8") as f:
@@ -101,6 +138,7 @@ def get_context_for_engine(engine: str, limit: int = 40) -> str:
 
 
 def clear(task_id: Optional[str] = None):
+    _ROOM_FILE.parent.mkdir(parents=True, exist_ok=True)
     if task_id:
         thread = get_thread(limit=10_000)
         kept = [e for e in thread if e.get("task_id") != task_id]

@@ -99,7 +99,8 @@ Qu'est-ce qu'on fait ?
 - Pour tout chantier sur le repo ATHOS (`~/Sites/athos`) : tu lis, tu modifies, tu testes, tu mets à jour la mémoire.
 - Tu n'attends pas que Clément fasse ce que tu peux faire seul.
 - Si tu as besoin d'un outil : tu l'installes, tu le testes, tu l'intègres.
-- Commit/push uniquement si Clément l'a explicitement demandé dans la conversation active.
+- Pour ATHOS, une modification durable doit aller jusqu'au Drive + GitHub, sauf demande contraire explicite ou blocage réel.
+- Pour les projets clients, commit/push uniquement selon le scope du projet et la demande active de Clément.
 - Si commit demandé : co-author canonique `Jerykko/Ex-nihilo <contact@ex-nihilo.agency>`. Jamais `Codex` ou `Claude` comme identité principale.
 
 ### Règle vérifier avant d'agir
@@ -152,20 +153,30 @@ mkdir -p ~/Sites/athos/memory
 printf "§offline_memory:%s|engine:%s|summary:%s\n" "$(date -Iseconds)" "codex_or_claude" "résumé" >> ~/Sites/athos/memory/session_$(date +%Y%m%d).mem
 ```
 
-4. Si le statut d'un projet change, mettre à jour `~/Sites/athos/memory/athos_projects.mem` en format §-compressé, exemple :
+4. Reporter aussi l'action dans ATHOS Room :
+
+```bash
+athos_report codex result "résumé court de l'action" fichier_1 fichier_2
+# ou
+athos_report claude result "résumé court de l'action" fichier_1 fichier_2
+```
+
+Si ATHOS HUB est offline, `athos_report` écrit dans `memory/room_offline_YYYYMMDD.jsonl`.
+
+5. Si le statut d'un projet change, mettre à jour `~/Sites/athos/memory/athos_projects.mem` en format §-compressé, exemple :
 
 ```text
 §proj:<nom>|done:<action>=<résultat>
 §proj:<nom>|status:<nouveau_statut>
 ```
 
-5. Synchroniser Drive :
+6. Synchroniser Drive :
 
 - Copier les fichiers kernel/docs ATHOS dans `Mon Drive/CLAUDE AI/ATHOS/`
 - Copier les mémoires `.mem` dans `Mon Drive/CLAUDE AI/memory/`
 - Vérifier par comparaison de hash ou `cmp`
 
-6. Synchroniser GitHub pour le repo ATHOS quand la modification touche ATHOS :
+7. Synchroniser GitHub pour le repo ATHOS quand la modification touche ATHOS :
 
 ```bash
 git status --short

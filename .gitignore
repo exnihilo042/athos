@@ -26,12 +26,14 @@ wheels/
 
 # Virtual environments
 venv/
+venv312/
 env/
 ENV/
 
 # Logs
 logs/
 *.log
+*.pid
 /tmp/athos_*.log
 
 # Pytest
@@ -51,5 +53,8 @@ Thumbs.db
 
 # Budget and sensitive data
 budget.json
+memory/*.sqlite3
+memory/*-*-*-*-*/
+memory/room_offline_*.jsonl
 memory/athos_session_kernel.jsonl
 .github/
