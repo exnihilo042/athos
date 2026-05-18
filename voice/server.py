@@ -600,6 +600,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    import weekly_update
+    weekly_update.check_and_run()
     port = config.ATHOS_PORT
     s    = _router.status()
     config.ATHOS_PID_FILE.write_text(str(os.getpid()), "utf-8")
