@@ -61,3 +61,5 @@ memory/athos_session_kernel.jsonl
 
 # Skills references — repos git imbriqués, gérés séparément via update_skills.sh
 skills/
+# Mais core/skills/ est versionné (manifest, architects)
+!core/skills/

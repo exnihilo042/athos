@@ -200,6 +200,28 @@ Règle : GitHub est obligatoire pour ATHOS, sauf demande explicite de ne pas pou
 
 ---
 
+## Règle de coordination multi-moteurs
+
+Quand Claude et Codex travaillent ensemble sur ATHOS :
+
+| Moteur | Rôle | Responsabilité |
+|--------|------|---------------|
+| **Codex** | Lead exécution | Edits fichiers, git, tests, scripts, CI, loop autonome |
+| **Claude** | Review + architecture | Patterns, cohérence globale, détection problèmes, décisions de design |
+| **ATHOS** | Arbitre | Fil canonique Room, checkpoints, décisions finales si divergence |
+
+**Règles de cohabitation :**
+- Pull avant de modifier un fichier qu'un autre moteur a touché récemment
+- Ne jamais écraser un commit de l'autre sans merge propre
+- Tout désaccord technique → poster dans ATHOS Room, ATHOS tranche
+- Codex lead ≠ Codex a toujours raison — Claude flag les erreurs sans filtre
+- Chaque moteur reporte dans la Room avant et après chaque action significative :
+  ```bash
+  athos_report <claude|codex> <action|result|decision> "résumé" [fichiers...]
+  ```
+
+---
+
 ## Services ATHOS — état et démarrage
 
 | Service | Port | Vérifier | Démarrer si nécessaire |

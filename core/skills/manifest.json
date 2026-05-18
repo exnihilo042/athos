@@ -3,22 +3,160 @@
     "id": "reference_led_reproduction_v1",
     "name": "reference_led_reproduction_workflow",
     "description": "Build or adapt complex surfaces by keeping references and editor visible, reusing nearest primitives, reproducing section-by-section, exposing operator controls, testing rendered output, then polishing.",
-    "code": "",
-    "dependencies": [],
-    "tags": [
-      "workflow",
-      "metacognition",
-      "ui",
-      "shopify",
-      "reproduction",
-      "operator_loop",
-      "self_improvement"
-    ],
-    "test_code": "",
-    "status": "active",
-    "created_at": 1778637600.0,
-    "last_used": null,
-    "use_count": 0,
-    "source_repo": ""
+    "code": "", "dependencies": [], "test_code": "",
+    "tags": ["workflow", "metacognition", "ui", "shopify", "reproduction", "operator_loop", "self_improvement"],
+    "status": "active", "created_at": 1778637600.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "both"
+  },
+  {
+    "id": "athos_room_v1",
+    "name": "athos_room",
+    "description": "Fil canonique multi-moteurs ATHOS. Claude, Codex et Clément écrivent dans le même thread conversation.jsonl. Chaque acteur poste actions/décisions/résultats avant/après modification.",
+    "code": "core/athos_room.py", "dependencies": [],
+    "tags": ["room", "multi-agent", "coordination", "claude", "codex", "athos"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "exnihilo042/athos", "engine": "both"
+  },
+  {
+    "id": "gstack_skills",
+    "name": "gstack",
+    "description": "53 skills Garry Tan dans ~/.claude/skills/. ETHOS: Boil the Lake, Search Before Building, User Sovereignty. Inclut: design-html, review, qa, ship, land-and-deploy, framer-motion-animator, browse, scrape, etc.",
+    "code": "", "dependencies": ["bun"],
+    "tags": ["claude", "skills", "workflow", "design", "deploy", "review", "qa"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "garrytan/gstack", "engine": "claude",
+    "path": "~/.claude/skills/ (53 skills)"
+  },
+  {
+    "id": "agent_skills_addy",
+    "name": "agent-skills",
+    "description": "23 skills Addy Osmani — symlinks actifs dans ~/.codex/skills/. API design, CI/CD, code review, debugging, documentation, git, performance, security, spec-driven, test-driven, shipping-and-launch, etc.",
+    "code": "", "dependencies": [],
+    "tags": ["codex", "skills", "engineering", "workflow", "best-practices"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "addyosmani/agent-skills", "engine": "codex",
+    "path": "~/.codex/skills/ (symlinks → ~/Sites/athos/skills/references/agent-skills/skills/)"
+  },
+  {
+    "id": "shopify_skills_codex",
+    "name": "shopify-skills-codex",
+    "description": "18+ skills Shopify dans ~/.codex/skills/ : liquid, liquid-expert, hydrogen, functions, admin, polaris-* (5), storefront-graphql, sections-ui-base, cli, customer, partner, payments-apps, pos-ui, onboarding-* (2), app-store-review, custom-data.",
+    "code": "", "dependencies": [],
+    "tags": ["codex", "shopify", "liquid", "hydrogen", "polaris", "admin", "storefront"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "codex", "path": "~/.codex/skills/shopify-*"
+  },
+  {
+    "id": "shopify_references_local",
+    "name": "shopify-references",
+    "description": "Repos Shopify clonés localement : Dawn (thème référence Liquid complet), Polaris (design system admin React), awesome-shopify (ressources curées). Source de vérité pour reproduction fidèle.",
+    "code": "", "dependencies": [],
+    "tags": ["shopify", "liquid", "reference", "dawn", "polaris"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "Shopify/dawn", "engine": "both",
+    "path": "~/Sites/athos/skills/references/dawn|polaris|awesome-shopify"
+  },
+  {
+    "id": "figma_skills_codex",
+    "name": "figma-skills-codex",
+    "description": "7 skills Figma dans ~/.codex/skills/ : figma, figma-use, figma-generate-design, figma-generate-library, figma-create-design-system-rules, figma-create-new-file, figma-implement-design, figma-code-connect-components.",
+    "code": "", "dependencies": [],
+    "tags": ["codex", "figma", "design", "design-system", "tokens"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "codex", "path": "~/.codex/skills/figma*"
+  },
+  {
+    "id": "ui_ux_pro_max",
+    "name": "ui-ux-pro-max",
+    "description": "161 palettes, 57 font pairings, 50+ styles, 99 UX guidelines, 25 chart types — 10 stacks. Priorités: accessibility → touch → performance → style → layout → typography → animation → forms → navigation → charts.",
+    "code": "", "dependencies": [],
+    "tags": ["ui", "ux", "design", "color", "typography", "accessibility"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "both",
+    "path": "~/.claude/skills/ui-ux-pro-max · ~/.codex/skills/ui-ux-pro-max"
+  },
+  {
+    "id": "exnihilo_seo_expert",
+    "name": "exnihilo-seo-expert",
+    "description": "Skill SEO canonique Ex-Nihilo. Mots-clés, audit technique, référencement, backlinks, GEO, Core Web Vitals. Source de vérité SEO pour tous les projets clients.",
+    "code": "", "dependencies": [],
+    "tags": ["seo", "audit", "keywords", "backlinks", "geo", "cwv", "ex-nihilo"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "codex", "path": "~/.codex/skills/exnihilo-seo-expert"
+  },
+  {
+    "id": "athos_architects",
+    "name": "athos-architects",
+    "description": "5 personas experts ATHOS — scope-triggered, posent leurs questions avant d'exécuter : 01 Architecte Systèmes, 02 Architecte Visuel, 03 Architecte Copywriting, 04 Traducteur Figma→Make, 05 Ingénieur Interaction.",
+    "code": "core/skills/architects/", "dependencies": [],
+    "tags": ["athos", "persona", "architecture", "design", "copy", "figma", "interaction"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "exnihilo042/athos", "engine": "both",
+    "path": "~/.codex/skills/athos-architects · ~/Sites/athos/core/skills/architects/"
+  },
+  {
+    "id": "ui_references_local",
+    "name": "ui-references",
+    "description": "14 repos UI clonés localement : Radix Primitives, shadcn/ui, Material UI, Chakra UI, Tailwind CSS, ui-ux-pro-max-skill, UI-UX-Roadmap-2024, Front-End-Design-Checklist. Skill Codex pour recherche rapide.",
+    "code": "", "dependencies": [],
+    "tags": ["ui", "reference", "radix", "shadcn", "material", "chakra", "tailwind"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "both",
+    "path": "~/Sites/athos/skills/references/ · ~/.codex/skills/ui-references"
+  },
+  {
+    "id": "deploy_skills",
+    "name": "deploy-skills",
+    "description": "4 skills deploy Codex : vercel-deploy, netlify-deploy, cloudflare-deploy, render-deploy.",
+    "code": "", "dependencies": [],
+    "tags": ["codex", "deploy", "vercel", "netlify", "cloudflare", "render"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "codex", "path": "~/.codex/skills/*-deploy"
+  },
+  {
+    "id": "notion_skills",
+    "name": "notion-skills",
+    "description": "4 skills Notion Codex : notion-knowledge-capture, notion-meeting-intelligence, notion-research-documentation, notion-spec-to-implementation.",
+    "code": "", "dependencies": [],
+    "tags": ["codex", "notion", "knowledge", "meeting", "spec"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "codex", "path": "~/.codex/skills/notion-*"
+  },
+  {
+    "id": "security_skills",
+    "name": "security-skills",
+    "description": "4 skills sécurité Codex : security-and-hardening, security-best-practices, security-ownership-map, security-threat-model.",
+    "code": "", "dependencies": [],
+    "tags": ["codex", "security", "hardening", "threat-model"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "codex", "path": "~/.codex/skills/security-*"
+  },
+  {
+    "id": "framer_motion_animator",
+    "name": "framer-motion-animator",
+    "description": "Skill Claude — animations Framer Motion, spring physics, micro-interactions, transitions de page.",
+    "code": "", "dependencies": [],
+    "tags": ["claude", "animation", "framer-motion", "spring", "micro-interactions"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "claude", "path": "~/.claude/skills/framer-motion-animator"
+  },
+  {
+    "id": "emil_design_eng",
+    "name": "emil-design-eng",
+    "description": "Skill Claude — design engineering, polish visuel, clip-path, interactions avancées, qualité production.",
+    "code": "", "dependencies": [],
+    "tags": ["claude", "design-engineering", "polish", "clip-path"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "", "engine": "claude", "path": "~/.claude/skills/emil-design-eng"
+  },
+  {
+    "id": "agentmemory_api",
+    "name": "agentmemory-rest",
+    "description": "FastAPI REST wrapper agentmemory :8765 (Python 3.12/venv312). GET /health, POST /memories, POST /memories/search, DELETE, count, wipe. Démarré automatiquement au boot ATHOS.",
+    "code": "core/agentmemory_api.py",
+    "dependencies": ["agentmemory", "fastapi", "uvicorn"],
+    "tags": ["athos", "memory", "rest", "chromadb", "vector-search"],
+    "status": "active", "created_at": 1747604400.0, "last_used": null, "use_count": 0,
+    "source_repo": "exnihilo042/athos", "engine": "both"
   }
 ]
