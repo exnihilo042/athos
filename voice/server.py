@@ -393,7 +393,17 @@ class Handler(BaseHTTPRequestHandler):
 
         # ── Stream principal (SSE) ───────────────────────────────────────────
         if p == "/api/stream":
-            msg = self._body().get("message", "")
+            body = self._body()
+            msg = body.get("message", "")
+            task_id = body.get("task_id") or ""
+            if msg:
+                athos_room.add(
+                    actor="clement",
+                    content=msg,
+                    msg_type="message",
+                    task_id=task_id,
+                    meta={"source": "main_prompt"},
+                )
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control",  "no-cache")
@@ -416,8 +426,24 @@ class Handler(BaseHTTPRequestHandler):
                 athos = AthosEngine(_mem, _router, sse, lambda: _make_permission_checker(sse))
                 reply = athos.respond(msg)
                 if reply:
+                    athos_room.add(
+                        actor="athos",
+                        content=reply,
+                        msg_type="result",
+                        task_id=task_id,
+                        status="completed",
+                        meta={"source": "main_prompt", "engine": _router.current},
+                    )
                     extract_and_save_async(msg, reply)
             except Exception as e:
+                athos_room.add(
+                    actor="athos",
+                    content=str(e),
+                    msg_type="error",
+                    task_id=task_id,
+                    status="failed",
+                    meta={"source": "main_prompt"},
+                )
                 sse({"error": str(e), "t": f"Erreur : {e}"})
 
             sse("[DONE]"); return

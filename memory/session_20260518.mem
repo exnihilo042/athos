@@ -5,3 +5,4 @@
 §offline_memory:2026-05-18T22:23:21+02:00|engine:codex|category:athos|summary:room_endpoint_tests_message_conversation_attach_delegate_report_checkpoint_verified
 §offline_memory:2026-05-18T22:24:51+02:00|engine:codex|category:athos|summary:runtime_gitignore_hygiene_for_room_and_skill_update_generated_files
 §offline_memory:2026-05-18T22:30:12+02:00|engine:codex|category:athos|summary:athos_report_token_auth_and_room_replay_on_server_boot_tests_162_passed
+§offline_memory:2026-05-18T22:37:15+02:00|engine:codex|category:athos|summary:main_prompt_now_writes_user_and_athos_reply_to_room_ui_contrast_fixed_tests_163_passed

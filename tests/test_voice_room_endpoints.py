@@ -207,3 +207,38 @@ def test_boot_replay_helper_passes_token_and_runs_once(tmp_path, monkeypatch):
     assert kwargs["env"]["ATHOS_TOKEN"] == "boot-token"
     assert kwargs["env"]["ATHOS_URL"] == "http://127.0.0.1:7474"
     assert kwargs["stdin"] == module.subprocess.DEVNULL
+
+
+def test_stream_endpoint_writes_prompt_and_reply_to_room(tmp_path, monkeypatch):
+    module, srv = _server(tmp_path, monkeypatch)
+
+    class FakeAthosEngine:
+        def __init__(self, mem, router, sse, permission_checker):
+            self.sse = sse
+
+        def respond(self, message):
+            self.sse({"t": "room reply"})
+            return f"reply to {message}"
+
+    monkeypatch.setattr(module, "AthosEngine", FakeAthosEngine)
+    monkeypatch.setattr(module, "extract_and_save_async", lambda *args, **kwargs: None)
+
+    try:
+        req = urllib.request.Request(
+            srv.base + "/api/stream",
+            data=json.dumps({"message": "main prompt visible", "task_id": "stream-room"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            payload = response.read().decode("utf-8")
+        assert "room reply" in payload
+
+        status, body = srv.post("/api/conversation", {"action": "get", "task_id": "stream-room", "limit": 5})
+        assert status == 200
+        assert [(row["actor"], row["type"], row["content"]) for row in body["thread"]] == [
+            ("clement", "message", "main prompt visible"),
+            ("athos", "result", "reply to main prompt visible"),
+        ]
+    finally:
+        srv.close()
