@@ -10,6 +10,7 @@ try:
     from .capabilities import status_report
     from .named_protocols import list_protocols, match_protocol, run_protocol
     from .registries import device_registry, hardware_registry, skill_registry
+    from . import athos_room
 except ImportError:
     import config
     import session_compactor
@@ -26,6 +27,7 @@ except ImportError:
     from capabilities import status_report
     from named_protocols import list_protocols, match_protocol, run_protocol
     from registries import device_registry, hardware_registry, skill_registry
+    import athos_room
 
 
 PROTOCOL_VERSION = "athos-attach-v1"
@@ -154,6 +156,12 @@ def attach_engine(payload: dict[str, Any] | None = None) -> dict[str, Any]:
             "declared_user": payload.get("user", ""),
         },
     )
+    athos_room.add(
+        actor=engine if engine in athos_room.ACTORS else "athos",
+        content=f"moteur attaché — scope:{payload.get('scope','default')} attach_id:{attach_id}",
+        msg_type="attach",
+        meta={"attach_id": attach_id, "engine": engine},
+    )
     return {
         "ok": True,
         "protocol_version": PROTOCOL_VERSION,
@@ -192,6 +200,12 @@ def delegate(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         decision,
         meta={"requires_confirmation": requires_confirmation, "protocol": protocol or ""},
     )
+    athos_room.add(
+        actor="athos",
+        content=f"délégation → {engine} : {request[:200]}",
+        msg_type="delegate",
+        meta={"attach_id": attach_id, "decision": decision, "requires_confirmation": requires_confirmation},
+    )
     return {
         "ok": True,
         "attach_id": attach_id,
@@ -211,6 +225,14 @@ def report(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     summary = str(payload.get("summary") or payload.get("message") or "report received")
     status = str(payload.get("status") or "reported")
     event = session_kernel.record_report(attach_id, engine, summary, status=status, meta=payload.get("meta") or {})
+    athos_room.add(
+        actor=engine if engine in athos_room.ACTORS else "athos",
+        content=summary,
+        msg_type="result",
+        files=payload.get("files") or [],
+        status=status,
+        meta={"attach_id": attach_id},
+    )
     checkpoint_event = None
     session_summary = None
     if payload.get("checkpoint"):

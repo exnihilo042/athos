@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "core"))
 
 import config
+import athos_room
 import session_kernel
 import sync_manager
 import memory_status
@@ -224,12 +225,20 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == "/api/checkpoint":
             body = self._body()
-            self._json(session_kernel.checkpoint(
+            result = session_kernel.checkpoint(
                 body.get("goal", "checkpoint Athos"),
                 decisions=body.get("decisions", []),
                 tasks=body.get("tasks", []),
                 files=body.get("files", []),
-            )); return
+            )
+            athos_room.add(
+                actor=body.get("actor", "athos"),
+                content=body.get("goal", "checkpoint"),
+                msg_type="checkpoint",
+                files=body.get("files", []),
+                meta={"decisions": body.get("decisions", []), "tasks": body.get("tasks", [])},
+            )
+            self._json(result); return
 
         if p == "/api/protocol":
             body = self._body()
@@ -572,6 +581,39 @@ class Handler(BaseHTTPRequestHandler):
             if kind == "fetch":
                 self._json({"content": fetch_raw(body.get("url", ""))}); return
             self._json({"results": search(query, max_results=int(body.get("max_results", 5)))}); return
+
+        # ── ATHOS Room ───────────────────────────────────────────────────────
+        if p == "/api/conversation":
+            body = self._body()
+            action = body.get("action", "get")
+            if action == "clear":
+                athos_room.clear(task_id=body.get("task_id"))
+                self._json({"ok": True}); return
+            if action == "context":
+                engine = body.get("engine", "athos")
+                self._json({"context": athos_room.get_context_for_engine(engine, limit=int(body.get("limit", 40)))}); return
+            thread = athos_room.get_thread(
+                limit=int(body.get("limit", 100)),
+                task_id=body.get("task_id"),
+            )
+            self._json({"thread": thread, "summary": athos_room.summary()}); return
+
+        if p == "/api/message":
+            body = self._body()
+            actor   = body.get("actor", "athos")
+            content = body.get("content") or body.get("message") or ""
+            if not content:
+                self._json({"ok": False, "error": "content requis"}, 400); return
+            entry = athos_room.add(
+                actor=actor,
+                content=content,
+                msg_type=body.get("type", "message"),
+                task_id=body.get("task_id"),
+                files=body.get("files"),
+                status=body.get("status"),
+                meta=body.get("meta"),
+            )
+            self._json({"ok": True, "entry": entry}); return
 
         if p == "/api/use-athos":
             import time as _time
