@@ -11,11 +11,25 @@ MEMORY_DIR="$(cd "$(dirname "$0")/.." && pwd)/memory"
 DRY_RUN=false
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
 
+# Token depuis .env si présent
+ENV_FILE="$(cd "$(dirname "$0")/.." && pwd)/.env"
+if [ -z "${ATHOS_TOKEN:-}" ] && [ -f "$ENV_FILE" ]; then
+  ATHOS_TOKEN=$(grep "^ATHOS_ACCESS_TOKEN=" "$ENV_FILE" | cut -d= -f2 | tr -d '"' | tr -d "'")
+fi
+
+_curl() {
+  if [ -n "${ATHOS_TOKEN:-}" ]; then
+    curl -s -H "Authorization: Bearer $ATHOS_TOKEN" "$@"
+  else
+    curl -s "$@"
+  fi
+}
+
 REPLAYED_LOG="$MEMORY_DIR/.room_replayed_ids"
 touch "$REPLAYED_LOG"
 
 # Vérifier que ATHOS est en ligne
-if ! curl -s "$ATHOS_URL/api/conversation" -X POST \
+if ! _curl "$ATHOS_URL/api/conversation" -X POST \
     -H "Content-Type: application/json" \
     -d '{"action":"get","limit":1}' > /dev/null 2>&1; then
   echo "[replay] ATHOS offline — abandon"
@@ -62,7 +76,7 @@ print(json.dumps(d, ensure_ascii=False))
       continue
     fi
 
-    HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$ATHOS_URL/api/message" \
+    HTTP=$(_curl -o /dev/null -w "%{http_code}" -X POST "$ATHOS_URL/api/message" \
       -H "Content-Type: application/json" \
       -d "$PAYLOAD" 2>/dev/null)
 
