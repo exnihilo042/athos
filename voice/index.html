@@ -1275,6 +1275,7 @@
     <div class="agi-tab active" onclick="switchAGITab('goals')">GOALS</div>
     <div class="agi-tab" onclick="switchAGITab('beliefs')">BELIEFS</div>
     <div class="agi-tab" onclick="switchAGITab('skills')">SKILLS</div>
+    <div class="agi-tab" onclick="switchAGITab('sites')">SITES</div>
   </div>
   <div id="agi-goals" class="agi-section active">
     <div id="agi-goals-list"><div style="color:var(--muted);font-size:11px">Chargement...</div></div>
@@ -1294,6 +1295,12 @@
   </div>
   <div id="agi-skills" class="agi-section">
     <div id="agi-skills-list"><div style="color:var(--muted);font-size:11px">Chargement...</div></div>
+  </div>
+  <div id="agi-sites" class="agi-section">
+    <div id="agi-sites-list"><div style="color:var(--muted);font-size:11px">Chargement...</div></div>
+    <div class="agi-add-form" style="margin-top:8px">
+      <button onclick="refreshSites()" style="width:100%">Rafraichir</button>
+    </div>
   </div>
   <div class="agi-loop-controls">
     <button id="btn-loop-start" onclick="loopAction('start')">▶ LOOP ON</button>
@@ -1426,7 +1433,7 @@ function toggleAGI() {
 function switchAGITab(tab) {
   _agiTab = tab;
   document.querySelectorAll('.agi-tab').forEach((el, i) => {
-    const names = ['goals','beliefs','skills'];
+    const names = ['goals','beliefs','skills','sites'];
     el.classList.toggle('active', names[i] === tab);
   });
   document.querySelectorAll('.agi-section').forEach(el => el.classList.remove('active'));
@@ -1438,6 +1445,7 @@ function refreshAGITab(tab) {
   if (tab === 'goals') refreshGoals();
   else if (tab === 'beliefs') refreshBeliefs();
   else if (tab === 'skills') refreshSkills();
+  else if (tab === 'sites') refreshSites();
 }
 
 async function refreshGoals() {
@@ -1492,6 +1500,42 @@ async function refreshSkills() {
       </div>`;
     }).join('');
     list.innerHTML = activeHtml + pendingHtml;
+  } catch(e) { list.innerHTML = `<div style="color:#ff5555;font-size:11px">${e.message}</div>`; }
+}
+
+async function refreshSites() {
+  const list = document.getElementById('agi-sites-list');
+  list.innerHTML = '<div style="color:var(--muted);font-size:11px">Chargement...</div>';
+  try {
+    const r = await apiFetch('/api/use-athos', {});
+    const sites = r.sites || [];
+    const mem = r.memory || {};
+    const svcs = r.services || {};
+    let html = '';
+    sites.forEach(s => {
+      const statusColor = s.status === 'live' ? '#50fa7b' : '#ffd60a';
+      html += `<div class="agi-belief-item" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b style="color:#9b6bff">${escHtml(s.client || s.name)}</b>
+          <span style="color:${statusColor};font-size:9px;font-weight:600">${escHtml(s.status?.toUpperCase())}</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin:2px 0">${escHtml(s.domain)}</div>
+        <div style="font-size:9px;color:#333340">Theme: ${escHtml(s.live_theme)}${s.draft_theme ? ` · Draft: ${escHtml(s.draft_theme)}` : ''}</div>
+        <div style="font-size:9px;color:#555560;margin-top:3px">${escHtml(s.finance?.note || '')}</div>
+      </div>`;
+    });
+    if (mem.recent && mem.recent.length) {
+      html += `<div style="font-size:10px;color:var(--muted);margin-top:8px;padding-top:6px;border-top:1px solid #1a1a2e">MÉMOIRE RÉCENTE</div>`;
+      mem.recent.forEach(m => {
+        html += `<div style="font-size:9px;color:#333340;margin-top:4px;padding:4px 6px;background:#0d0d1a;border-radius:4px">${escHtml((m.document||'').slice(0,120))}${(m.document||'').length>120?'…':''}</div>`;
+      });
+    }
+    html += `<div style="font-size:9px;color:#333340;margin-top:8px;padding-top:6px;border-top:1px solid #1a1a2e">
+      <a href="${escHtml(svcs['9router']||'')}" target="_blank" style="color:#9b6bff;text-decoration:none">9router dashboard</a>
+      &nbsp;·&nbsp;
+      <span style="color:#555560">agentmemory :8765</span>
+    </div>`;
+    list.innerHTML = html || '<div style="color:var(--muted);font-size:11px">Aucun site.</div>';
   } catch(e) { list.innerHTML = `<div style="color:#ff5555;font-size:11px">${e.message}</div>`; }
 }
 

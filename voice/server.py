@@ -573,6 +573,65 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"content": fetch_raw(body.get("url", ""))}); return
             self._json({"results": search(query, max_results=int(body.get("max_results", 5)))}); return
 
+        if p == "/api/use-athos":
+            import time as _time
+            stores = [
+                {
+                    "name": "ex-nihilo-agency",
+                    "domain": "ex-nihilo-agency.myshopify.com",
+                    "client": "Olivia",
+                    "live_theme": "olivia-16-5-3",
+                    "status": "live",
+                    "finance": {"note": "Connect Shopify API for live data"},
+                    "seo": {"note": "Connect Google Search Console for live data"},
+                },
+                {
+                    "name": "rouge-pivoine",
+                    "domain": "rouge-pivoine.myshopify.com",
+                    "client": "Rouge Pivoine",
+                    "live_theme": "Kalles v4.3.6",
+                    "draft_theme": "Rouge Pivoine — Draft",
+                    "status": "live",
+                    "finance": {"note": "Connect Shopify API for live data"},
+                    "seo": {"note": "Connect Google Search Console for live data"},
+                },
+            ]
+            # Pull recent agentmemory entries for context
+            recent_memories = []
+            try:
+                import urllib.request as _ur
+                mem_req = _ur.Request(
+                    "http://localhost:8765/memories?category=athos&n_results=5",
+                    method="GET",
+                )
+                with _ur.urlopen(mem_req, timeout=2) as resp:
+                    mem_data = json.loads(resp.read())
+                    recent_memories = mem_data.get("memories", [])
+            except Exception:
+                pass
+            skills_summary = {
+                "claude": "~/.claude/skills/ — gstack 53 skills + ui-ux-pro-max + seo-expert + shopify-expert",
+                "codex": "~/.codex/skills/ — 87 skills: agent-skills, athos-architects, ui-references, shopify-references",
+                "cross_access": True,
+            }
+            self._json({
+                "status": "athos_active",
+                "timestamp": _time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "sites": stores,
+                "skills": skills_summary,
+                "memory": {
+                    "recent": recent_memories[:3],
+                    "endpoint": "http://localhost:8765",
+                    "categories": ["athos", "shopify", "seo", "code", "session"],
+                },
+                "services": {
+                    "athos_hub": f"http://localhost:{config.ATHOS_PORT}",
+                    "agentmemory": "http://localhost:8765",
+                    "9router": "http://localhost:20128/dashboard",
+                },
+                "message": "ATHOS actif. Données financières live : connecter Shopify Admin API. SEO live : connecter Google Search Console.",
+            }); return
+
         if p == "/api/loop":
             from autonomous_loop import recent_events, start_loop, status as loop_status, stop_loop
             body = self._body()

@@ -1,16 +1,23 @@
 """
-ATHOS — agentmemory server manager.
-Starts agentmemory serve in background at ATHOS boot if not already running.
-Port default: 8765 (agentmemory default).
+ATHOS — agentmemory REST server wrapper.
+Lance un micro-serveur FastAPI sur :8765 qui expose agentmemory via HTTP.
+Utilisé par Claude Code hooks, Codex, et l'UI ATHOS.
+
+Endpoints :
+  POST /memories          — créer une mémoire
+  GET  /memories          — lister (category optionnelle)
+  POST /memories/search   — recherche sémantique
+  DELETE /memories/{id}   — supprimer
+  GET  /health            — statut
 """
-import subprocess, threading, socket, os, time
+import threading, socket, subprocess, sys, os
 from pathlib import Path
 
+PORT      = 8765
+_PID_FILE = Path(__file__).parent.parent / ".agentmemory.pid"
+_LOG      = Path(__file__).parent.parent / "logs" / "agentmemory.log"
 VENV312   = Path(__file__).parent.parent / "venv312"
 PYTHON    = VENV312 / "bin" / "python"
-PORT      = 8765
-_LOG      = Path(__file__).parent.parent / "logs" / "agentmemory.log"
-_PID_FILE = Path(__file__).parent.parent / ".agentmemory.pid"
 
 
 def _is_running() -> bool:
@@ -18,41 +25,44 @@ def _is_running() -> bool:
         return s.connect_ex(("127.0.0.1", PORT)) == 0
 
 
-def _start():
+def _start_server():
+    """Lance le serveur FastAPI en subprocess isolé."""
+    server_script = Path(__file__).parent / "agentmemory_api.py"
     _LOG.parent.mkdir(parents=True, exist_ok=True)
     with _LOG.open("a") as f:
         proc = subprocess.Popen(
-            [str(PYTHON), "-m", "agentmemory", "serve", "--port", str(PORT)],
+            [str(PYTHON), str(server_script)],
             stdout=f, stderr=subprocess.STDOUT,
-            start_new_session=True
+            start_new_session=True,
+            env={**os.environ, "PYTHONPATH": str(VENV312 / "lib" / "python3.12" / "site-packages")}
         )
         _PID_FILE.write_text(str(proc.pid))
-        time.sleep(1.5)
-        if _is_running():
-            print(f"  [ATHOS] agentmemory serve → localhost:{PORT} (PID {proc.pid})")
-        else:
-            print(f"  [ATHOS] agentmemory serve started (PID {proc.pid}), warming up...")
+    import time; time.sleep(2)
+    if _is_running():
+        print(f"  [ATHOS] agentmemory API → localhost:{PORT} (PID {proc.pid})")
+    else:
+        print(f"  [ATHOS] agentmemory: démarrage en cours… (PID {proc.pid})")
 
 
 def ensure_running():
-    """Call at server boot — starts agentmemory if not already listening."""
+    """Appeler au boot ATHOS — démarre le serveur si absent."""
     if not PYTHON.exists():
-        print("  [ATHOS] agentmemory: venv312 not found, skipping")
+        print("  [ATHOS] agentmemory: venv312 introuvable, skip")
         return
     if _is_running():
-        print(f"  [ATHOS] agentmemory already running on :{PORT}")
+        print(f"  [ATHOS] agentmemory déjà actif sur :{PORT}")
         return
-    t = threading.Thread(target=_start, daemon=True, name="agentmemory-server")
+    t = threading.Thread(target=_start_server, daemon=True, name="agentmemory-boot")
     t.start()
-    t.join(timeout=5)
+    t.join(timeout=6)
 
 
 def stop():
-    """Gracefully stop agentmemory if we started it."""
     if _PID_FILE.exists():
         try:
             pid = int(_PID_FILE.read_text())
             os.kill(pid, 15)
             _PID_FILE.unlink(missing_ok=True)
+            print(f"  [ATHOS] agentmemory stoppé (PID {pid})")
         except Exception:
             pass
