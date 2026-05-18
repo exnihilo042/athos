@@ -80,3 +80,4 @@
 §proj:athos|done:runtime_gitignore_hygiene=ignore_last_skill_update+room_replayed_ids+athos_conversation_runtime_log
 §proj:athos|done:live_room_boot_hardening=athos_report_token_auth+automatic_offline_replay_on_server_boot+tests_162_passed
 §proj:athos|done:main_prompt_room_visibility=stream_prompt_and_reply_written_to_room+room_ui_contrast_fixed+tests_163_passed
+§proj:athos|done:launchd_hub=agency.athos.hub_visible_launchagent+local_memory_runtime+pid_43823+room_api_200

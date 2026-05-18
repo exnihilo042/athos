@@ -35,6 +35,7 @@ logs/
 *.log
 *.pid
 /tmp/athos_*.log
+!launchd/*.plist
 
 # Pytest
 .pytest_cache/
