@@ -58,3 +58,6 @@ memory/*-*-*-*-*/
 memory/room_offline_*.jsonl
 memory/athos_session_kernel.jsonl
 .github/
+
+# Skills references — repos git imbriqués, gérés séparément via update_skills.sh
+skills/
