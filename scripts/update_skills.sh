@@ -7,7 +7,8 @@ set -euo pipefail
 
 ATHOS_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REFS="$ATHOS_ROOT/skills/references"
-VENV="$ATHOS_ROOT/venv"
+# venv312 = Python 3.12, used for agentmemory/chromadb (incompatible with 3.14)
+VENV="$ATHOS_ROOT/venv312"
 LOG="$ATHOS_ROOT/logs/update_skills_$(date +%Y%m%d_%H%M%S).log"
 DRY_RUN=false
 VERBOSE=false
