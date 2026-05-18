@@ -42,6 +42,7 @@ logs/
 # Temporary files
 temp/
 *.tmp
+.last_skill_update
 
 # IDE
 .vscode/
@@ -55,6 +56,8 @@ Thumbs.db
 budget.json
 memory/*.sqlite3
 memory/*-*-*-*-*/
+memory/.room_replayed_ids
+memory/athos_conversation.jsonl
 memory/room_offline_*.jsonl
 memory/athos_session_kernel.jsonl
 .github/
