@@ -1,3 +1,4 @@
 §offline_memory:2026-05-18T21:43:14+02:00|engine:codex|category:athos|summary:ATHOS_ATTACH_PROMPT+ATHOS_INTEGRATION_enriched_with_cross_skill_inventory_mandatory_memory_update_rule_services_visibility_no_commit_without_explicit_request
 §offline_memory:2026-05-18T22:04:51+02:00|engine:codex|category:athos|summary:athos_room_codex_hardening_tests_adapter_prompt_drive_github_sync_rule
 §offline_memory:2026-05-18T22:06:47+02:00|engine:codex|category:athos|summary:gitignore_hygiene_for_generated_athos_room_runtime_files
+§offline_memory:2026-05-18T22:18:51+02:00|engine:codex|category:athos|summary:codex_task_loop_bounded_runner_room_reporting_offline_fallback_risk_stop_tests_156_passed

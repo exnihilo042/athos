@@ -75,3 +75,4 @@
 §sync:script:~/Sites/sync-all.sh|cron:*/10min|covers[placerr,meetme,nearby]
 §proj:athos|done:room_codex_hardening=athos_room_tests+attach_tests_isolated+athos_report_json_safe+boot_prompt_requires_room_report_drive_github_sync
 §proj:athos|done:gitignore_hygiene=ignore_pid+venv312+local_sqlite+offline_room_fallback_generated_files
+§proj:athos|done:codex_task_loop=bounded_visible_task_runner+room_reporting+offline_fallback+risk_stop+tests_156_passed
