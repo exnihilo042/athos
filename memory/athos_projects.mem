@@ -78,3 +78,4 @@
 §proj:athos|done:codex_task_loop=bounded_visible_task_runner+room_reporting+offline_fallback+risk_stop+tests_156_passed
 §proj:athos|done:room_endpoint_tests=message+conversation+clear+attach+delegate+report+checkpoint_http_endpoints_verified
 §proj:athos|done:runtime_gitignore_hygiene=ignore_last_skill_update+room_replayed_ids+athos_conversation_runtime_log
+§proj:athos|done:live_room_boot_hardening=athos_report_token_auth+automatic_offline_replay_on_server_boot+tests_162_passed

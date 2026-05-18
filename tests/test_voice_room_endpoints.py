@@ -169,3 +169,41 @@ def test_attach_delegate_report_checkpoint_endpoints_write_room(tmp_path, monkey
         assert "endpoint checkpoint" in contents
     finally:
         srv.close()
+
+
+def test_boot_replay_helper_passes_token_and_runs_once(tmp_path, monkeypatch):
+    module = _load_server(tmp_path, monkeypatch)
+    calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, name=None, daemon=None):
+            self.target = target
+
+        def start(self):
+            self.target()
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+
+        class Result:
+            stdout = "[replay] done"
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(module.threading, "Thread", ImmediateThread)
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    monkeypatch.setattr(module.config, "ATHOS_ACCESS_TOKEN", "boot-token")
+    monkeypatch.setattr(module.config, "ATHOS_BIND_HOST", "127.0.0.1")
+    monkeypatch.setattr(module.config, "ATHOS_PORT", 7474)
+    monkeypatch.setattr(module.config, "ATHOS_PATH", tmp_path)
+
+    module._replay_offline_room_after_boot(delay_s=0)
+
+    assert len(calls) == 1
+    args, kwargs = calls[0]
+    assert args[0] == "bash"
+    assert args[1].endswith("scripts/replay_offline_room.sh")
+    assert kwargs["env"]["ATHOS_TOKEN"] == "boot-token"
+    assert kwargs["env"]["ATHOS_URL"] == "http://127.0.0.1:7474"
+    assert kwargs["stdin"] == module.subprocess.DEVNULL

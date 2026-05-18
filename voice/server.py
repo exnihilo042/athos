@@ -115,6 +115,37 @@ def _make_permission_checker(sse_fn):
         return result.get("approved", False)
     return check
 
+
+def _replay_offline_room_after_boot(delay_s: float = 1.5) -> None:
+    """Replay offline Room messages once the HTTP server is accepting requests."""
+    def _run():
+        import time as _time
+        _time.sleep(delay_s)
+        script = Path(__file__).parent.parent / "scripts" / "replay_offline_room.sh"
+        if not script.exists():
+            return
+        env = os.environ.copy()
+        env.setdefault("ATHOS_URL", f"http://{config.ATHOS_BIND_HOST}:{config.ATHOS_PORT}")
+        if config.ATHOS_ACCESS_TOKEN:
+            env.setdefault("ATHOS_TOKEN", config.ATHOS_ACCESS_TOKEN)
+        try:
+            result = subprocess.run(
+                ["bash", str(script)],
+                cwd=str(config.ATHOS_PATH),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                stdin=subprocess.DEVNULL,
+            )
+            out = (result.stdout or result.stderr or "").strip()
+            if out:
+                print("[ATHOS Room replay]", out.replace("\n", " | "), flush=True)
+        except Exception as exc:
+            print(f"[ATHOS Room replay] skipped: {exc}", flush=True)
+
+    threading.Thread(target=_run, name="athos-room-replay", daemon=True).start()
+
 # ── Threading HTTP ────────────────────────────────────────────────────────────
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
@@ -719,4 +750,6 @@ if __name__ == "__main__":
     print(f"  Budget  : {s['budget']:.2f}€")
     print(f"  Host    : {config.ATHOS_BIND_HOST}")
     print(f"  Port    : {port}\n")
-    ThreadingHTTPServer((config.ATHOS_BIND_HOST, port), Handler).serve_forever()
+    server = ThreadingHTTPServer((config.ATHOS_BIND_HOST, port), Handler)
+    _replay_offline_room_after_boot()
+    server.serve_forever()

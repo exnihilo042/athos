@@ -2,6 +2,8 @@ import importlib
 import json
 import os
 import subprocess
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 def _room(tmp_path, monkeypatch):
@@ -84,3 +86,47 @@ def test_athos_report_offline_fallback_writes_jsonl(tmp_path):
     assert payload["type"] == "result"
     assert payload["files"] == ["file with spaces.liquid", 'quote"file']
     assert payload["offline"] is True
+
+
+def test_athos_report_sends_auth_token_when_configured(tmp_path):
+    seen = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_POST(self):
+            seen["auth"] = self.headers.get("Authorization")
+            seen["body"] = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        env = os.environ.copy()
+        env["ATHOS_URL"] = f"http://127.0.0.1:{server.server_address[1]}"
+        env["ATHOS_TOKEN"] = "test-token"
+        script = os.path.join(os.getcwd(), "scripts", "athos_report.sh")
+
+        result = subprocess.run(
+            [script, "codex", "result", "live auth ok", "core/athos_room.py"],
+            cwd=os.getcwd(),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+    assert result.returncode == 0
+    assert "ATHOS Room OK" in result.stdout
+    assert seen["auth"] == "Bearer test-token"
+    assert seen["body"]["actor"] == "codex"
+    assert seen["body"]["files"] == ["core/athos_room.py"]

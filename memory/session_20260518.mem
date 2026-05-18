@@ -4,3 +4,4 @@
 §offline_memory:2026-05-18T22:18:51+02:00|engine:codex|category:athos|summary:codex_task_loop_bounded_runner_room_reporting_offline_fallback_risk_stop_tests_156_passed
 §offline_memory:2026-05-18T22:23:21+02:00|engine:codex|category:athos|summary:room_endpoint_tests_message_conversation_attach_delegate_report_checkpoint_verified
 §offline_memory:2026-05-18T22:24:51+02:00|engine:codex|category:athos|summary:runtime_gitignore_hygiene_for_room_and_skill_update_generated_files
+§offline_memory:2026-05-18T22:30:12+02:00|engine:codex|category:athos|summary:athos_report_token_auth_and_room_replay_on_server_boot_tests_162_passed

@@ -10,6 +10,11 @@
 #   athos_report.sh claude decision "Utiliser CSS custom properties plutôt que inline styles"
 
 ATHOS_URL="${ATHOS_URL:-http://localhost:7474}"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$ROOT_DIR/.env"
+if [ -z "${ATHOS_TOKEN:-}" ] && [ -f "$ENV_FILE" ]; then
+  ATHOS_TOKEN=$(grep "^ATHOS_ACCESS_TOKEN=" "$ENV_FILE" | cut -d= -f2 | tr -d '"' | tr -d "'")
+fi
 ACTOR="${1:-athos}"
 TYPE="${2:-message}"
 CONTENT="${3:-}"
@@ -35,9 +40,16 @@ print(json.dumps({
 PY
 )
 
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$ATHOS_URL/api/message" \
-  -H "Content-Type: application/json" \
-  -d "$PAYLOAD" 2>/dev/null)
+if [ -n "${ATHOS_TOKEN:-}" ]; then
+  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$ATHOS_URL/api/message" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $ATHOS_TOKEN" \
+    -d "$PAYLOAD" 2>/dev/null)
+else
+  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$ATHOS_URL/api/message" \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD" 2>/dev/null)
+fi
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 BODY=$(echo "$RESPONSE" | head -1)
