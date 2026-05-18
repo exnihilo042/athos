@@ -600,8 +600,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    import weekly_update
+    import weekly_update, agentmemory_server, subprocess as _sp, os as _os
     weekly_update.check_and_run()
+    agentmemory_server.ensure_running()
+    # 9router proxy dashboard
+    _router_script = Path(__file__).parent.parent / "scripts" / "start_9router.sh"
+    if _router_script.exists():
+        _sp.Popen(["bash", str(_router_script)], stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
     port = config.ATHOS_PORT
     s    = _router.status()
     config.ATHOS_PID_FILE.write_text(str(os.getpid()), "utf-8")

@@ -114,6 +114,39 @@ ATHOS doit interconnecter ses capacités plutôt que multiplier les mappings fix
 
 ---
 
+## Philosophie de build — Principes gstack ETHOS
+
+Ces principes s'appliquent à chaque tâche d'implémentation.
+
+### 1. Boil the Lake — Faire le truc complet
+Le coût marginal de la complétude avec l'IA est quasi-zéro.
+Quand l'approche complète coûte quelques minutes de plus → toujours choisir le complet.
+"Faire le reste dans une prochaine PR" = pensée legacy. Boil the lake, chaque fois.
+
+Table de compression réelle :
+- Boilerplate / scaffolding : 2 jours → 15 min (100x)
+- Tests : 1 jour → 15 min (50x)
+- Feature : 1 semaine → 30 min (30x)
+- Bug fix + test régression : 4h → 15 min (20x)
+
+### 2. Search Before Building — 3 couches de connaissance
+Avant de construire quoi que ce soit : chercher si ça existe déjà.
+- **Couche 1** : Patterns éprouvés — vérifier qu'on ne réinvente pas une roue
+- **Couche 2** : Best practices actuelles — scruter, pas accepter aveuglément
+- **Couche 3** : Premier principes — les insights originaux. Ce sont les plus précieux.
+
+La recherche ne vise pas à trouver une solution à copier — elle vise à comprendre le paysage pour trouver pourquoi l'approche conventionnelle est **fausse**.
+
+### 3. User Sovereignty — L'IA recommande, Clément décide
+Deux IA qui s'accordent = signal fort. Pas un mandat.
+Clément a du contexte que l'IA n't a pas : stratégie, relations, timing, goût, plans futurs.
+Quand ATHOS et Codex recommandent tous deux X et Clément dit non → Clément a raison. Toujours.
+
+Le pattern correct : génération → présentation → vérification → décision Clément.
+Jamais sauter la vérification parce qu'on est confiant.
+
+---
+
 ## Routing automatique des skills
 
 ATHOS détecte le scope de chaque demande et active le skill correspondant **sans que Clément ait à le demander explicitement**.

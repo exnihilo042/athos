@@ -1,0 +1,123 @@
+# ATHOS — Intégration multi-moteur Claude ↔ Codex ↔ ATHOS
+
+> Protocole d'unification. Tous les moteurs lisent ce fichier.
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│                   ATHOS HUB :7474                    │
+│                                                      │
+│  agentmemory :8765 │ 9router :20128 │ gbrain PGLite  │
+│  mémoire partagée  │ proxy OpenAI   │ knowledge graph │
+└──────────────────────────────────────────────────────┘
+         ↑                  ↑                  ↑
+    Claude Code           Codex CLI          ATHOS UI
+    ~/.claude/skills/   ~/.codex/skills/   localhost:7474
+```
+
+---
+
+## Commande universelle — "use ATHOS" / "utilises ATHOS"
+
+Quand Claude ou Codex reçoit cette commande :
+
+1. Lire `~/Sites/athos/ATHOS_ATTACH_PROMPT.md`
+2. Appeler `GET http://localhost:7474/api/status`
+3. Afficher le **récap initial** :
+   - Sites actifs + résultats financiers (CA, conversion, panier moyen)
+   - SEO : positions clés, trafic organique, Core Web Vitals
+   - Contenus récents + leur performance
+4. Afficher dans le **tab "Sites"** de l'UI ATHOS
+
+---
+
+## Skills partagés — inventaire croisé
+
+### Claude voit
+```
+~/.claude/skills/    → gstack (53 skills), agent-elements, emil-design-eng,
+                        framer-motion-animator, seo-expert, shopify-expert,
+                        ui-ux-pro-max
+```
+
+### Codex voit
+```
+~/.codex/skills/     → 87 skills dont :
+  agent-skills/      → 23 skills Addy Osmani (symlinks)
+  athos-architects/  → 5 personas experts
+  ui-references/     → repos UI locaux
+  shopify-references/ → Dawn, Polaris, awesome-shopify
+  + tous les skills Shopify, Figma, Deploy, Notion...
+```
+
+### Accès croisé
+- Claude lit les skills Codex : `cat ~/.codex/skills/<name>/SKILL.md`
+- Codex lit les skills Claude : `cat ~/.claude/skills/<name>/SKILL.md`
+- ATHOS agrège les deux via `/api/skills`
+
+---
+
+## Mémoire partagée — agentmemory
+
+Endpoint : `http://localhost:8765`
+
+**Écrire** (tâche importante / fin de session) :
+```bash
+curl -s -X POST http://localhost:8765/memories \
+  -H "Content-Type: application/json" \
+  -d '{"category":"athos","document":"[résumé]"}'
+```
+
+**Lire** (début de session / recherche) :
+```bash
+curl -s http://localhost:8765/memories/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"projets en cours","n_results":5}'
+```
+
+**Catégories** : `athos` | `shopify` | `seo` | `client:<nom>` | `code` | `session`
+
+---
+
+## 9router — proxy OpenAI-compatible
+
+Dashboard : `http://localhost:20128/dashboard`
+**Action utilisateur requise** : configurer les providers API dans le dashboard.
+
+Pointer les outils sur `localhost:20128` pour router via 9router :
+- Économise 20-40% de tokens (RTK compression)
+- Fallback automatique subscription → cheap → free
+
+---
+
+## gbrain — knowledge graph local
+
+```bash
+cd ~/Sites/athos/skills/references/gbrain
+bun run src/cli.ts query "quels projets sont actifs ?"
+bun run src/cli.ts import ~/Sites/athos/memory/
+```
+
+---
+
+## Boot ATHOS — services lancés automatiquement
+
+| Service | Port | Démarrage |
+|---------|------|-----------|
+| ATHOS server | 7474 | `cd ~/Sites/athos && source venv/bin/activate && python voice/server.py` |
+| agentmemory | 8765 | Automatique au boot ATHOS |
+| 9router | 20128 | Automatique au boot ATHOS |
+| weekly update | — | 1×/semaine au boot |
+
+---
+
+## Tabs ATHOS UI — à implémenter
+
+- **Sites** : dashboard financier + SEO par domaine (résultat "use ATHOS")
+- **Skills** : inventaire Claude + Codex + statut actif
+- **Mémoire** : interface de recherche agentmemory + Drive
+- **9router** : iframe → `localhost:20128/dashboard`
+- **gbrain** : query interface knowledge graph

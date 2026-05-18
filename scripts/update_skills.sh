@@ -40,15 +40,28 @@ log "▶ Reference repos (git pull)"
 
 # Format: "name|url"
 REPOS=(
+  # Agent frameworks
   "agent-skills|https://github.com/addyosmani/agent-skills.git"
   "gstack|https://github.com/garrytan/gstack.git"
   "gbrain|https://github.com/garrytan/gbrain.git"
+  # UI Components
   "primitives|https://github.com/radix-ui/primitives.git"
   "ui|https://github.com/shadcn-ui/ui.git"
-  "dawn|https://github.com/Shopify/dawn.git"
-  "polaris|https://github.com/Shopify/polaris.git"
   "material-ui|https://github.com/mui/material-ui.git"
   "chakra-ui|https://github.com/chakra-ui/chakra-ui.git"
+  "tailwindcss|https://github.com/tailwindlabs/tailwindcss.git"
+  "ui-ux-pro-max-skill|https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git"
+  "UI-UX-Roadmap-2024|https://github.com/CIS-Team/UI-UX-Roadmap-2024.git"
+  "Front-End-Design-Checklist|https://github.com/thedaviddias/Front-End-Design-Checklist.git"
+  # Shopify
+  "dawn|https://github.com/Shopify/dawn.git"
+  "polaris|https://github.com/Shopify/polaris.git"
+  "awesome-shopify|https://github.com/julionc/awesome-shopify.git"
+  "shop-app|https://github.com/abdoutech19/shop-app.git"
+  # WordPress
+  "wprig|https://github.com/wprig/wprig.git"
+  # LLM Education
+  "dive-into-llms|https://github.com/Lordog/dive-into-llms.git"
 )
 
 for entry in "${REPOS[@]}"; do
@@ -85,7 +98,46 @@ done
 
 deactivate 2>/dev/null || true
 
-# ── 3. npm global tools ────────────────────────────────────────────────────────
+# ── 3. gstack rebuild (si modifié) ────────────────────────────────────────────
+log "▶ gstack rebuild"
+GSTACK_DIR="$REFS/gstack"
+if [ -d "$GSTACK_DIR" ]; then
+  if $DRY_RUN; then
+    echo "  [dry] bash $GSTACK_DIR/setup"
+  else
+    export PATH="$HOME/.bun/bin:$PATH"
+    bash "$GSTACK_DIR/setup" 2>/dev/null && ok "gstack rebuilt" || err "gstack: setup failed"
+  fi
+fi
+
+# ── 4. gbrain update ──────────────────────────────────────────────────────────
+log "▶ gbrain skillpack update"
+GBRAIN_DIR="$REFS/gbrain"
+if [ -d "$GBRAIN_DIR" ]; then
+  if $DRY_RUN; then
+    echo "  [dry] gbrain skillpack install --all"
+  else
+    export PATH="$HOME/.bun/bin:$PATH"
+    cd "$GBRAIN_DIR" && bun run src/cli.ts skillpack install --all 2>/dev/null && ok "gbrain skillpacks updated" || err "gbrain: skillpack failed"
+  fi
+fi
+
+# ── 5. agent-skills symlinks refresh ──────────────────────────────────────────
+log "▶ agent-skills symlinks"
+AGENT_SKILLS_DIR="$REFS/agent-skills/skills"
+CODEX_SKILLS_DIR="$HOME/.codex/skills"
+if [ -d "$AGENT_SKILLS_DIR" ]; then
+  for skill_dir in "$AGENT_SKILLS_DIR"/*/; do
+    name=$(basename "$skill_dir")
+    target="$CODEX_SKILLS_DIR/$name"
+    if [ ! -e "$target" ]; then
+      $DRY_RUN && echo "  [dry] ln -s $skill_dir $target" || ln -s "$skill_dir" "$target"
+      ok "linked: $name"
+    fi
+  done
+fi
+
+# ── 6. npm global tools ────────────────────────────────────────────────────────
 log "▶ npm global tools"
 NPM_TOOLS=(9router)
 
@@ -94,7 +146,7 @@ for tool in "${NPM_TOOLS[@]}"; do
   run "npm install -g '$tool' --silent 2>/dev/null" && ok "$tool" || err "$tool: npm install failed"
 done
 
-# ── 4. Codex skills (~/.codex/skills/) ────────────────────────────────────────
+# ── 7. Codex skills (~/.codex/skills/) ────────────────────────────────────────
 log "▶ Codex skills (git repos only)"
 CODEX_SKILLS="$HOME/.codex/skills"
 if [ -d "$CODEX_SKILLS" ]; then
@@ -109,7 +161,7 @@ else
   log "  Codex skills dir not found, skipping"
 fi
 
-# ── 5. Claude skills (~/.claude/skills/) ──────────────────────────────────────
+# ── 8. Claude skills (~/.claude/skills/) ──────────────────────────────────────
 log "▶ Claude skills (git repos only)"
 CLAUDE_SKILLS="$HOME/.claude/skills"
 if [ -d "$CLAUDE_SKILLS" ]; then
