@@ -114,6 +114,58 @@ ATHOS doit interconnecter ses capacités plutôt que multiplier les mappings fix
 
 ---
 
+## Routing automatique des skills
+
+ATHOS détecte le scope de chaque demande et active le skill correspondant **sans que Clément ait à le demander explicitement**.
+
+### Règle d'activation
+
+1. Détecter le scope ci-dessous dans la demande
+2. Charger le skill (lire le fichier SKILL.md correspondant si nécessaire)
+3. Si variables manquantes → poser toutes les questions en une seule fois
+4. Exécuter
+
+### Table de routing
+
+| Scope détecté dans la demande | Skill activé | Source |
+|-------------------------------|--------------|--------|
+| Shopify Liquid, sections, blocks, OS 2.0, metafields | `shopify-liquid` | Codex |
+| Shopify Hydrogen, Storefront API, React routes | `shopify-hydrogen` | Codex |
+| Shopify admin, partner, app, fonctions, POS | skills `shopify-*` correspondant | Codex |
+| Figma Make, prompts Figma, traduire spec → Figma | `athos-architects` → persona 04 | Codex |
+| Architecture site, sitemap, blueprint technique, stack | `athos-architects` → persona 01 | Codex |
+| Design system, tokens, palette, typographie, charte | `athos-architects` → persona 02 | Codex |
+| Copy site, hero section, FAQ, CTA, texte de conversion | `athos-architects` → persona 03 | Codex |
+| Composants React, state machine, formulaires, CRUD | `athos-architects` → persona 05 | Codex |
+| SEO, mots-clés, référencement, audit, backlinks, GEO | `exnihilo-seo-expert` | Codex |
+| UI/UX, design system, couleurs, typographie, style | `ui-ux-pro-max` | Codex/Claude |
+| Animation, Framer Motion, micro-interactions, spring | `framer-motion-animator` | Claude |
+| Design engineering, polish, clip-path, interaction | `emil-design-eng` | Claude |
+| Figma + code sync, design token, Code Connect | `figma-code-connect-components` | Codex |
+| Deploy Vercel / Netlify / Cloudflare / Render | skill deploy correspondant | Codex |
+| GitHub CI, PR review, fix CI | `gh-fix-ci` ou `gh-address-comments` | Codex |
+| Notion, meeting notes, spec, knowledge capture | skill `notion-*` correspondant | Codex |
+| Playwright, test E2E, automation browser | `playwright` | Codex |
+| PDF, extraction document | `pdf` | Codex |
+| Voix, transcription, parole, audio | `speech` ou `transcribe` | Codex |
+| Linear, issue, ticket | `linear` | Codex |
+| Sécurité, threat model, pentest | skills `security-*` | Codex |
+| Composants agent chat, tool-calling UI, streaming | `agent-elements` | Claude |
+
+### Personas Architects — variables requises avant exécution
+
+Si le scope déclenche un persona, poser les questions manquantes **en une seule fois** :
+
+```
+01 Architecte Systèmes   → type site + audience + features + priorités
+02 Architecte Visuel     → marque + personnalité
+03 Architecte Copywriting → type site + ton + audience + objectif
+04 Traducteur Figma Make → spécification complète
+05 Ingénieur Interaction → modules + stack
+```
+
+---
+
 ## Comment ce fichier arrive à chaque moteur
 
 Ce fichier est la **source unique**. Il n'existe pas d'autre version de ces règles.
