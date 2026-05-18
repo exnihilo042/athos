@@ -38,25 +38,35 @@ Quand Claude ou Codex reçoit cette commande :
 
 ### Claude voit
 ```
-~/.claude/skills/    → gstack (53 skills), agent-elements, emil-design-eng,
+~/.claude/skills/    → gstack (~51 skills), agent-elements, emil-design-eng,
                         framer-motion-animator, seo-expert, shopify-expert,
                         ui-ux-pro-max
 ```
 
 ### Codex voit
 ```
-~/.codex/skills/     → 87 skills dont :
+~/.codex/skills/     → ~89 skills dont :
   agent-skills/      → 23 skills Addy Osmani (symlinks)
   athos-architects/  → 5 personas experts
   ui-references/     → repos UI locaux
   shopify-references/ → Dawn, Polaris, awesome-shopify
-  + tous les skills Shopify, Figma, Deploy, Notion...
+  + tous les skills Shopify, Figma, Deploy, Notion, SEO, UI/UX...
 ```
 
 ### Accès croisé
 - Claude lit les skills Codex : `cat ~/.codex/skills/<name>/SKILL.md`
 - Codex lit les skills Claude : `cat ~/.claude/skills/<name>/SKILL.md`
 - ATHOS agrège les deux via `/api/skills`
+
+### Règle de mise à jour
+
+Après toute modification durable, le moteur doit :
+
+1. écrire agentmemory si `:8765` est en ligne ;
+2. écrire une note offline dans `~/Sites/athos/memory/session_YYYYMMDD.mem` si agentmemory est offline ;
+3. mettre à jour `memory/athos_projects.mem` si un statut/prochain checkpoint change ;
+4. pour ATHOS, synchroniser aussi le Drive `Mon Drive/CLAUDE AI/` et GitHub `exnihilo042/athos`, sauf blocage explicite ou demande contraire ;
+5. ne jamais stage/push les caches, venv, DB locales, PID, logs temporaires ou secrets.
 
 ---
 

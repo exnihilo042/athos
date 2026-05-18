@@ -29,6 +29,7 @@
 §proj:athos|done:security=auth_token+cors+write_file_roots+api_skill_guard
 §proj:athos|done:ci_github_actions=pytest_on_push
 §proj:athos|done:protocole_boot_universel=ATHOS_ATTACH_PROMPT.md
+§proj:athos|done:boot_prompt_codex_claude_skills_update=ATHOS_ATTACH_PROMPT+ATHOS_INTEGRATION_enriched_with_cross_skill_inventory+mandatory_memory_update_rule+services_visibility+no_commit_without_explicit_request
 
 §proj:athos|skills[manifest.json,reference_led_reproduction_workflow.py]
 §proj:athos|tools[email_tool,note,screenshot,web_search,wikipedia,youtube]
