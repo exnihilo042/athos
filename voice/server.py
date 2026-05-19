@@ -48,6 +48,23 @@ _mem    = AthosMemory()
 _router = AthosRouter(_mem)
 
 
+def _room_message_wants_coordination(content: str) -> bool:
+    text = str(content or "").lower()
+    cues = (
+        "discute",
+        "discuter",
+        "coordonn",
+        "symbiose",
+        "ensemble",
+        "entre vous",
+        "continuez",
+        "continuer",
+        "travaillez",
+        "attaquer",
+    )
+    return any(cue in text for cue in cues)
+
+
 def _schedule_room_auto_response(entry: dict) -> dict:
     """Trigger Claude/Codex for new Clément Room messages.
 
@@ -74,6 +91,7 @@ def _schedule_room_auto_response(entry: dict) -> dict:
 
     engines = list(getattr(config, "ATHOS_ROOM_AUTO_RESPOND_ENGINES", ["claude", "codex"]) or ["claude", "codex"])
     timeout = int(getattr(config, "ATHOS_ROOM_AUTO_RESPOND_TIMEOUT", 60))
+    coordination_rounds = max(0, int(getattr(config, "ATHOS_ROOM_AUTO_COORDINATION_ROUNDS", 0)))
     task_id = entry.get("task_id") or f"room-auto-{entry_id}"
     content = entry.get("content", "")
 
@@ -81,6 +99,29 @@ def _schedule_room_auto_response(entry: dict) -> dict:
         try:
             print(f"[ATHOS Room auto] start entry={entry_id} task={task_id} engines={','.join(engines)}", flush=True)
             room_responders.respond(content, task_id=task_id, engines=engines, timeout=timeout)
+            if coordination_rounds and _room_message_wants_coordination(content):
+                for round_idx in range(1, coordination_rounds + 1):
+                    coordination_prompt = (
+                        f"Coordination autonome Room, tour {round_idx}/{coordination_rounds}. "
+                        "Continuez l'échange entre moteurs sur le dernier objectif de Clément. "
+                        "Soyez concrets, répartissez les responsabilités, signalez les blocages. "
+                        "Ne lancez aucune action et ne modifiez aucun fichier depuis ce responder."
+                    )
+                    athos_room.add(
+                        actor="athos",
+                        content=f"coordination Room tour {round_idx}/{coordination_rounds}",
+                        msg_type="action",
+                        task_id=task_id,
+                        status="running",
+                        meta={"source": "room_auto_coordination", "entry_id": entry_id, "round": round_idx},
+                    )
+                    room_responders.respond(
+                        coordination_prompt,
+                        task_id=task_id,
+                        engines=engines,
+                        timeout=timeout,
+                        force=True,
+                    )
             print(f"[ATHOS Room auto] done entry={entry_id} task={task_id}", flush=True)
         except Exception as exc:
             athos_room.add(
@@ -739,6 +780,7 @@ class Handler(BaseHTTPRequestHandler):
                 task_id=body.get("task_id", ""),
                 engines=body.get("engines") or ["claude", "codex"],
                 timeout=int(body.get("timeout", 45)),
+                force=bool(body.get("force", False)),
             )
             self._json(result); return
 

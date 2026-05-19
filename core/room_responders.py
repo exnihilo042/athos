@@ -4,9 +4,11 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shutil
 import stat
 import subprocess
+import tempfile
 import time
 from typing import Iterable
 from pathlib import Path
@@ -28,6 +30,9 @@ KEYCHAIN_SERVICE = "Claude Code-credentials"
 _KEYCHAIN_CACHE: dict[str, tuple[float, str]] = {}
 _KEYCHAIN_CACHE_TTL = 60  # seconds
 DEFAULT_CLAUDE_TOKEN_FILE = Path.home() / ".athos" / "claude_token"
+RESPONDER_META_SOURCE = "room_responder"
+_ENGINE_COOLDOWNS: dict[str, tuple[float, str]] = {}
+_USAGE_LIMIT_COOLDOWN_S = 15 * 60
 
 
 def _read_claude_token_file() -> str | None:
@@ -153,17 +158,128 @@ def _run_codex(prompt: str, timeout: int) -> str:
     codex = engine_router.chatgpt_plus_path()
     if not codex:
         raise RuntimeError("codex CLI introuvable")
-    result = subprocess.run(
-        [codex, "exec", "--dangerously-bypass-approvals-and-sandbox", prompt],
-        cwd=str(config.ATHOS_PATH),
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        stdin=subprocess.DEVNULL,
+    codex_env = os.environ.copy()
+    codex_home = Path(config.ATHOS_PATH) / "runtime" / "codex_room_home"
+    codex_home.mkdir(parents=True, exist_ok=True)
+    # Use a minimal Codex home for Room responder calls. It reuses auth/config
+    # by symlink but avoids loading the full global skills tree, which can
+    # contain Drive symlinks unavailable to launchd.
+    for name in ("auth.json", "config.toml"):
+        source = Path.home() / ".codex" / name
+        target = codex_home / name
+        if source.exists() and not target.exists():
+            try:
+                target.symlink_to(source)
+            except FileExistsError:
+                pass
+    codex_env["CODEX_HOME"] = str(codex_home)
+    with tempfile.NamedTemporaryFile("w+", encoding="utf-8", delete=False) as out:
+        output_path = out.name
+    try:
+        result = subprocess.run(
+            [
+                codex,
+                "exec",
+                "--disable",
+                "plugins",
+                "--dangerously-bypass-approvals-and-sandbox",
+                "--cd",
+                str(config.ATHOS_PATH),
+                "-o",
+                output_path,
+                prompt,
+            ],
+            cwd=str(config.ATHOS_PATH),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            stdin=subprocess.DEVNULL,
+            env=codex_env,
+        )
+        if result.returncode != 0:
+            raw_error = (result.stderr or result.stdout or "codex failed").strip()
+            if _is_usage_limit_error(raw_error):
+                usage_line = next(
+                    (line.strip() for line in raw_error.splitlines() if _is_usage_limit_error(line)),
+                    raw_error,
+                )
+                raise RuntimeError(usage_line)
+            raise RuntimeError(raw_error[:1200])
+        try:
+            reply = Path(output_path).read_text("utf-8").strip()
+        except Exception:
+            reply = ""
+        return reply or result.stdout.strip()
+    finally:
+        try:
+            Path(output_path).unlink()
+        except OSError:
+            pass
+
+
+def _is_usage_limit_error(error: str) -> bool:
+    text = str(error or "").lower()
+    return "usage limit" in text or "you've hit your usage limit" in text
+
+
+def _is_rate_limit_error(error: str) -> bool:
+    text = str(error or "").lower()
+    return "429" in text or "rate limit" in text
+
+
+def _concise_engine_error(actor: str, error: str) -> str:
+    raw = str(error or "").strip()
+    if _is_usage_limit_error(raw):
+        match = re.search(r"try again at ([^.\\n]+)", raw, re.IGNORECASE)
+        retry = f" Réessai indiqué: {match.group(1).strip()}." if match else ""
+        return f"{actor} indisponible: limite de session atteinte.{retry}"
+    if _is_rate_limit_error(raw):
+        return f"{actor} indisponible: rate limit temporaire. Réessayer plus tard."
+    ignored_prefixes = ("Reading additional input from stdin",)
+    first_line = next(
+        (
+            line.strip()
+            for line in raw.splitlines()
+            if line.strip() and not any(line.strip().startswith(prefix) for prefix in ignored_prefixes)
+        ),
+        raw,
     )
-    if result.returncode != 0:
-        raise RuntimeError((result.stderr or result.stdout or "codex failed").strip()[:500])
-    return result.stdout.strip()
+    return f"{actor} indisponible: {first_line[:240]}"
+
+
+def _cooldown_for(actor: str) -> str | None:
+    until, reason = _ENGINE_COOLDOWNS.get(actor, (0, ""))
+    if until > time.time():
+        return reason
+    _ENGINE_COOLDOWNS.pop(actor, None)
+    return None
+
+
+def _set_cooldown(actor: str, reason: str) -> None:
+    _ENGINE_COOLDOWNS[actor] = (time.time() + _USAGE_LIMIT_COOLDOWN_S, reason)
+
+
+def _actor_for_engine(engine: str) -> str:
+    key = str(engine or "").lower()
+    if key in {"claude", "claude_code"}:
+        return "claude"
+    if key in {"codex", "chatgpt", "chatgpt_plus"}:
+        return "codex"
+    return key
+
+
+def _existing_responder_entry(actor: str, task_id: str) -> dict | None:
+    if not task_id:
+        return None
+    for entry in reversed(athos_room.get_thread(task_id=task_id, limit=80)):
+        if entry.get("actor") != actor:
+            continue
+        meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
+        if meta.get("source") != RESPONDER_META_SOURCE:
+            continue
+        if entry.get("type") in {"action", "result", "error"}:
+            return entry
+    return None
 
 
 def respond(
@@ -171,6 +287,7 @@ def respond(
     task_id: str = "",
     engines: Iterable[str] | None = None,
     timeout: int = DEFAULT_TIMEOUT,
+    force: bool = False,
 ) -> dict:
     """Ask requested engines to answer in ATHOS Room.
 
@@ -179,14 +296,36 @@ def respond(
     requested = [str(e).lower() for e in (engines or ["claude", "codex"])]
     results = []
     for engine in requested:
-        actor = "claude" if engine in {"claude", "claude_code"} else "codex" if engine in {"codex", "chatgpt", "chatgpt_plus"} else engine
+        actor = _actor_for_engine(engine)
+        cooldown_reason = _cooldown_for(actor)
+        if cooldown_reason and not force:
+            entry = athos_room.add(
+                actor=actor,
+                content=cooldown_reason,
+                msg_type="error",
+                task_id=task_id,
+                status="cooldown",
+                meta={"source": RESPONDER_META_SOURCE, "cooldown": True},
+            )
+            results.append({"engine": actor, "ok": False, "cooldown": True, "error": cooldown_reason, "entry": entry})
+            continue
+        existing = _existing_responder_entry(actor, task_id)
+        if existing and not force:
+            results.append({
+                "engine": actor,
+                "ok": True,
+                "skipped": True,
+                "reason": "already_has_room_responder_entry",
+                "entry": existing,
+            })
+            continue
         athos_room.add(
             actor=actor,
             content=f"{actor} prépare une réponse Room...",
             msg_type="action",
             task_id=task_id,
             status="running",
-            meta={"source": "room_responder"},
+            meta={"source": RESPONDER_META_SOURCE},
         )
         try:
             prompt = _prompt(actor, message)
@@ -204,17 +343,20 @@ def respond(
                 msg_type="result",
                 task_id=task_id,
                 status="completed",
-                meta={"source": "room_responder"},
+                meta={"source": RESPONDER_META_SOURCE},
             )
             results.append({"engine": actor, "ok": True, "entry": entry})
         except Exception as exc:
+            message = _concise_engine_error(actor, str(exc))
+            if _is_usage_limit_error(str(exc)) or _is_rate_limit_error(str(exc)):
+                _set_cooldown(actor, message)
             entry = athos_room.add(
                 actor=actor,
-                content=f"{actor} indisponible: {exc}",
+                content=message,
                 msg_type="error",
                 task_id=task_id,
                 status="failed",
-                meta={"source": "room_responder"},
+                meta={"source": RESPONDER_META_SOURCE},
             )
-            results.append({"engine": actor, "ok": False, "error": str(exc), "entry": entry})
+            results.append({"engine": actor, "ok": False, "error": message, "entry": entry})
     return {"ok": all(r["ok"] for r in results), "results": results}

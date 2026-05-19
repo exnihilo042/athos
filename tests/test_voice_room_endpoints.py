@@ -168,6 +168,72 @@ def test_message_endpoint_auto_triggers_room_responders(tmp_path, monkeypatch):
         srv.close()
 
 
+def test_message_endpoint_runs_bounded_coordination_round_when_requested(tmp_path, monkeypatch):
+    module, srv = _server(tmp_path, monkeypatch)
+    calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, args=(), kwargs=None, name=None, daemon=None):
+            self.target = target
+            self.args = args
+            self.kwargs = kwargs or {}
+
+        def start(self):
+            self.target(*self.args, **self.kwargs)
+
+    def fake_respond(message, task_id="", engines=None, timeout=45, force=False):
+        calls.append({"message": message, "task_id": task_id, "force": force})
+        module.athos_room.add(
+            actor="claude",
+            content="coord claude" if force else "initial claude",
+            msg_type="result",
+            task_id=task_id,
+            status="completed",
+            meta={"source": "room_responder"},
+        )
+        module.athos_room.add(
+            actor="codex",
+            content="coord codex" if force else "initial codex",
+            msg_type="result",
+            task_id=task_id,
+            status="completed",
+            meta={"source": "room_responder"},
+        )
+        return {"ok": True, "results": []}
+
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_RESPOND", True)
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_COORDINATION_ROUNDS", 1)
+    monkeypatch.setattr(module.threading, "Thread", ImmediateThread)
+    monkeypatch.setattr(module.room_responders, "respond", fake_respond)
+
+    try:
+        status, body = srv.post("/api/message", {
+            "actor": "clement",
+            "content": "continuez à discuter entre vous",
+            "task_id": "coord-room",
+        })
+
+        assert status == 200
+        assert body["auto_response"]["scheduled"] is True
+        assert len(calls) == 2
+        assert calls[0]["force"] is False
+        assert calls[1]["force"] is True
+        assert "Coordination autonome Room" in calls[1]["message"]
+
+        status, thread = srv.post("/api/conversation", {"action": "get", "task_id": "coord-room", "limit": 10})
+        assert status == 200
+        assert [row["content"] for row in thread["thread"]] == [
+            "continuez à discuter entre vous",
+            "initial claude",
+            "initial codex",
+            "coordination Room tour 1/1",
+            "coord claude",
+            "coord codex",
+        ]
+    finally:
+        srv.close()
+
+
 def test_message_endpoint_requires_content(tmp_path, monkeypatch):
     _, srv = _server(tmp_path, monkeypatch)
     try:
@@ -322,12 +388,13 @@ def test_room_respond_endpoint_calls_claude_and_codex(tmp_path, monkeypatch):
     module, srv = _server(tmp_path, monkeypatch)
     called = {}
 
-    def fake_respond(message, task_id="", engines=None, timeout=45):
+    def fake_respond(message, task_id="", engines=None, timeout=45, force=False):
         called["payload"] = {
             "message": message,
             "task_id": task_id,
             "engines": engines,
             "timeout": timeout,
+            "force": force,
         }
         return {"ok": True, "results": [{"engine": "claude", "ok": True}, {"engine": "codex", "ok": True}]}
 
@@ -347,6 +414,7 @@ def test_room_respond_endpoint_calls_claude_and_codex(tmp_path, monkeypatch):
             "task_id": "room-http",
             "engines": ["claude", "codex"],
             "timeout": 2,
+            "force": False,
         }
     finally:
         srv.close()

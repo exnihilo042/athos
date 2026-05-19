@@ -26,6 +26,7 @@ ATHOS_ROOM_AUTO_RESPOND_ENGINES = [
     if item.strip()
 ]
 ATHOS_ROOM_AUTO_RESPOND_TIMEOUT = int(os.getenv("ATHOS_ROOM_AUTO_RESPOND_TIMEOUT", "60"))
+ATHOS_ROOM_AUTO_COORDINATION_ROUNDS = int(os.getenv("ATHOS_ROOM_AUTO_COORDINATION_ROUNDS", "1"))
 FAILOVER_TEST_ENGINES = {
     item.strip()
     for item in os.getenv("ATHOS_FAILOVER_TEST_ENGINES", "").split(",")
@@ -80,6 +81,7 @@ def spend_policy() -> dict:
         "autonomous_loop_enabled": AUTONOMOUS_LOOP_ENABLED,
         "room_auto_respond": ATHOS_ROOM_AUTO_RESPOND,
         "room_auto_respond_engines": ATHOS_ROOM_AUTO_RESPOND_ENGINES,
+        "room_auto_coordination_rounds": ATHOS_ROOM_AUTO_COORDINATION_ROUNDS,
     }
 
 
