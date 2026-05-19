@@ -1,2 +1,3 @@
 §offline_memory:2026-05-19T09:43:24+02:00|engine:codex|category:athos|summary:room_input_now_triggers_stream_response_in_room
 §offline_memory:2026-05-19T09:47:18+02:00|engine:codex|category:athos|summary:room_input_now_requests_claude_and_codex_responses_tests_166_passed
+§offline_memory:2026-05-19T09:52:01+02:00|engine:codex|category:athos|summary:claude_room_responder_uses_explicit_usr_local_bin_fallback_tests_166_passed

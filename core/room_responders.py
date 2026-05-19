@@ -4,6 +4,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 from typing import Iterable
+from pathlib import Path
 
 try:
     from . import athos_room, config, engine_router
@@ -14,6 +15,10 @@ except ImportError:
 
 
 DEFAULT_TIMEOUT = 45
+CLAUDE_CANDIDATES = [
+    "/usr/local/bin/claude",
+    "/opt/homebrew/bin/claude",
+]
 
 
 def _prompt(engine: str, message: str) -> str:
@@ -32,10 +37,11 @@ MESSAGE DE CLÉMENT:
 
 
 def _run_claude(prompt: str, timeout: int) -> str:
-    if not shutil.which("claude"):
+    claude = shutil.which("claude") or next((path for path in CLAUDE_CANDIDATES if Path(path).exists()), "")
+    if not claude:
         raise RuntimeError("claude CLI introuvable")
     result = subprocess.run(
-        ["claude", "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
+        [claude, "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
         cwd=str(config.ATHOS_PATH),
         capture_output=True,
         text=True,

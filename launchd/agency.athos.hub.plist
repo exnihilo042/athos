@@ -28,6 +28,8 @@
     <string>/Users/clem/Sites/athos</string>
     <key>PYTHONUNBUFFERED</key>
     <string>1</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/Users/clem/.vscode/extensions/openai.chatgpt-26.5513.21555-darwin-x64/bin/macos-x86_64:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
 </dict>
 </plist>

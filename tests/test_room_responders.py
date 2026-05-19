@@ -20,7 +20,7 @@ def test_room_responders_call_claude_and_codex_and_write_room(tmp_path, monkeypa
     monkeypatch.setattr(mod.engine_router, "chatgpt_plus_path", lambda: "/fake/codex")
 
     def fake_run(args, **kwargs):
-        if args[0] == "claude":
+        if args[0].endswith("claude"):
             return SimpleNamespace(returncode=0, stdout="Réponse Claude", stderr="")
         return SimpleNamespace(returncode=0, stdout="Réponse Codex", stderr="")
 
@@ -39,6 +39,7 @@ def test_room_responders_call_claude_and_codex_and_write_room(tmp_path, monkeypa
 def test_room_responders_report_engine_errors(tmp_path, monkeypatch):
     mod, room = _module(tmp_path, monkeypatch)
     monkeypatch.setattr(mod.shutil, "which", lambda name: None)
+    monkeypatch.setattr(mod, "CLAUDE_CANDIDATES", [])
 
     result = mod.respond("ping", task_id="room-error", engines=["claude"], timeout=1)
 
