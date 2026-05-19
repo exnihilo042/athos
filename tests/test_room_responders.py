@@ -292,6 +292,47 @@ def test_room_responders_reject_world_readable_claude_token_file(tmp_path, monke
     assert "permissions too open" in room.get_thread(task_id="room-bad-token", limit=5)[-1]["content"]
 
 
+def test_room_responders_retry_keychain_when_claude_token_file_is_stale(tmp_path, monkeypatch):
+    mod, room = _module(tmp_path, monkeypatch)
+    token_file = tmp_path / "claude_token"
+    token_file.write_text("stale-file-token", "utf-8")
+    token_file.chmod(0o600)
+    monkeypatch.setenv("ATHOS_CLAUDE_TOKEN_FILE", str(token_file))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/fake/claude" if name == "claude" else None)
+    monkeypatch.setattr(mod, "_resolve_claude_oauth_token", lambda: "fresh-keychain-token")
+    seen = []
+
+    def fake_run(args, **kwargs):
+        seen.append(kwargs["env"].get("ANTHROPIC_API_KEY"))
+        if seen[-1] == "stale-file-token":
+            return SimpleNamespace(returncode=1, stdout="", stderr="Invalid API key")
+        return SimpleNamespace(returncode=0, stdout="Réponse Claude Keychain", stderr="")
+
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+
+    result = mod.respond("ping", task_id="room-token-retry", engines=["claude"], timeout=2)
+
+    assert result["ok"] is True
+    assert seen == ["stale-file-token", "fresh-keychain-token"]
+    assert room.get_thread(task_id="room-token-retry", limit=5)[-1]["content"] == "Réponse Claude Keychain"
+
+
+def test_room_responders_condense_invalid_api_key_errors(tmp_path, monkeypatch):
+    mod, room = _module(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        mod,
+        "_run_claude",
+        lambda prompt, timeout: (_ for _ in ()).throw(RuntimeError("Invalid API key · Fix external API key")),
+    )
+
+    result = mod.respond("ping", task_id="invalid-key", engines=["claude"], timeout=1)
+
+    assert result["ok"] is False
+    assert result["results"][0]["error"] == "claude indisponible: clé/token invalide. Relogin ou rotation du token requis."
+    assert room.get_thread(task_id="invalid-key", limit=3)[-1]["content"] == result["results"][0]["error"]
+
+
 def test_room_responders_status_is_non_invasive(tmp_path, monkeypatch):
     mod, _ = _module(tmp_path, monkeypatch)
     token_file = tmp_path / "claude_token"

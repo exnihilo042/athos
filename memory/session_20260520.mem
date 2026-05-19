@@ -8,3 +8,5 @@
 §proj:athos|done:room_runtime_state=api_runtime+ui_status|tests:187_passed
 
 §proj:athos|done:room_responder_status=non_invasive_availability+cooldowns+ui|tests:188_passed
+
+§proj:athos|fix:claude_responder_invalid_token=fallback_file_token_to_keychain|tests:190_passed

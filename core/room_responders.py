@@ -122,8 +122,9 @@ def _run_claude(prompt: str, timeout: int) -> str:
     claude = shutil.which("claude") or next((path for path in CLAUDE_CANDIDATES if Path(path).exists()), "")
     if not claude:
         raise RuntimeError("claude CLI introuvable")
-    env = os.environ.copy()
+    base_env = os.environ.copy()
     file_token = _read_claude_token_file()
+    env = base_env.copy()
     if file_token:
         # Claude Pro session token has priority over any inherited API key.
         # A launchd environment or parent shell may contain an exhausted
@@ -140,15 +141,25 @@ def _run_claude(prompt: str, timeout: int) -> str:
         token = _resolve_claude_oauth_token()
         if token:
             env["ANTHROPIC_API_KEY"] = token
-    result = subprocess.run(
-        [claude, "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
-        cwd=str(config.ATHOS_PATH),
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        stdin=subprocess.DEVNULL,
-        env=env,
-    )
+
+    def run_with(run_env: dict[str, str]):
+        return subprocess.run(
+            [claude, "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
+            cwd=str(config.ATHOS_PATH),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            stdin=subprocess.DEVNULL,
+            env=run_env,
+        )
+
+    result = run_with(env)
+    if result.returncode != 0 and file_token and _is_invalid_api_key_error(result.stderr or result.stdout):
+        keychain_token = _resolve_claude_oauth_token()
+        if keychain_token and keychain_token != file_token:
+            retry_env = base_env.copy()
+            retry_env["ANTHROPIC_API_KEY"] = keychain_token
+            result = run_with(retry_env)
     if result.returncode != 0:
         error = (result.stderr or result.stdout or "claude failed").strip()[:500]
         raise RuntimeError(error)
@@ -233,8 +244,15 @@ def _is_overload_error(error: str) -> bool:
     return "529" in text or "overloaded" in text or "overload" in text
 
 
+def _is_invalid_api_key_error(error: str) -> bool:
+    text = str(error or "").lower()
+    return "invalid api key" in text or "invalid x-api-key" in text
+
+
 def _concise_engine_error(actor: str, error: str) -> str:
     raw = str(error or "").strip()
+    if _is_invalid_api_key_error(raw):
+        return f"{actor} indisponible: clé/token invalide. Relogin ou rotation du token requis."
     if _is_usage_limit_error(raw):
         match = re.search(r"try again at ([^.\\n]+)", raw, re.IGNORECASE)
         retry = f" Réessai indiqué: {match.group(1).strip()}." if match else ""
