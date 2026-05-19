@@ -70,6 +70,7 @@ def _room_runtime_state() -> dict:
             "timeout": int(getattr(config, "ATHOS_ROOM_AUTO_WORK_TIMEOUT", 180)),
             "review_enabled": bool(getattr(config, "ATHOS_ROOM_AUTO_WORK_REVIEW", True)),
         },
+        "responders": room_responders.responder_status(),
     }
 
 

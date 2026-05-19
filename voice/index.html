@@ -2040,10 +2040,14 @@ async function refreshRoom() {
     const runtimeText = work.active_count
       ? `travail:${work.current?.task_id || work.active_count}`
       : (responders.active_count ? `réponses:${responders.active_count}` : 'idle');
+    const responderActors = runtime.responders?.actors || {};
+    const responderText = Object.entries(responderActors)
+      .map(([name, info]) => `${name}:${info.available ? 'ok' : (info.cooldown ? 'cooldown' : 'off')}`)
+      .join(' · ');
     statusEl.className = healthClass;
     statusEl.textContent = total
-      ? `santé:${health.status || 'unknown'} · ${runtimeText} · issues:${issueCount} · ${total} messages · ${actors}`
-      : `santé:${health.status || 'unknown'} · ${runtimeText} · fil vide`;
+      ? `santé:${health.status || 'unknown'} · ${runtimeText} · ${responderText} · issues:${issueCount} · ${total} messages · ${actors}`
+      : `santé:${health.status || 'unknown'} · ${runtimeText} · ${responderText} · fil vide`;
   } catch(e) {
     const statusEl = document.getElementById('room-status');
     statusEl.className = 'unhealthy';

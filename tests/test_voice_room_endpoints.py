@@ -105,6 +105,8 @@ def test_message_and_conversation_endpoints_roundtrip(tmp_path, monkeypatch):
         assert body["auto_response"]["active_count"] == 0
         assert body["auto_work"]["enabled"] is False
         assert body["auto_work"]["active_count"] == 0
+        assert "responders" in body
+        assert set(body["responders"]["actors"]) == {"claude", "codex"}
     finally:
         srv.close()
 

@@ -6,3 +6,5 @@
 §proj:athos|done:task_loop_room_auth=live_posting_with_bearer_token|tests:187_passed|selftest:task-room-auth-selftest|offline_fallback:new_files_0
 
 §proj:athos|done:room_runtime_state=api_runtime+ui_status|tests:187_passed
+
+§proj:athos|done:room_responder_status=non_invasive_availability+cooldowns+ui|tests:188_passed

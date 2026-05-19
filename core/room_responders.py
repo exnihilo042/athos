@@ -276,6 +276,44 @@ def _actor_for_engine(engine: str) -> str:
     return key
 
 
+def _claude_token_file_status() -> dict:
+    raw_path = os.getenv("ATHOS_CLAUDE_TOKEN_FILE", str(DEFAULT_CLAUDE_TOKEN_FILE)).strip()
+    if not raw_path:
+        return {"configured": False, "status": "disabled"}
+    path = Path(raw_path).expanduser()
+    if not path.exists():
+        return {"configured": True, "status": "missing", "path": str(path)}
+    try:
+        mode = path.stat().st_mode
+    except OSError:
+        return {"configured": True, "status": "unreadable", "path": str(path)}
+    secure = not (mode & (stat.S_IRWXG | stat.S_IRWXO))
+    return {
+        "configured": True,
+        "status": "protected" if secure else "permissions_too_open",
+        "path": str(path),
+    }
+
+
+def responder_status() -> dict:
+    """Return non-invasive responder readiness without running any model."""
+    claude_path = shutil.which("claude") or next((path for path in CLAUDE_CANDIDATES if Path(path).exists()), "")
+    codex_path = engine_router.chatgpt_plus_path() or ""
+    actors = {}
+    for actor, path in (("claude", claude_path), ("codex", codex_path)):
+        cooldown = _cooldown_for(actor)
+        actors[actor] = {
+            "available": bool(path) and not bool(cooldown),
+            "path": path or "",
+            "cooldown": cooldown or "",
+        }
+    actors["claude"]["token_file"] = _claude_token_file_status()
+    return {
+        "ok": all(info["available"] for info in actors.values()),
+        "actors": actors,
+    }
+
+
 def _existing_responder_entry(actor: str, task_id: str) -> dict | None:
     if not task_id:
         return None

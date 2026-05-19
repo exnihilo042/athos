@@ -290,3 +290,21 @@ def test_room_responders_reject_world_readable_claude_token_file(tmp_path, monke
 
     assert result["ok"] is False
     assert "permissions too open" in room.get_thread(task_id="room-bad-token", limit=5)[-1]["content"]
+
+
+def test_room_responders_status_is_non_invasive(tmp_path, monkeypatch):
+    mod, _ = _module(tmp_path, monkeypatch)
+    token_file = tmp_path / "claude_token"
+    token_file.write_text("token-not-exposed", "utf-8")
+    token_file.chmod(0o600)
+    monkeypatch.setenv("ATHOS_CLAUDE_TOKEN_FILE", str(token_file))
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/fake/claude" if name == "claude" else None)
+    monkeypatch.setattr(mod.engine_router, "chatgpt_plus_path", lambda: "/fake/codex")
+
+    status = mod.responder_status()
+
+    assert status["ok"] is True
+    assert status["actors"]["claude"]["available"] is True
+    assert status["actors"]["codex"]["available"] is True
+    assert status["actors"]["claude"]["token_file"]["status"] == "protected"
+    assert "token-not-exposed" not in str(status)
