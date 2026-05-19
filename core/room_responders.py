@@ -1,8 +1,12 @@
 """ATHOS Room responders — call Claude/Codex as visible Room participants."""
 from __future__ import annotations
 
+import json
+import os
+import platform
 import shutil
 import subprocess
+import time
 from typing import Iterable
 from pathlib import Path
 
@@ -19,6 +23,51 @@ CLAUDE_CANDIDATES = [
     "/usr/local/bin/claude",
     "/opt/homebrew/bin/claude",
 ]
+KEYCHAIN_SERVICE = "Claude Code-credentials"
+_KEYCHAIN_CACHE: dict[str, tuple[float, str]] = {}
+_KEYCHAIN_CACHE_TTL = 60  # seconds
+
+
+def _resolve_claude_oauth_token() -> str | None:
+    """Extract the Claude OAuth access token from the macOS Keychain.
+
+    Background: when ATHOS HUB runs as a LaunchAgent, subprocess invocations of
+    the Claude CLI cannot read the user Keychain item directly (its ACL
+    restricts decrypt to `/usr/bin/security`). Result: claude falls back to an
+    anonymous API session and reports "Credit balance is too low".
+
+    Workaround: call `/usr/bin/security find-generic-password -w` ourselves
+    (which IS allowed by the ACL), parse the OAuth JSON blob, then expose the
+    access token via the ANTHROPIC_API_KEY env var on the subprocess. Cached
+    briefly to avoid spawning `security` per request.
+    """
+    if platform.system() != "Darwin":
+        return None
+    cached = _KEYCHAIN_CACHE.get(KEYCHAIN_SERVICE)
+    if cached and (time.time() - cached[0] < _KEYCHAIN_CACHE_TTL):
+        return cached[1] or None
+    try:
+        result = subprocess.run(
+            ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            stdin=subprocess.DEVNULL,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    payload = result.stdout.strip()
+    if not payload:
+        return None
+    try:
+        data = json.loads(payload)
+        token = data.get("claudeAiOauth", {}).get("accessToken") or ""
+    except (json.JSONDecodeError, AttributeError):
+        token = ""
+    _KEYCHAIN_CACHE[KEYCHAIN_SERVICE] = (time.time(), token)
+    return token or None
 
 
 def _prompt(engine: str, message: str) -> str:
@@ -40,6 +89,18 @@ def _run_claude(prompt: str, timeout: int) -> str:
     claude = shutil.which("claude") or next((path for path in CLAUDE_CANDIDATES if Path(path).exists()), "")
     if not claude:
         raise RuntimeError("claude CLI introuvable")
+    env = os.environ.copy()
+    # Pre-resolve the OAuth token from Keychain so claude doesn't have to.
+    # Required when the hub runs under launchd: in a LaunchAgent context the
+    # `claude` CLI cannot read the Keychain item directly (its ACL restricts
+    # decrypt to `/usr/bin/security`). Falling back to anonymous API yields
+    # "Credit balance is too low". We pre-extract the OAuth access token via
+    # the `security` CLI (which IS allowed by the ACL) and pass it as
+    # ANTHROPIC_API_KEY to the claude subprocess.
+    if not env.get("ANTHROPIC_API_KEY"):
+        token = _resolve_claude_oauth_token()
+        if token:
+            env["ANTHROPIC_API_KEY"] = token
     result = subprocess.run(
         [claude, "-p", prompt, "--output-format", "text", "--dangerously-skip-permissions"],
         cwd=str(config.ATHOS_PATH),
@@ -47,6 +108,7 @@ def _run_claude(prompt: str, timeout: int) -> str:
         text=True,
         timeout=timeout,
         stdin=subprocess.DEVNULL,
+        env=env,
     )
     if result.returncode != 0:
         raise RuntimeError((result.stderr or result.stdout or "claude failed").strip()[:500])

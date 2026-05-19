@@ -16,12 +16,20 @@
   <true/>
   <key>KeepAlive</key>
   <false/>
+  <key>SessionCreate</key>
+  <true/>
+  <key>LimitLoadToSessionType</key>
+  <string>Aqua</string>
   <key>StandardOutPath</key>
   <string>/Users/clem/Sites/athos/logs/athos_launchd.out.log</string>
   <key>StandardErrorPath</key>
   <string>/Users/clem/Sites/athos/logs/athos_launchd.err.log</string>
   <key>EnvironmentVariables</key>
   <dict>
+    <key>HOME</key>
+    <string>/Users/clem</string>
+    <key>USER</key>
+    <string>clem</string>
     <key>DRIVE_PATH</key>
     <string>/Users/clem/Sites/athos/memory</string>
     <key>ATHOS_PATH</key>
