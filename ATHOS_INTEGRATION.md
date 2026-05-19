@@ -69,6 +69,16 @@ Après toute modification durable, le moteur doit :
 5. pour ATHOS, synchroniser aussi le Drive `Mon Drive/CLAUDE AI/` et GitHub `exnihilo042/athos`, sauf blocage explicite ou demande contraire ;
 6. ne jamais stage/push les caches, venv, DB locales, PID, logs temporaires ou secrets.
 
+### Cloisonnement strict ATHOS / projets clients
+
+- Une modification ATHOS ne doit jamais créer de fichier dans un projet client, export thème, dossier Shopify, `Downloads` ou repo non ATHOS.
+- Cibles autorisées pour ATHOS :
+  - `/Users/clem/Sites/athos`
+  - `/Users/clem/Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/`
+  - `https://github.com/exnihilo042/athos`
+- Pour ATHOS, utiliser des chemins absolus avec `apply_patch`. Les chemins relatifs ne sont autorisés que si le `cwd` est confirmé comme `/Users/clem/Sites/athos`.
+- Si un artefact ATHOS est créé ailleurs : le supprimer, scanner les projets clients, reporter l'incident dans Room/mémoire, puis committer la correction de protocole.
+
 ---
 
 ## Mémoire partagée — agentmemory

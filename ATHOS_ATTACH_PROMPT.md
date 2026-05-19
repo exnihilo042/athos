@@ -103,6 +103,16 @@ Qu'est-ce qu'on fait ?
 - Pour les projets clients, commit/push uniquement selon le scope du projet et la demande active de Clément.
 - Si commit demandé : co-author canonique `Jerykko/Ex-nihilo <contact@ex-nihilo.agency>`. Jamais `Codex` ou `Claude` comme identité principale.
 
+### Cloisonnement des écritures — règle non négociable
+- Les fichiers ATHOS ne doivent être écrits que dans les emplacements ATHOS :
+  - repo local de travail : `/Users/clem/Sites/athos`
+  - Drive ATHOS : `/Users/clem/Library/CloudStorage/GoogleDrive-contact@ex-nihilo.agency/Mon Drive/CLAUDE AI/`
+  - GitHub ATHOS : `exnihilo042/athos`
+- Jamais écrire, même temporairement, un fichier ATHOS dans un projet client, export thème, dossier Shopify, `Downloads` ou autre repo non ATHOS.
+- Avant tout `apply_patch` ATHOS : vérifier mentalement et techniquement que le chemin cible est absolu et commence par `/Users/clem/Sites/athos/` ou par le chemin Drive ATHOS.
+- Les patches relatifs sont interdits pour ATHOS si le `cwd` n'est pas exactement `/Users/clem/Sites/athos`.
+- Après une erreur de cloisonnement : supprimer immédiatement l'artefact, scanner les projets clients, reporter l'incident dans Room/mémoire, puis corriger le protocole.
+
 ### Règle vérifier avant d'agir
 Intuition → pause → check existant → conclusion → action unique.
 Ne jamais agir sur une intuition sans avoir vérifié l'état réel.
