@@ -33,6 +33,7 @@ DEFAULT_CLAUDE_TOKEN_FILE = Path.home() / ".athos" / "claude_token"
 RESPONDER_META_SOURCE = "room_responder"
 _ENGINE_COOLDOWNS: dict[str, tuple[float, str]] = {}
 _USAGE_LIMIT_COOLDOWN_S = 15 * 60
+_OVERLOAD_COOLDOWN_S = 45
 
 
 def _read_claude_token_file() -> str | None:
@@ -227,12 +228,19 @@ def _is_rate_limit_error(error: str) -> bool:
     return "429" in text or "rate limit" in text
 
 
+def _is_overload_error(error: str) -> bool:
+    text = str(error or "").lower()
+    return "529" in text or "overloaded" in text or "overload" in text
+
+
 def _concise_engine_error(actor: str, error: str) -> str:
     raw = str(error or "").strip()
     if _is_usage_limit_error(raw):
         match = re.search(r"try again at ([^.\\n]+)", raw, re.IGNORECASE)
         retry = f" Réessai indiqué: {match.group(1).strip()}." if match else ""
         return f"{actor} indisponible: limite de session atteinte.{retry}"
+    if _is_overload_error(raw):
+        return f"{actor} indisponible: surcharge temporaire 529. Les autres moteurs continuent; reprise au prochain tour."
     if _is_rate_limit_error(raw):
         return f"{actor} indisponible: rate limit temporaire. Réessayer plus tard."
     ignored_prefixes = ("Reading additional input from stdin",)
@@ -255,8 +263,8 @@ def _cooldown_for(actor: str) -> str | None:
     return None
 
 
-def _set_cooldown(actor: str, reason: str) -> None:
-    _ENGINE_COOLDOWNS[actor] = (time.time() + _USAGE_LIMIT_COOLDOWN_S, reason)
+def _set_cooldown(actor: str, reason: str, duration_s: int = _USAGE_LIMIT_COOLDOWN_S) -> None:
+    _ENGINE_COOLDOWNS[actor] = (time.time() + duration_s, reason)
 
 
 def _actor_for_engine(engine: str) -> str:
@@ -271,13 +279,19 @@ def _actor_for_engine(engine: str) -> str:
 def _existing_responder_entry(actor: str, task_id: str) -> dict | None:
     if not task_id:
         return None
+    seen_later_failure = False
     for entry in reversed(athos_room.get_thread(task_id=task_id, limit=80)):
         if entry.get("actor") != actor:
             continue
         meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
         if meta.get("source") != RESPONDER_META_SOURCE:
             continue
-        if entry.get("type") in {"action", "result", "error"}:
+        if entry.get("type") == "result":
+            return entry
+        if entry.get("type") == "error":
+            seen_later_failure = True
+            continue
+        if entry.get("type") == "action" and not seen_later_failure:
             return entry
     return None
 
@@ -348,7 +362,9 @@ def respond(
             results.append({"engine": actor, "ok": True, "entry": entry})
         except Exception as exc:
             message = _concise_engine_error(actor, str(exc))
-            if _is_usage_limit_error(str(exc)) or _is_rate_limit_error(str(exc)):
+            if _is_overload_error(str(exc)):
+                _set_cooldown(actor, message, _OVERLOAD_COOLDOWN_S)
+            elif _is_usage_limit_error(str(exc)) or _is_rate_limit_error(str(exc)):
                 _set_cooldown(actor, message)
             entry = athos_room.add(
                 actor=actor,

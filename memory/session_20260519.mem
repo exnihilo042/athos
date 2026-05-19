@@ -8,3 +8,4 @@
 §offline_memory:2026-05-19T11:38:00+02:00|engine:codex|category:athos|summary:room_dedupe+bounded_coordination_rounds+codex_minimal_home+rate_limit_cooldowns+real_room_errors_clean+tests_175_passed
 §offline_memory:2026-05-19T15:45:35+02:00|engine:codex|category:athos|summary:natural_room_work_cycle_added+plan_execute_review+real_room_test_ok+tests_177_passed
 §offline_memory:2026-05-19T15:52:57+02:00|engine:codex|category:athos|summary:voice_ui_blank_page_fixed+duplicate_TOOL_ICONS_renamed+inline_js_syntax_test_added+athos_reopened+tests_12_passed_targeted
+§offline_memory:2026-05-19T16:19:29+02:00|engine:codex|category:athos|summary:room_stabilized+single_active_work+replay_no_autorun+toolbus_summary+local_room_health_check+529_isolation+tests_183_passed+live_room_no_loop

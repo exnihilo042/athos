@@ -124,6 +124,68 @@ def test_room_responders_condense_rate_limit_errors(tmp_path, monkeypatch):
     assert second["results"][0]["error"] == result["results"][0]["error"]
 
 
+def test_room_responders_isolate_claude_529_and_continue_codex(tmp_path, monkeypatch):
+    mod, room = _module(tmp_path, monkeypatch)
+    calls = []
+
+    def overloaded(prompt, timeout):
+        calls.append("claude")
+        raise RuntimeError("API Error: 529 overloaded")
+
+    def codex_ok(prompt, timeout):
+        calls.append("codex")
+        return "Réponse Codex malgré Claude"
+
+    monkeypatch.setattr(mod, "_run_claude", overloaded)
+    monkeypatch.setattr(mod, "_run_codex", codex_ok)
+
+    result = mod.respond("ping", task_id="claude-529", engines=["claude", "codex"], timeout=1)
+
+    assert result["ok"] is False
+    assert calls == ["claude", "codex"]
+    assert result["results"][0]["ok"] is False
+    assert "surcharge temporaire 529" in result["results"][0]["error"]
+    assert result["results"][1]["ok"] is True
+    thread = room.get_thread(task_id="claude-529", limit=10)
+    assert [(e["actor"], e["type"], e["status"]) for e in thread] == [
+        ("claude", "action", "running"),
+        ("claude", "error", "failed"),
+        ("codex", "action", "running"),
+        ("codex", "result", "completed"),
+    ]
+
+
+def test_room_responders_retries_after_transient_529_without_duplicate_result(tmp_path, monkeypatch):
+    mod, room = _module(tmp_path, monkeypatch)
+    calls = []
+
+    def claude_flaky(prompt, timeout):
+        calls.append("claude")
+        if len(calls) == 1:
+            raise RuntimeError("529 overloaded")
+        return "Claude repris"
+
+    monkeypatch.setattr(mod, "_run_claude", claude_flaky)
+    monkeypatch.setattr(mod, "time", SimpleNamespace(time=lambda: 1000))
+
+    first = mod.respond("ping", task_id="retry-529", engines=["claude"], timeout=1)
+    second = mod.respond("ping", task_id="retry-529", engines=["claude"], timeout=1)
+
+    assert first["ok"] is False
+    assert second["results"][0]["cooldown"] is True
+    assert calls == ["claude"]
+
+    monkeypatch.setattr(mod, "time", SimpleNamespace(time=lambda: 2000))
+    third = mod.respond("ping", task_id="retry-529", engines=["claude"], timeout=1)
+    fourth = mod.respond("ping", task_id="retry-529", engines=["claude"], timeout=1)
+
+    assert third["ok"] is True
+    assert fourth["results"][0]["skipped"] is True
+    assert calls == ["claude", "claude"]
+    thread = room.get_thread(task_id="retry-529", limit=20)
+    assert [e["content"] for e in thread if e["actor"] == "claude" and e["type"] == "result"] == ["Claude repris"]
+
+
 def test_room_responders_run_codex_with_plugins_and_skills_disabled(tmp_path, monkeypatch):
     mod, room = _module(tmp_path, monkeypatch)
     output_file = {}

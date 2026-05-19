@@ -65,6 +65,7 @@ memory/athos_conversation.jsonl
 memory/athos_conv.mem
 memory/room_offline_*.jsonl
 memory/athos_session_kernel.jsonl
+voice/*_alert.json
 .github/
 
 # Skills references — repos git imbriqués, gérés séparément via update_skills.sh

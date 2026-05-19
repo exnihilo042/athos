@@ -2039,9 +2039,19 @@ async function sendRoomMessage() {
   if (button) button.disabled = true;
   document.getElementById('room-status').textContent = 'Claude et Codex répondent...';
   try {
-    await apiFetch('/api/message', {actor:'clement', content, type:'message', task_id:taskId});
+    const result = await apiFetch('/api/message', {actor:'clement', content, type:'message', task_id:taskId});
     await refreshRoom();
-    document.getElementById('room-status').textContent = 'Réponses automatiques en cours...';
+    const work = result.auto_work || {};
+    const response = result.auto_response || {};
+    if (work.scheduled) {
+      document.getElementById('room-status').textContent = 'Orchestration ATHOS en cours...';
+    } else if (response.scheduled) {
+      document.getElementById('room-status').textContent = 'Claude et Codex répondent...';
+    } else if (work.reason === 'another_work_running') {
+      document.getElementById('room-status').textContent = `Tâche déjà en cours: ${work.task_id}`;
+    } else {
+      document.getElementById('room-status').textContent = 'Message ajouté au fil.';
+    }
     await new Promise(resolve => setTimeout(resolve, 1500));
     await refreshRoom();
   } catch(e) {

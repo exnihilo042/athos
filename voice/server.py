@@ -44,6 +44,7 @@ _ROOM_AUTORESPOND_LOCK = threading.Lock()
 _ROOM_AUTORESPOND_ACTIVE: set[str] = set()
 _ROOM_AUTOWORK_LOCK = threading.Lock()
 _ROOM_AUTOWORK_ACTIVE: set[str] = set()
+_ROOM_AUTOWORK_CURRENT: dict[str, str] = {}
 
 # ── Singletons partagés ───────────────────────────────────────────────────────
 _mem    = AthosMemory()
@@ -100,6 +101,10 @@ def _room_message_wants_work(content: str) -> bool:
         "supprime",
         "supprimes",
         "debug",
+        "vérifie",
+        "vérifiez",
+        "verifie",
+        "verifiez",
         "teste",
         "tests",
         "mets à jour",
@@ -134,6 +139,48 @@ def _task_thread_text(task_id: str, limit: int = 30) -> str:
     return "\n".join(lines)
 
 
+def _local_room_work_result(content: str, task_id: str) -> str | None:
+    """Handle Room health/stability checks locally instead of spending engines."""
+    text = str(content or "").lower()
+    if "room" not in text:
+        return None
+    if not any(cue in text for cue in ("boucle", "relance", "stable", "fonctionne", "coordonne", "coordonnée")):
+        return None
+
+    thread = athos_room.get_thread(task_id=task_id, limit=120)
+    actors = {}
+    sources = {}
+    for row in thread:
+        actor = row.get("actor", "?")
+        actors[actor] = actors.get(actor, 0) + 1
+        meta = row.get("meta") if isinstance(row.get("meta"), dict) else {}
+        source = meta.get("source")
+        if source:
+            sources[source] = sources.get(source, 0) + 1
+    work_starts = sum(
+        1
+        for row in thread
+        if row.get("actor") == "athos"
+        and row.get("type") == "action"
+        and "orchestration ATHOS lancée" in str(row.get("content", ""))
+    )
+    responder_starts = sum(
+        1
+        for row in thread
+        if row.get("type") == "action"
+        and "prépare une réponse Room" in str(row.get("content", ""))
+    )
+    loops_detected = work_starts > 1
+    return (
+        "Vérification Room locale: "
+        f"{len(thread)} message(s) dans cette tâche; "
+        f"acteurs={actors}; sources={sources}; "
+        f"orchestrations={work_starts}; responders={responder_starts}; "
+        f"boucle={'détectée' if loops_detected else 'non détectée'}. "
+        "Aucune relance automatique supplémentaire n'a été déclenchée par ce check local."
+    )
+
+
 def _schedule_room_athos_work(entry: dict) -> dict:
     """Naturally route work-like Room messages into a coordinated work cycle.
 
@@ -148,6 +195,8 @@ def _schedule_room_athos_work(entry: dict) -> dict:
     meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
     if meta.get("auto_work") is False or str(meta.get("auto_work", "")).lower() == "false":
         return {"scheduled": False, "reason": "explicitly_disabled"}
+    if meta.get("replayed_from"):
+        return {"scheduled": False, "reason": "replay_no_autowork"}
 
     content = entry.get("content", "")
     if not _room_message_wants_work(content):
@@ -160,11 +209,16 @@ def _schedule_room_athos_work(entry: dict) -> dict:
     with _ROOM_AUTOWORK_LOCK:
         if entry_id in _ROOM_AUTOWORK_ACTIVE:
             return {"scheduled": False, "reason": "already_running"}
+        current = _ROOM_AUTOWORK_CURRENT.get("task_id")
+        if current:
+            return {"scheduled": False, "reason": "another_work_running", "task_id": current}
         _ROOM_AUTOWORK_ACTIVE.add(entry_id)
+        _ROOM_AUTOWORK_CURRENT["task_id"] = entry.get("task_id") or f"room-work-{entry_id}"
 
     task_id = entry.get("task_id") or f"room-work-{entry_id}"
     timeout = int(getattr(config, "ATHOS_ROOM_AUTO_WORK_TIMEOUT", 180))
     responder_timeout = int(getattr(config, "ATHOS_ROOM_AUTO_WORK_RESPONDER_TIMEOUT", 60))
+    toolbus_stats = {"count": 0}
 
     def room_sse(obj):
         try:
@@ -180,16 +234,11 @@ def _schedule_room_athos_work(entry: dict) -> dict:
                         meta={"source": "room_auto_work", "event": "thinking"},
                     )
                 elif obj.get("toolbus"):
-                    chunk = obj.get("chunk") or obj.get("text") or ""
-                    if chunk:
-                        athos_room.add(
-                            actor="athos",
-                            content=str(chunk)[:1200],
-                            msg_type="action",
-                            task_id=task_id,
-                            status="running",
-                            meta={"source": "room_auto_work", "event": "toolbus"},
-                        )
+                    # Do not dump terminal streams into the Room. They can
+                    # contain full prompts, skill files and huge noisy logs.
+                    # The visible launchd log remains the terminal source of
+                    # truth; the Room gets a compact summary at the end.
+                    toolbus_stats["count"] += 1
                 elif obj.get("action"):
                     athos_room.add(
                         actor="athos",
@@ -235,7 +284,7 @@ def _schedule_room_athos_work(entry: dict) -> dict:
                 "et le critère de résultat final. Ne modifiez aucun fichier dans cette phase.\n\n"
                 f"OBJECTIF:\n{content}"
             )
-            room_responders.respond(
+            plan_result = room_responders.respond(
                 plan_prompt,
                 task_id=task_id,
                 engines=getattr(config, "ATHOS_ROOM_AUTO_RESPOND_ENGINES", ["claude", "codex"]),
@@ -243,35 +292,43 @@ def _schedule_room_athos_work(entry: dict) -> dict:
                 force=True,
             )
 
-            athos = AthosEngine(_mem, _router, room_sse, lambda: permission_checker)
             reply_box: dict[str, str] = {}
-            action_prompt = (
-                "Tu es ATHOS, orchestrateur opérationnel. Tu dois transformer ce message Room "
-                "en travail concret jusqu'au résultat possible, pas en simple conversation.\n"
-                "Règles: agir dans le repo/projet pertinent, garder les actions visibles, "
-                "tester quand c'est du code, ne pas effectuer d'action risquée sans validation, "
-                "et conclure par état final ou blocage vérifiable.\n\n"
-                "CONTEXTE ROOM DE CETTE TÂCHE:\n"
-                f"{_task_thread_text(task_id)}\n\n"
-                f"OBJECTIF DE CLÉMENT:\n{content}"
-            )
-
-            def run_engine():
-                reply_box["reply"] = athos.respond(action_prompt)
-
-            t = threading.Thread(target=run_engine, name=f"athos-room-work-engine-{entry_id}", daemon=True)
-            t.start()
-            t.join(timeout=timeout)
-            if t.is_alive():
-                athos_room.add(
-                    actor="athos",
-                    content=f"travail ATHOS stoppé: timeout {timeout}s",
-                    msg_type="error",
-                    task_id=task_id,
-                    status="timeout",
-                    meta={"source": "room_auto_work", "entry_id": entry_id},
+            local_reply = _local_room_work_result(content, task_id)
+            local_handled = bool(local_reply)
+            if local_reply:
+                reply_box["reply"] = local_reply
+            else:
+                athos = AthosEngine(_mem, _router, room_sse, lambda: permission_checker)
+                action_prompt = (
+                    "Tu es ATHOS en mode exécution Room. Tu dois accomplir l'objectif, pas répondre par un plan.\n"
+                    "Règles non négociables:\n"
+                    "- Si l'objectif concerne ATHOS, tu peux modifier uniquement /Users/clem/Sites/athos.\n"
+                    "- Lis le fil, applique le correctif minimal, lance les tests pertinents.\n"
+                    "- N'utilise pas de commande destructive, pas de force push, pas de mutation hors ATHOS.\n"
+                    "- Si une validation humaine est nécessaire, arrête-toi avec un blocage explicite.\n"
+                    "- Conclus par: fichiers modifiés, tests exécutés, résultat final ou blocage vérifiable.\n"
+                    "- Ne dis jamais seulement 'lance quand tu veux' si l'action est faisable maintenant.\n\n"
+                    "CONTEXTE ROOM DE CETTE TÂCHE:\n"
+                    f"{_task_thread_text(task_id)}\n\n"
+                    f"OBJECTIF DE CLÉMENT:\n{content}"
                 )
-                return
+
+                def run_engine():
+                    reply_box["reply"] = athos.respond(action_prompt)
+
+                t = threading.Thread(target=run_engine, name=f"athos-room-work-engine-{entry_id}", daemon=True)
+                t.start()
+                t.join(timeout=timeout)
+                if t.is_alive():
+                    athos_room.add(
+                        actor="athos",
+                        content=f"travail ATHOS stoppé: timeout {timeout}s",
+                        msg_type="error",
+                        task_id=task_id,
+                        status="timeout",
+                        meta={"source": "room_auto_work", "entry_id": entry_id},
+                    )
+                    return
             reply = (reply_box.get("reply") or "").strip()
             if reply:
                 athos_room.add(
@@ -283,7 +340,17 @@ def _schedule_room_athos_work(entry: dict) -> dict:
                     meta={"source": "room_auto_work", "entry_id": entry_id, "engine": _router.current},
                 )
                 extract_and_save_async(content, reply)
-            if getattr(config, "ATHOS_ROOM_AUTO_WORK_REVIEW", True):
+            if toolbus_stats["count"]:
+                athos_room.add(
+                    actor="athos",
+                    content=f"terminal: {toolbus_stats['count']} événement(s) masqués pour garder la Room lisible; voir logs ATHOS si besoin.",
+                    msg_type="action",
+                    task_id=task_id,
+                    status="completed",
+                    meta={"source": "room_auto_work", "event": "toolbus_summary"},
+                )
+            plan_had_success = any(r.get("ok") for r in (plan_result or {}).get("results", []))
+            if getattr(config, "ATHOS_ROOM_AUTO_WORK_REVIEW", True) and plan_had_success and not local_handled:
                 review_prompt = (
                     "Phase REVIEW. Relisez le fil de cette tâche. "
                     "Dites chacun si l'objectif est terminé, incomplet ou bloqué. "
@@ -320,6 +387,8 @@ def _schedule_room_athos_work(entry: dict) -> dict:
         finally:
             with _ROOM_AUTOWORK_LOCK:
                 _ROOM_AUTOWORK_ACTIVE.discard(entry_id)
+                if _ROOM_AUTOWORK_CURRENT.get("task_id") == task_id:
+                    _ROOM_AUTOWORK_CURRENT.clear()
 
     threading.Thread(target=worker, name=f"athos-room-work-{entry_id}", daemon=True).start()
     return {"scheduled": True, "entry_id": entry_id, "task_id": task_id}
@@ -339,6 +408,8 @@ def _schedule_room_auto_response(entry: dict) -> dict:
     meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
     if meta.get("auto_respond") is False or str(meta.get("auto_respond", "")).lower() == "false":
         return {"scheduled": False, "reason": "explicitly_disabled"}
+    if meta.get("replayed_from"):
+        return {"scheduled": False, "reason": "replay_no_autorespond"}
 
     entry_id = entry.get("id") or ""
     if not entry_id:
