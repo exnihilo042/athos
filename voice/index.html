@@ -1207,7 +1207,13 @@
   #room-send { padding: 6px 12px; font-size: 11px; background: #00d4ff15;
     border: 1px solid #00d4ff44; color: #00d4ff; border-radius: 4px; cursor: pointer; }
   #room-send:hover { background: #00d4ff25; }
-  #room-status { font-size: 9px; color: #7b8baa; padding: 3px 10px; flex-shrink: 0; }
+  #room-status {
+    font-size: 9px; color: #7b8baa; padding: 4px 10px; flex-shrink: 0;
+    border-top: 1px solid rgba(10,26,46,0.7);
+  }
+  #room-status.healthy { color: #50fa7b; }
+  #room-status.warning { color: #ffc857; }
+  #room-status.unhealthy { color: #ff6b6b; }
 
   #agi-panel {
     display: none;
@@ -1966,6 +1972,7 @@ function _renderRoomBody(content) {
 async function refreshRoom() {
   try {
     const r = await apiFetch('/api/conversation', {action:'get', limit:80});
+    const health = await apiFetch('/api/conversation', {action:'health', limit:100});
     const thread = r.thread || [];
     const summary = r.summary || {};
     const el = document.getElementById('room-thread');
@@ -2022,9 +2029,17 @@ async function refreshRoom() {
     }
     const total = summary.total || 0;
     const actors = Object.entries(summary.actors||{}).map(([a,n])=>`${a}:${n}`).join(' · ');
-    document.getElementById('room-status').textContent = total ? `${total} messages · ${actors}` : '— fil vide —';
+    const statusEl = document.getElementById('room-status');
+    const issueCount = (health.issues || []).length;
+    const healthClass = health.ok && !issueCount ? 'healthy' : (health.ok ? 'warning' : 'unhealthy');
+    statusEl.className = healthClass;
+    statusEl.textContent = total
+      ? `santé:${health.status || 'unknown'} · issues:${issueCount} · ${total} messages · ${actors}`
+      : `santé:${health.status || 'unknown'} · fil vide`;
   } catch(e) {
-    document.getElementById('room-status').textContent = `erreur: ${e.message}`;
+    const statusEl = document.getElementById('room-status');
+    statusEl.className = 'unhealthy';
+    statusEl.textContent = `erreur: ${e.message}`;
   }
 }
 
