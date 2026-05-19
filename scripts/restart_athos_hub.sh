@@ -24,7 +24,13 @@ fi
 
 launchctl bootstrap "$DOMAIN" "$PLIST_DST"
 launchctl kickstart -k "$DOMAIN/$LABEL" >/dev/null 2>&1 || true
-sleep 2
+
+for _ in {1..20}; do
+  if lsof -tiTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done
 
 echo "[athos] launchd:"
 launchctl print "$DOMAIN/$LABEL" 2>/dev/null | awk '

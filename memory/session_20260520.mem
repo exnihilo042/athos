@@ -10,3 +10,5 @@
 §proj:athos|done:room_responder_status=non_invasive_availability+cooldowns+ui|tests:188_passed
 
 §proj:athos|fix:claude_responder_invalid_token=fallback_file_token_to_keychain|tests:190_passed
+
+§proj:athos|fix:restart_hub_wait_for_listener=poll_10s_prevent_false_negative|tests:190_passed
