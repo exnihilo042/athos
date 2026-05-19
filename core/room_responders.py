@@ -117,10 +117,12 @@ def _run_claude(prompt: str, timeout: int) -> str:
     if not claude:
         raise RuntimeError("claude CLI introuvable")
     env = os.environ.copy()
-    if not env.get("ANTHROPIC_API_KEY"):
-        file_token = _read_claude_token_file()
-        if file_token:
-            env["ANTHROPIC_API_KEY"] = file_token
+    file_token = _read_claude_token_file()
+    if file_token:
+        # Claude Pro session token has priority over any inherited API key.
+        # A launchd environment or parent shell may contain an exhausted
+        # Anthropic API key; keeping it would bypass the paid Claude Pro route.
+        env["ANTHROPIC_API_KEY"] = file_token
     # Pre-resolve the OAuth token from Keychain so claude doesn't have to.
     # Required when the hub runs under launchd: in a LaunchAgent context the
     # `claude` CLI cannot read the Keychain item directly (its ACL restricts
