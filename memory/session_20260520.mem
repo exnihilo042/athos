@@ -12,3 +12,5 @@
 §proj:athos|fix:claude_responder_invalid_token=fallback_file_token_to_keychain|tests:190_passed
 
 §proj:athos|fix:restart_hub_wait_for_listener=poll_10s_prevent_false_negative|tests:190_passed
+
+§proj:athos|fix:room_responder_invalid_auth_cooldown=force_no_longer_bypasses_credential_cooldowns|tests:190_passed|note:claude_relogin_required

@@ -368,7 +368,7 @@ def respond(
     for engine in requested:
         actor = _actor_for_engine(engine)
         cooldown_reason = _cooldown_for(actor)
-        if cooldown_reason and not force:
+        if cooldown_reason:
             entry = athos_room.add(
                 actor=actor,
                 content=cooldown_reason,
@@ -420,6 +420,8 @@ def respond(
             message = _concise_engine_error(actor, str(exc))
             if _is_overload_error(str(exc)):
                 _set_cooldown(actor, message, _OVERLOAD_COOLDOWN_S)
+            elif _is_invalid_api_key_error(str(exc)):
+                _set_cooldown(actor, message)
             elif _is_usage_limit_error(str(exc)) or _is_rate_limit_error(str(exc)):
                 _set_cooldown(actor, message)
             entry = athos_room.add(

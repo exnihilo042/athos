@@ -320,17 +320,26 @@ def test_room_responders_retry_keychain_when_claude_token_file_is_stale(tmp_path
 
 def test_room_responders_condense_invalid_api_key_errors(tmp_path, monkeypatch):
     mod, room = _module(tmp_path, monkeypatch)
+    calls = []
+
+    def invalid_key(prompt, timeout):
+        calls.append("claude")
+        raise RuntimeError("Invalid API key · Fix external API key")
+
     monkeypatch.setattr(
         mod,
         "_run_claude",
-        lambda prompt, timeout: (_ for _ in ()).throw(RuntimeError("Invalid API key · Fix external API key")),
+        invalid_key,
     )
 
     result = mod.respond("ping", task_id="invalid-key", engines=["claude"], timeout=1)
+    second = mod.respond("ping", task_id="invalid-key-force", engines=["claude"], timeout=1, force=True)
 
     assert result["ok"] is False
     assert result["results"][0]["error"] == "claude indisponible: clé/token invalide. Relogin ou rotation du token requis."
     assert room.get_thread(task_id="invalid-key", limit=3)[-1]["content"] == result["results"][0]["error"]
+    assert second["results"][0]["cooldown"] is True
+    assert calls == ["claude"]
 
 
 def test_room_responders_status_is_non_invasive(tmp_path, monkeypatch):
