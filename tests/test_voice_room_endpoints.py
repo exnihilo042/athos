@@ -242,3 +242,37 @@ def test_stream_endpoint_writes_prompt_and_reply_to_room(tmp_path, monkeypatch):
         ]
     finally:
         srv.close()
+
+
+def test_room_respond_endpoint_calls_claude_and_codex(tmp_path, monkeypatch):
+    module, srv = _server(tmp_path, monkeypatch)
+    called = {}
+
+    def fake_respond(message, task_id="", engines=None, timeout=45):
+        called["payload"] = {
+            "message": message,
+            "task_id": task_id,
+            "engines": engines,
+            "timeout": timeout,
+        }
+        return {"ok": True, "results": [{"engine": "claude", "ok": True}, {"engine": "codex", "ok": True}]}
+
+    monkeypatch.setattr(module.room_responders, "respond", fake_respond)
+
+    try:
+        status, body = srv.post("/api/room/respond", {
+            "message": "Tout le monde est là ?",
+            "task_id": "room-http",
+            "engines": ["claude", "codex"],
+            "timeout": 2,
+        })
+        assert status == 200
+        assert body["ok"] is True
+        assert called["payload"] == {
+            "message": "Tout le monde est là ?",
+            "task_id": "room-http",
+            "engines": ["claude", "codex"],
+            "timeout": 2,
+        }
+    finally:
+        srv.close()

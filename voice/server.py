@@ -26,6 +26,7 @@ import sse_parser
 import truth_ledger
 import engine_router
 import failover_simulator
+import room_responders
 from auth import request_authorized
 from memory_extractor import extract_and_save_async
 from athos_memory import AthosMemory
@@ -671,6 +672,19 @@ class Handler(BaseHTTPRequestHandler):
                 meta=body.get("meta"),
             )
             self._json({"ok": True, "entry": entry}); return
+
+        if p == "/api/room/respond":
+            body = self._body()
+            message = body.get("message") or body.get("content") or ""
+            if not message:
+                self._json({"ok": False, "error": "message requis"}, 400); return
+            result = room_responders.respond(
+                message,
+                task_id=body.get("task_id", ""),
+                engines=body.get("engines") or ["claude", "codex"],
+                timeout=int(body.get("timeout", 45)),
+            )
+            self._json(result); return
 
         if p == "/api/use-athos":
             import time as _time

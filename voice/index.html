@@ -1688,11 +1688,26 @@ async function refreshRoom() {
 
 async function sendRoomMessage() {
   const input = document.getElementById('room-input');
+  const button = document.getElementById('room-send');
   const content = input.value.trim();
   if (!content) return;
+  const taskId = `room-${Date.now()}`;
   input.value = '';
-  await apiFetch('/api/message', {actor:'clement', content, type:'message'});
-  refreshRoom();
+  input.disabled = true;
+  if (button) button.disabled = true;
+  document.getElementById('room-status').textContent = 'Claude et Codex répondent...';
+  try {
+    await apiFetch('/api/message', {actor:'clement', content, type:'message', task_id:taskId});
+    await refreshRoom();
+    await apiFetch('/api/room/respond', {message:content, task_id:taskId, engines:['claude','codex']});
+    await refreshRoom();
+  } catch(e) {
+    document.getElementById('room-status').textContent = `erreur: ${e.message}`;
+  } finally {
+    input.disabled = false;
+    if (button) button.disabled = false;
+    input.focus();
+  }
 }
 
 async function addGoal() {
