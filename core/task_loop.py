@@ -22,6 +22,7 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MEMORY_DIR = ROOT / "memory"
 DEFAULT_ATHOS_URL = "http://localhost:7474"
+DEFAULT_ENV_FILE = ROOT / ".env"
 RISKY_PATTERNS = (
     "rm -rf",
     "git push",
@@ -39,6 +40,30 @@ RISKY_PATTERNS = (
     "shutdown",
     "reboot",
 )
+
+
+def _read_env_value(path: Path, key: str) -> str:
+    if not path.exists():
+        return ""
+    prefix = f"{key}="
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or not line.startswith(prefix):
+                continue
+            return line.split("=", 1)[1].strip().strip("\"'")
+    except OSError:
+        return ""
+    return ""
+
+
+def resolve_athos_token(env_file: Path | None = None) -> str:
+    """Resolve the local ATHOS bearer token for live Room reporting."""
+    return (
+        os.environ.get("ATHOS_TOKEN", "").strip()
+        or os.environ.get("ATHOS_ACCESS_TOKEN", "").strip()
+        or _read_env_value(env_file or DEFAULT_ENV_FILE, "ATHOS_ACCESS_TOKEN")
+    )
 
 
 @dataclass
@@ -89,6 +114,7 @@ class RoomReporter:
         self.athos_url = (athos_url or os.environ.get("ATHOS_URL") or DEFAULT_ATHOS_URL).rstrip("/")
         self.memory_dir = memory_dir or Path(os.environ.get("ATHOS_MEMORY_DIR", DEFAULT_MEMORY_DIR))
         self.timeout = timeout
+        self.token = resolve_athos_token()
 
     def post(
         self,
@@ -118,7 +144,10 @@ class RoomReporter:
         req = urllib.request.Request(
             f"{self.athos_url}/api/message",
             data=data,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                **({"Authorization": f"Bearer {self.token}"} if self.token else {}),
+            },
             method="POST",
         )
         try:

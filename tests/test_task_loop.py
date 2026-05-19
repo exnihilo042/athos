@@ -1,7 +1,9 @@
 import json
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from core.task_loop import RoomReporter, command_is_risky, run_task_loop
+from core.task_loop import RoomReporter, command_is_risky, resolve_athos_token, run_task_loop
 
 
 def _reporter(tmp_path):
@@ -91,3 +93,51 @@ def test_command_is_risky_normalizes_spaces_and_case():
     assert command_is_risky("GIT   PUSH origin main")
     assert command_is_risky("shopify theme push --store x")
     assert not command_is_risky("pytest -q")
+
+
+def test_room_reporter_sends_auth_token_for_live_room(tmp_path, monkeypatch):
+    seen = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_POST(self):
+            seen["path"] = self.path
+            seen["auth"] = self.headers.get("Authorization")
+            seen["body"] = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        monkeypatch.setenv("ATHOS_TOKEN", "task-token")
+        reporter = RoomReporter(
+            actor="codex",
+            athos_url=f"http://127.0.0.1:{server.server_address[1]}",
+            memory_dir=tmp_path / "memory",
+        )
+        result = reporter.post("result", "live task result", "task-live", status="completed")
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+    assert result["mode"] == "live"
+    assert seen["path"] == "/api/message"
+    assert seen["auth"] == "Bearer task-token"
+    assert seen["body"]["task_id"] == "task-live"
+    assert not list((tmp_path / "memory").glob("room_offline_*.jsonl"))
+
+
+def test_resolve_athos_token_reads_env_file_when_env_absent(tmp_path, monkeypatch):
+    monkeypatch.delenv("ATHOS_TOKEN", raising=False)
+    monkeypatch.delenv("ATHOS_ACCESS_TOKEN", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("OTHER=x\nATHOS_ACCESS_TOKEN='file-token'\n", encoding="utf-8")
+
+    assert resolve_athos_token(env_file) == "file-token"
