@@ -358,3 +358,38 @@ def test_room_responders_status_is_non_invasive(tmp_path, monkeypatch):
     assert status["actors"]["codex"]["available"] is True
     assert status["actors"]["claude"]["token_file"]["status"] == "protected"
     assert "token-not-exposed" not in str(status)
+
+
+def test_room_responders_status_reflects_last_room_problem(tmp_path, monkeypatch):
+    mod, room = _module(tmp_path, monkeypatch)
+    monkeypatch.setattr(mod.shutil, "which", lambda name: "/fake/claude" if name == "claude" else None)
+    monkeypatch.setattr(mod.engine_router, "chatgpt_plus_path", lambda: "/fake/codex")
+    room.add(
+        actor="claude",
+        content="claude indisponible: clé/token invalide. Relogin ou rotation du token requis.",
+        msg_type="error",
+        task_id="status-a",
+        status="failed",
+        meta={"source": "room_responder"},
+    )
+
+    status = mod.responder_status()
+
+    assert status["ok"] is False
+    assert status["actors"]["claude"]["available"] is False
+    assert status["actors"]["claude"]["last_problem"]["kind"] == "invalid_credentials"
+    assert status["actors"]["codex"]["available"] is True
+
+    room.add(
+        actor="claude",
+        content="Claude revenu",
+        msg_type="result",
+        task_id="status-b",
+        status="completed",
+        meta={"source": "room_responder"},
+    )
+
+    healed = mod.responder_status()
+
+    assert healed["actors"]["claude"]["available"] is True
+    assert healed["actors"]["claude"]["last_problem"] == {}

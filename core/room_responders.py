@@ -246,7 +246,13 @@ def _is_overload_error(error: str) -> bool:
 
 def _is_invalid_api_key_error(error: str) -> bool:
     text = str(error or "").lower()
-    return "invalid api key" in text or "invalid x-api-key" in text
+    return (
+        "invalid api key" in text
+        or "invalid x-api-key" in text
+        or "token invalide" in text
+        or "clé/token invalide" in text
+        or "cle/token invalide" in text
+    )
 
 
 def _concise_engine_error(actor: str, error: str) -> str:
@@ -313,6 +319,33 @@ def _claude_token_file_status() -> dict:
     }
 
 
+def _last_responder_problem(actor: str, limit: int = 200) -> dict:
+    for entry in reversed(athos_room.get_thread(limit=limit)):
+        if entry.get("actor") != actor:
+            continue
+        meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
+        if meta.get("source") != RESPONDER_META_SOURCE:
+            continue
+        if entry.get("type") == "result" and entry.get("status") == "completed":
+            return {}
+        if entry.get("type") == "error":
+            content = str(entry.get("content", ""))
+            kind = "invalid_credentials" if _is_invalid_api_key_error(content) else (
+                "usage_limit" if _is_usage_limit_error(content) else (
+                    "rate_limit" if _is_rate_limit_error(content) else (
+                        "overload" if _is_overload_error(content) else "error"
+                    )
+                )
+            )
+            return {
+                "kind": kind,
+                "content": content[:240],
+                "status": entry.get("status") or "",
+                "ts": entry.get("ts") or "",
+            }
+    return {}
+
+
 def responder_status() -> dict:
     """Return non-invasive responder readiness without running any model."""
     claude_path = shutil.which("claude") or next((path for path in CLAUDE_CANDIDATES if Path(path).exists()), "")
@@ -320,10 +353,13 @@ def responder_status() -> dict:
     actors = {}
     for actor, path in (("claude", claude_path), ("codex", codex_path)):
         cooldown = _cooldown_for(actor)
+        last_problem = _last_responder_problem(actor)
+        blocking_problem = last_problem.get("kind") in {"invalid_credentials", "usage_limit", "rate_limit"}
         actors[actor] = {
-            "available": bool(path) and not bool(cooldown),
+            "available": bool(path) and not bool(cooldown) and not blocking_problem,
             "path": path or "",
             "cooldown": cooldown or "",
+            "last_problem": last_problem,
         }
     actors["claude"]["token_file"] = _claude_token_file_status()
     return {
