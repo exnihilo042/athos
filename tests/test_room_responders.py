@@ -393,3 +393,17 @@ def test_room_responders_status_reflects_last_room_problem(tmp_path, monkeypatch
 
     assert healed["actors"]["claude"]["available"] is True
     assert healed["actors"]["claude"]["last_problem"] == {}
+
+    room.add(
+        actor="codex",
+        content="codex indisponible: limite de session atteinte. Réessai indiqué: 5:14 AM.",
+        msg_type="error",
+        task_id="status-c",
+        status="failed",
+        meta={"source": "room_responder"},
+    )
+
+    codex_limited = mod.responder_status()
+
+    assert codex_limited["actors"]["codex"]["available"] is False
+    assert codex_limited["actors"]["codex"]["last_problem"]["kind"] == "usage_limit"

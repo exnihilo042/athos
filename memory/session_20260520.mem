@@ -16,3 +16,5 @@
 §proj:athos|fix:room_responder_invalid_auth_cooldown=force_no_longer_bypasses_credential_cooldowns|tests:190_passed|note:claude_relogin_required
 
 §proj:athos|fix:room_responder_status_uses_last_observed_errors=invalid_auth+usage_limits_survive_restart|tests:191_passed
+
+§proj:athos|fix:room_responder_status_french_usage_limit=codex_limit_detected_after_restart|tests:191_passed

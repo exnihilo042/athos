@@ -231,7 +231,12 @@ def _run_codex(prompt: str, timeout: int) -> str:
 
 def _is_usage_limit_error(error: str) -> bool:
     text = str(error or "").lower()
-    return "usage limit" in text or "you've hit your usage limit" in text
+    return (
+        "usage limit" in text
+        or "you've hit your usage limit" in text
+        or "limite de session" in text
+        or "session atteinte" in text
+    )
 
 
 def _is_rate_limit_error(error: str) -> bool:
