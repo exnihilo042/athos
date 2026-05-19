@@ -128,10 +128,35 @@ bun run src/cli.ts import ~/Sites/athos/memory/
 
 | Service | Port | Démarrage |
 |---------|------|-----------|
-| ATHOS server | 7474 | `cd ~/Sites/athos && source venv/bin/activate && python voice/server.py` |
+| ATHOS server | 7474 | `bash ~/Sites/athos/scripts/restart_athos_hub.sh` |
 | agentmemory | 8765 | Automatique au boot ATHOS |
 | 9router | 20128 | Automatique au boot ATHOS |
 | weekly update | — | 1×/semaine au boot |
+
+## ATHOS Room — garde-fous runtime
+
+Avant de diagnostiquer “la Room boucle / ne répond pas / relance”, utiliser le check local :
+
+```bash
+curl -s -X POST http://localhost:7474/api/conversation \
+  -H "Content-Type: application/json" \
+  -d '{"action":"health"}'
+```
+
+Pour auditer un incident ancien :
+
+```bash
+curl -s -X POST http://localhost:7474/api/conversation \
+  -H "Content-Type: application/json" \
+  -d '{"action":"health","limit":500}'
+```
+
+Règles :
+- un replay offline ne doit jamais relancer Claude/Codex/Athos ;
+- un message Clément ne doit déclencher qu'une seule orchestration active ;
+- les événements `toolbus` bruts restent dans les logs, la Room reçoit seulement un résumé ;
+- les checks de santé Room sont traités localement, sans failover LLM ;
+- pour relancer le HUB, utiliser `scripts/restart_athos_hub.sh` afin d'éviter les services fantômes.
 
 ---
 

@@ -236,11 +236,29 @@ Quand Claude et Codex travaillent ensemble sur ATHOS :
 
 | Service | Port | Vérifier | Démarrer si nécessaire |
 |---------|------|----------|------------------------|
-| ATHOS HUB | `7474` | `curl -s http://localhost:7474/api/status -X POST -H "Content-Type: application/json" -d '{}'` | `cd ~/Sites/athos && source venv/bin/activate && python voice/server.py` |
+| ATHOS HUB | `7474` | `curl -s http://localhost:7474/api/status -X POST -H "Content-Type: application/json" -d '{}'` | `bash ~/Sites/athos/scripts/restart_athos_hub.sh` |
 | agentmemory | `8765` | `curl -s http://localhost:8765/health` | `cd ~/Sites/athos && venv312/bin/python core/agentmemory_api.py` |
 | 9router | `20128` | `curl -s http://localhost:20128/health` | `bash ~/Sites/athos/scripts/start_9router.sh` |
 
 Ne pas démarrer un service pour le principe. Le démarrer seulement s'il est nécessaire à la tâche courante, et le rendre visible.
+
+### ATHOS Room — santé et coordination
+
+- Vérifier la santé récente sans déclencher de moteur :
+  ```bash
+  curl -s -X POST http://localhost:7474/api/conversation \
+    -H "Content-Type: application/json" \
+    -d '{"action":"health"}'
+  ```
+- Audit historique large si un vieux comportement suspect revient :
+  ```bash
+  curl -s -X POST http://localhost:7474/api/conversation \
+    -H "Content-Type: application/json" \
+    -d '{"action":"health","limit":500}'
+  ```
+- Une Room saine = une seule orchestration active par `task_id`, pas de replay auto-run, pas de dump terminal/toolbus brut.
+- Les checks “Room fonctionne / boucle / relance” doivent rester locaux via le kernel Room. Ne pas les envoyer aux LLMs externes.
+- Si `health` remonte `auto_work_loop` ou `toolbus_noise`, corriger le routeur Room avant de continuer le travail produit.
 
 ---
 
