@@ -62,6 +62,7 @@ memory/*.sqlite3
 memory/*-*-*-*-*/
 memory/.room_replayed_ids
 memory/athos_conversation.jsonl
+memory/athos_conv.mem
 memory/room_offline_*.jsonl
 memory/athos_session_kernel.jsonl
 .github/

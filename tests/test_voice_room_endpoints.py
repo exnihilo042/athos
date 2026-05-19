@@ -11,6 +11,7 @@ def _load_server(tmp_path, monkeypatch):
     monkeypatch.setenv("DRIVE_PATH", str(tmp_path))
     monkeypatch.setenv("ATHOS_BIND_HOST", "127.0.0.1")
     monkeypatch.setenv("ATHOS_ROOM_AUTO_RESPOND", "false")
+    monkeypatch.setenv("ATHOS_ROOM_AUTO_WORK", "false")
     monkeypatch.delenv("ATHOS_ACCESS_TOKEN", raising=False)
     monkeypatch.delenv("ATHOS_REQUIRE_TOKEN", raising=False)
     root = os.getcwd()
@@ -230,6 +231,123 @@ def test_message_endpoint_runs_bounded_coordination_round_when_requested(tmp_pat
             "coord claude",
             "coord codex",
         ]
+    finally:
+        srv.close()
+
+
+def test_message_endpoint_runs_coordinated_work_cycle_for_work_intent(tmp_path, monkeypatch):
+    module, srv = _server(tmp_path, monkeypatch)
+    responder_calls = []
+    engine_prompts = []
+
+    class ImmediateThread:
+        def __init__(self, target, args=(), kwargs=None, name=None, daemon=None):
+            self.target = target
+            self.args = args
+            self.kwargs = kwargs or {}
+            self._alive = False
+
+        def start(self):
+            self._alive = True
+            try:
+                self.target(*self.args, **self.kwargs)
+            finally:
+                self._alive = False
+
+        def join(self, timeout=None):
+            return None
+
+        def is_alive(self):
+            return self._alive
+
+    class FakeAthosEngine:
+        def __init__(self, mem, router, sse, permission_checker):
+            self.sse = sse
+
+        def respond(self, message):
+            engine_prompts.append(message)
+            self.sse({"thinking": {"kind": "routing", "text": "objectif transformé en action"}})
+            self.sse({"action": "fake_edit", "label": "tests", "result": "ok"})
+            return "travail concret terminé"
+
+    def fake_respond(message, task_id="", engines=None, timeout=45, force=False):
+        responder_calls.append({
+            "message": message,
+            "task_id": task_id,
+            "engines": engines,
+            "timeout": timeout,
+            "force": force,
+        })
+        actor = "claude" if len(responder_calls) == 1 else "codex"
+        module.athos_room.add(
+            actor=actor,
+            content="plan reçu" if len(responder_calls) == 1 else "review terminé",
+            msg_type="result",
+            task_id=task_id,
+            status="completed",
+            meta={"source": "test_responder"},
+        )
+        return {"ok": True, "results": []}
+
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_WORK", True)
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_WORK_TIMEOUT", 5)
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_WORK_REVIEW", True)
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_WORK_RESPONDER_TIMEOUT", 3)
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_RESPOND_ENGINES", ["claude", "codex"])
+    monkeypatch.setattr(module.threading, "Thread", ImmediateThread)
+    monkeypatch.setattr(module, "AthosEngine", FakeAthosEngine)
+    monkeypatch.setattr(module.room_responders, "respond", fake_respond)
+    monkeypatch.setattr(module, "extract_and_save_async", lambda *args, **kwargs: None)
+
+    try:
+        status, body = srv.post("/api/message", {
+            "actor": "clement",
+            "content": "finissez moi ce projet",
+            "task_id": "natural-work",
+        })
+        assert status == 200
+        assert body["auto_work"]["scheduled"] is True
+        assert body["auto_response"]["reason"] == "handled_by_auto_work"
+        assert len(responder_calls) == 2
+        assert responder_calls[0]["force"] is True
+        assert responder_calls[1]["force"] is True
+        assert "Phase PLAN" in responder_calls[0]["message"]
+        assert "Phase REVIEW" in responder_calls[1]["message"]
+        assert "orchestrateur opérationnel" in engine_prompts[0]
+
+        status, thread = srv.post("/api/conversation", {"action": "get", "task_id": "natural-work", "limit": 20})
+        assert status == 200
+        contents = [row["content"] for row in thread["thread"]]
+        assert "finissez moi ce projet" in contents
+        assert "orchestration ATHOS lancée depuis la Room" in contents
+        assert "routing: objectif transformé en action" in contents
+        assert "fake_edit: tests ok" in contents
+        assert "travail concret terminé" in contents
+        assert contents[-1].startswith("orchestration ATHOS terminée")
+    finally:
+        srv.close()
+
+
+def test_message_endpoint_does_not_auto_work_for_presence_check(tmp_path, monkeypatch):
+    module, srv = _server(tmp_path, monkeypatch)
+    called = {"engine": False}
+
+    class FakeAthosEngine:
+        def __init__(self, *args, **kwargs):
+            called["engine"] = True
+
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_WORK", True)
+    monkeypatch.setattr(module, "AthosEngine", FakeAthosEngine)
+
+    try:
+        status, body = srv.post("/api/message", {
+            "actor": "clement",
+            "content": "vous êtes là ?",
+            "task_id": "presence",
+        })
+        assert status == 200
+        assert body["auto_work"]["reason"] == "not_work_intent"
+        assert called["engine"] is False
     finally:
         srv.close()
 

@@ -42,6 +42,8 @@ STATIC       = Path(__file__).parent
 ACCESS_TOKEN = config.ATHOS_ACCESS_TOKEN
 _ROOM_AUTORESPOND_LOCK = threading.Lock()
 _ROOM_AUTORESPOND_ACTIVE: set[str] = set()
+_ROOM_AUTOWORK_LOCK = threading.Lock()
+_ROOM_AUTOWORK_ACTIVE: set[str] = set()
 
 # ── Singletons partagés ───────────────────────────────────────────────────────
 _mem    = AthosMemory()
@@ -63,6 +65,264 @@ def _room_message_wants_coordination(content: str) -> bool:
         "attaquer",
     )
     return any(cue in text for cue in cues)
+
+
+def _room_message_wants_work(content: str) -> bool:
+    text = str(content or "").lower()
+    if not text.strip():
+        return False
+    casual_only = (
+        "vous êtes là",
+        "vous etes là",
+        "on peut attaquer",
+        "test ",
+        "présent",
+        "status",
+    )
+    if any(cue in text for cue in casual_only):
+        return False
+    work_cues = (
+        "finis",
+        "finissez",
+        "termine",
+        "terminez",
+        "fais",
+        "faites",
+        "corrige",
+        "corriges",
+        "code",
+        "implémente",
+        "implemente",
+        "modifie",
+        "modifies",
+        "ajoute",
+        "ajoutes",
+        "supprime",
+        "supprimes",
+        "debug",
+        "teste",
+        "tests",
+        "mets à jour",
+        "met à jour",
+        "update",
+        "commit",
+        "push",
+        "travaille",
+        "travaillez",
+        "continue",
+        "continues",
+        "lance",
+        "relance",
+        "installe",
+        "installes",
+    )
+    return any(cue in text for cue in work_cues)
+
+
+def _task_thread_text(task_id: str, limit: int = 30) -> str:
+    rows = athos_room.get_thread(task_id=task_id, limit=limit)
+    if not rows:
+        return "[fil de tâche vide]"
+    lines = []
+    for row in rows:
+        actor = str(row.get("actor", "?")).upper()
+        msg_type = row.get("type", "message")
+        content = str(row.get("content", "")).strip()
+        status = row.get("status") or ""
+        tag = f"[{msg_type}{':' + status if status else ''}]"
+        lines.append(f"{actor}{tag}: {content[:1200]}")
+    return "\n".join(lines)
+
+
+def _schedule_room_athos_work(entry: dict) -> dict:
+    """Naturally route work-like Room messages into a coordinated work cycle.
+
+    Clément writes normally in Room. If it is work, ATHOS starts one visible
+    bounded orchestration: Claude/Codex plan, ATHOS executes through the engine,
+    Claude/Codex review. Permission prompts are never hidden in background mode.
+    """
+    if not getattr(config, "ATHOS_ROOM_AUTO_WORK", True):
+        return {"scheduled": False, "reason": "disabled"}
+    if entry.get("actor") != "clement" or entry.get("type") != "message":
+        return {"scheduled": False, "reason": "not_clement_message"}
+    meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
+    if meta.get("auto_work") is False or str(meta.get("auto_work", "")).lower() == "false":
+        return {"scheduled": False, "reason": "explicitly_disabled"}
+
+    content = entry.get("content", "")
+    if not _room_message_wants_work(content):
+        return {"scheduled": False, "reason": "not_work_intent"}
+
+    entry_id = entry.get("id") or ""
+    if not entry_id:
+        return {"scheduled": False, "reason": "missing_entry_id"}
+
+    with _ROOM_AUTOWORK_LOCK:
+        if entry_id in _ROOM_AUTOWORK_ACTIVE:
+            return {"scheduled": False, "reason": "already_running"}
+        _ROOM_AUTOWORK_ACTIVE.add(entry_id)
+
+    task_id = entry.get("task_id") or f"room-work-{entry_id}"
+    timeout = int(getattr(config, "ATHOS_ROOM_AUTO_WORK_TIMEOUT", 180))
+    responder_timeout = int(getattr(config, "ATHOS_ROOM_AUTO_WORK_RESPONDER_TIMEOUT", 60))
+
+    def room_sse(obj):
+        try:
+            if isinstance(obj, dict):
+                if obj.get("thinking"):
+                    thinking = obj.get("thinking") or {}
+                    athos_room.add(
+                        actor="athos",
+                        content=f"{thinking.get('kind', 'thinking')}: {thinking.get('text', '')}",
+                        msg_type="action",
+                        task_id=task_id,
+                        status="running",
+                        meta={"source": "room_auto_work", "event": "thinking"},
+                    )
+                elif obj.get("toolbus"):
+                    chunk = obj.get("chunk") or obj.get("text") or ""
+                    if chunk:
+                        athos_room.add(
+                            actor="athos",
+                            content=str(chunk)[:1200],
+                            msg_type="action",
+                            task_id=task_id,
+                            status="running",
+                            meta={"source": "room_auto_work", "event": "toolbus"},
+                        )
+                elif obj.get("action"):
+                    athos_room.add(
+                        actor="athos",
+                        content=f"{obj.get('action')}: {obj.get('label', '')} {obj.get('result', '')}".strip(),
+                        msg_type="action",
+                        task_id=task_id,
+                        status="running",
+                        meta={"source": "room_auto_work", "event": "action"},
+                    )
+                elif obj.get("permission_required"):
+                    athos_room.add(
+                        actor="athos",
+                        content=f"permission requise: {obj.get('tool')} {obj.get('inputs', {})}",
+                        msg_type="error",
+                        task_id=task_id,
+                        status="blocked",
+                        meta={"source": "room_auto_work", "event": "permission_required"},
+                    )
+            return True
+        except Exception:
+            return False
+
+    def permission_checker(tool_name: str, inputs: dict) -> bool:
+        room_sse({"permission_required": True, "tool": tool_name, "inputs": inputs})
+        return False
+
+    def worker():
+        try:
+            athos_room.add(
+                actor="athos",
+                content="orchestration ATHOS lancée depuis la Room",
+                msg_type="action",
+                task_id=task_id,
+                status="running",
+                meta={"source": "room_auto_work", "entry_id": entry_id},
+            )
+            print(f"[ATHOS Room work] start entry={entry_id} task={task_id}", flush=True)
+
+            plan_prompt = (
+                "Phase PLAN. Clément vient de donner un objectif dans ATHOS Room. "
+                "Claude et Codex doivent se coordonner brièvement: comprendre l'objectif, "
+                "indiquer les responsabilités, les risques, les fichiers/zones probables, "
+                "et le critère de résultat final. Ne modifiez aucun fichier dans cette phase.\n\n"
+                f"OBJECTIF:\n{content}"
+            )
+            room_responders.respond(
+                plan_prompt,
+                task_id=task_id,
+                engines=getattr(config, "ATHOS_ROOM_AUTO_RESPOND_ENGINES", ["claude", "codex"]),
+                timeout=responder_timeout,
+                force=True,
+            )
+
+            athos = AthosEngine(_mem, _router, room_sse, lambda: permission_checker)
+            reply_box: dict[str, str] = {}
+            action_prompt = (
+                "Tu es ATHOS, orchestrateur opérationnel. Tu dois transformer ce message Room "
+                "en travail concret jusqu'au résultat possible, pas en simple conversation.\n"
+                "Règles: agir dans le repo/projet pertinent, garder les actions visibles, "
+                "tester quand c'est du code, ne pas effectuer d'action risquée sans validation, "
+                "et conclure par état final ou blocage vérifiable.\n\n"
+                "CONTEXTE ROOM DE CETTE TÂCHE:\n"
+                f"{_task_thread_text(task_id)}\n\n"
+                f"OBJECTIF DE CLÉMENT:\n{content}"
+            )
+
+            def run_engine():
+                reply_box["reply"] = athos.respond(action_prompt)
+
+            t = threading.Thread(target=run_engine, name=f"athos-room-work-engine-{entry_id}", daemon=True)
+            t.start()
+            t.join(timeout=timeout)
+            if t.is_alive():
+                athos_room.add(
+                    actor="athos",
+                    content=f"travail ATHOS stoppé: timeout {timeout}s",
+                    msg_type="error",
+                    task_id=task_id,
+                    status="timeout",
+                    meta={"source": "room_auto_work", "entry_id": entry_id},
+                )
+                return
+            reply = (reply_box.get("reply") or "").strip()
+            if reply:
+                athos_room.add(
+                    actor="athos",
+                    content=reply,
+                    msg_type="result",
+                    task_id=task_id,
+                    status="completed",
+                    meta={"source": "room_auto_work", "entry_id": entry_id, "engine": _router.current},
+                )
+                extract_and_save_async(content, reply)
+            if getattr(config, "ATHOS_ROOM_AUTO_WORK_REVIEW", True):
+                review_prompt = (
+                    "Phase REVIEW. Relisez le fil de cette tâche. "
+                    "Dites chacun si l'objectif est terminé, incomplet ou bloqué. "
+                    "Si incomplet, listez uniquement les prochaines actions concrètes. "
+                    "Ne modifiez aucun fichier dans cette phase.\n\n"
+                    f"FIL DE TÂCHE:\n{_task_thread_text(task_id)}"
+                )
+                room_responders.respond(
+                    review_prompt,
+                    task_id=task_id,
+                    engines=getattr(config, "ATHOS_ROOM_AUTO_RESPOND_ENGINES", ["claude", "codex"]),
+                    timeout=responder_timeout,
+                    force=True,
+                )
+            athos_room.add(
+                actor="athos",
+                content="orchestration ATHOS terminée ou arrêtée proprement; voir les messages Claude/Codex/Athos ci-dessus.",
+                msg_type="checkpoint",
+                task_id=task_id,
+                status="completed",
+                meta={"source": "room_auto_work", "entry_id": entry_id},
+            )
+            print(f"[ATHOS Room work] done entry={entry_id} task={task_id}", flush=True)
+        except Exception as exc:
+            athos_room.add(
+                actor="athos",
+                content=f"travail ATHOS échoué: {exc}",
+                msg_type="error",
+                task_id=task_id,
+                status="failed",
+                meta={"source": "room_auto_work", "entry_id": entry_id},
+            )
+            print(f"[ATHOS Room work] error entry={entry_id}: {exc}", flush=True)
+        finally:
+            with _ROOM_AUTOWORK_LOCK:
+                _ROOM_AUTOWORK_ACTIVE.discard(entry_id)
+
+    threading.Thread(target=worker, name=f"athos-room-work-{entry_id}", daemon=True).start()
+    return {"scheduled": True, "entry_id": entry_id, "task_id": task_id}
 
 
 def _schedule_room_auto_response(entry: dict) -> dict:
@@ -767,8 +1027,18 @@ class Handler(BaseHTTPRequestHandler):
                 status=body.get("status"),
                 meta=body.get("meta"),
             )
-            auto_response = _schedule_room_auto_response(entry)
-            self._json({"ok": True, "entry": entry, "auto_response": auto_response}); return
+            auto_work = _schedule_room_athos_work(entry)
+            auto_response = (
+                {"scheduled": False, "reason": "handled_by_auto_work"}
+                if auto_work.get("scheduled")
+                else _schedule_room_auto_response(entry)
+            )
+            self._json({
+                "ok": True,
+                "entry": entry,
+                "auto_response": auto_response,
+                "auto_work": auto_work,
+            }); return
 
         if p == "/api/room/respond":
             body = self._body()

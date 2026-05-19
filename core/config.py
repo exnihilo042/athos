@@ -27,6 +27,10 @@ ATHOS_ROOM_AUTO_RESPOND_ENGINES = [
 ]
 ATHOS_ROOM_AUTO_RESPOND_TIMEOUT = int(os.getenv("ATHOS_ROOM_AUTO_RESPOND_TIMEOUT", "60"))
 ATHOS_ROOM_AUTO_COORDINATION_ROUNDS = int(os.getenv("ATHOS_ROOM_AUTO_COORDINATION_ROUNDS", "1"))
+ATHOS_ROOM_AUTO_WORK = os.getenv("ATHOS_ROOM_AUTO_WORK", "true").strip().lower() in {"1", "true", "yes", "on"}
+ATHOS_ROOM_AUTO_WORK_TIMEOUT = int(os.getenv("ATHOS_ROOM_AUTO_WORK_TIMEOUT", "180"))
+ATHOS_ROOM_AUTO_WORK_REVIEW = os.getenv("ATHOS_ROOM_AUTO_WORK_REVIEW", "true").strip().lower() in {"1", "true", "yes", "on"}
+ATHOS_ROOM_AUTO_WORK_RESPONDER_TIMEOUT = int(os.getenv("ATHOS_ROOM_AUTO_WORK_RESPONDER_TIMEOUT", "60"))
 FAILOVER_TEST_ENGINES = {
     item.strip()
     for item in os.getenv("ATHOS_FAILOVER_TEST_ENGINES", "").split(",")
@@ -82,6 +86,8 @@ def spend_policy() -> dict:
         "room_auto_respond": ATHOS_ROOM_AUTO_RESPOND,
         "room_auto_respond_engines": ATHOS_ROOM_AUTO_RESPOND_ENGINES,
         "room_auto_coordination_rounds": ATHOS_ROOM_AUTO_COORDINATION_ROUNDS,
+        "room_auto_work": ATHOS_ROOM_AUTO_WORK,
+        "room_auto_work_review": ATHOS_ROOM_AUTO_WORK_REVIEW,
     }
 
 
