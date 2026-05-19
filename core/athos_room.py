@@ -164,3 +164,92 @@ def summary() -> dict:
         "file":    str(_ROOM_FILE),
         "mirror":  str(_DRIVE_MIRROR) if _DRIVE_MIRROR.parent.exists() else "drive_offline",
     }
+
+
+def health(limit: int = 100) -> dict:
+    """Return a deterministic Room health report.
+
+    This is intentionally local and engine-free: it lets ATHOS diagnose the
+    Room without asking Claude/Codex and accidentally creating more messages.
+    """
+    thread = get_thread(limit=limit)
+    actors: dict[str, int] = {}
+    sources: dict[str, int] = {}
+    tasks: dict[str, dict] = {}
+    issues: list[dict] = []
+
+    for entry in thread:
+        actor = entry.get("actor", "?")
+        actors[actor] = actors.get(actor, 0) + 1
+        meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
+        source = meta.get("source") or "manual"
+        sources[source] = sources.get(source, 0) + 1
+        task_id = entry.get("task_id") or "_no_task"
+        task = tasks.setdefault(
+            task_id,
+            {
+                "messages": 0,
+                "actors": {},
+                "auto_work_starts": 0,
+                "auto_respond_starts": 0,
+                "toolbus_events": 0,
+                "errors": 0,
+                "completed": 0,
+                "last_ts": "",
+            },
+        )
+        task["messages"] += 1
+        task["actors"][actor] = task["actors"].get(actor, 0) + 1
+        task["last_ts"] = entry.get("ts") or task["last_ts"]
+        if entry.get("type") == "error":
+            task["errors"] += 1
+        if entry.get("status") == "completed" or entry.get("type") == "checkpoint":
+            task["completed"] += 1
+        if meta.get("source") == "room_auto_work" and "orchestration ATHOS lancée" in str(entry.get("content", "")):
+            task["auto_work_starts"] += 1
+        if meta.get("source") == "room_auto_respond" or "prépare une réponse Room" in str(entry.get("content", "")):
+            task["auto_respond_starts"] += 1
+        if meta.get("event") == "toolbus":
+            task["toolbus_events"] += 1
+
+    for task_id, task in tasks.items():
+        if task_id == "_no_task":
+            continue
+        if task["auto_work_starts"] > 1:
+            issues.append({
+                "severity": "error",
+                "task_id": task_id,
+                "kind": "auto_work_loop",
+                "detail": f"{task['auto_work_starts']} auto-work starts in one task",
+            })
+        if task["toolbus_events"] > 20:
+            issues.append({
+                "severity": "warning",
+                "task_id": task_id,
+                "kind": "toolbus_noise",
+                "detail": f"{task['toolbus_events']} raw toolbus events in Room",
+            })
+        if task["messages"] > 80 and task["completed"] == 0:
+            issues.append({
+                "severity": "warning",
+                "task_id": task_id,
+                "kind": "large_uncompleted_task",
+                "detail": f"{task['messages']} messages without checkpoint/completion",
+            })
+
+    recent_tasks = [
+        {"task_id": task_id, **task}
+        for task_id, task in tasks.items()
+        if task_id != "_no_task"
+    ][-20:]
+    ok = not any(issue["severity"] == "error" for issue in issues)
+    return {
+        "ok": ok,
+        "status": "healthy" if ok else "unhealthy",
+        "checked_messages": len(thread),
+        "actors": actors,
+        "sources": sources,
+        "issues": issues,
+        "recent_tasks": recent_tasks,
+        "summary": summary(),
+    }

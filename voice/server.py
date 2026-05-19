@@ -1077,6 +1077,8 @@ class Handler(BaseHTTPRequestHandler):
             if action == "context":
                 engine = body.get("engine", "athos")
                 self._json({"context": athos_room.get_context_for_engine(engine, limit=int(body.get("limit", 40)))}); return
+            if action == "health":
+                self._json(athos_room.health(limit=int(body.get("limit", 100)))); return
             thread = athos_room.get_thread(
                 limit=int(body.get("limit", 100)),
                 task_id=body.get("task_id"),

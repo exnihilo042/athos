@@ -62,6 +62,68 @@ def test_room_clear_before_file_exists_is_safe(tmp_path, monkeypatch):
     assert room._ROOM_FILE.exists()
 
 
+def test_room_health_detects_loops_and_toolbus_noise(tmp_path, monkeypatch):
+    room = _room(tmp_path, monkeypatch)
+    room.add("clement", "go", task_id="task-loop")
+    room.add(
+        "athos",
+        "orchestration ATHOS lancée depuis la Room",
+        msg_type="action",
+        task_id="task-loop",
+        status="running",
+        meta={"source": "room_auto_work"},
+    )
+    room.add(
+        "athos",
+        "orchestration ATHOS lancée depuis la Room",
+        msg_type="action",
+        task_id="task-loop",
+        status="running",
+        meta={"source": "room_auto_work"},
+    )
+    for index in range(21):
+        room.add(
+            "athos",
+            f"noise {index}",
+            msg_type="action",
+            task_id="task-loop",
+            status="running",
+            meta={"source": "room_auto_work", "event": "toolbus"},
+        )
+
+    report = room.health(limit=100)
+
+    assert report["ok"] is False
+    assert report["status"] == "unhealthy"
+    kinds = {issue["kind"] for issue in report["issues"]}
+    assert {"auto_work_loop", "toolbus_noise"} <= kinds
+    assert report["recent_tasks"][-1]["auto_work_starts"] == 2
+    assert report["recent_tasks"][-1]["toolbus_events"] == 21
+
+
+def test_room_health_accepts_single_completed_orchestration(tmp_path, monkeypatch):
+    room = _room(tmp_path, monkeypatch)
+    room.add("clement", "go", task_id="task-ok")
+    room.add(
+        "athos",
+        "orchestration ATHOS lancée depuis la Room",
+        msg_type="action",
+        task_id="task-ok",
+        status="running",
+        meta={"source": "room_auto_work"},
+    )
+    room.add("claude", "ok", msg_type="result", task_id="task-ok", status="completed", meta={"source": "room_responder"})
+    room.add("codex", "ok", msg_type="result", task_id="task-ok", status="completed", meta={"source": "room_responder"})
+    room.add("athos", "done", msg_type="checkpoint", task_id="task-ok", status="completed", meta={"source": "room_auto_work"})
+
+    report = room.health(limit=100)
+
+    assert report["ok"] is True
+    assert report["status"] == "healthy"
+    assert report["issues"] == []
+    assert report["recent_tasks"][-1]["completed"] == 3
+
+
 def test_athos_report_offline_fallback_writes_jsonl(tmp_path):
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
