@@ -19,6 +19,13 @@ SKILL_INSTALL_ENABLED = os.getenv("ATHOS_SKILL_INSTALL_ENABLED", "false").strip(
 AUTONOMOUS_LOOP_ENABLED = os.getenv("ATHOS_AUTONOMOUS_LOOP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 AUTONOMOUS_LOOP_DEFAULT_TICK = float(os.getenv("ATHOS_AUTONOMOUS_LOOP_DEFAULT_TICK", "30"))
 AUTONOMOUS_LOOP_MIN_TICK = float(os.getenv("ATHOS_AUTONOMOUS_LOOP_MIN_TICK", "5"))
+ATHOS_ROOM_AUTO_RESPOND = os.getenv("ATHOS_ROOM_AUTO_RESPOND", "true").strip().lower() in {"1", "true", "yes", "on"}
+ATHOS_ROOM_AUTO_RESPOND_ENGINES = [
+    item.strip()
+    for item in os.getenv("ATHOS_ROOM_AUTO_RESPOND_ENGINES", "claude,codex").split(",")
+    if item.strip()
+]
+ATHOS_ROOM_AUTO_RESPOND_TIMEOUT = int(os.getenv("ATHOS_ROOM_AUTO_RESPOND_TIMEOUT", "60"))
 FAILOVER_TEST_ENGINES = {
     item.strip()
     for item in os.getenv("ATHOS_FAILOVER_TEST_ENGINES", "").split(",")
@@ -71,6 +78,8 @@ def spend_policy() -> dict:
         "whisper_enabled": WHISPER_ENABLED and OPENAI_ENABLED and PAID_API_ENABLED,
         "skill_install_enabled": SKILL_INSTALL_ENABLED,
         "autonomous_loop_enabled": AUTONOMOUS_LOOP_ENABLED,
+        "room_auto_respond": ATHOS_ROOM_AUTO_RESPOND,
+        "room_auto_respond_engines": ATHOS_ROOM_AUTO_RESPOND_ENGINES,
     }
 
 

@@ -10,6 +10,7 @@ import urllib.request
 def _load_server(tmp_path, monkeypatch):
     monkeypatch.setenv("DRIVE_PATH", str(tmp_path))
     monkeypatch.setenv("ATHOS_BIND_HOST", "127.0.0.1")
+    monkeypatch.setenv("ATHOS_ROOM_AUTO_RESPOND", "false")
     monkeypatch.delenv("ATHOS_ACCESS_TOKEN", raising=False)
     monkeypatch.delenv("ATHOS_REQUIRE_TOKEN", raising=False)
     root = os.getcwd()
@@ -90,6 +91,79 @@ def test_message_and_conversation_endpoints_roundtrip(tmp_path, monkeypatch):
         status, body = srv.post("/api/conversation", {"action": "context", "engine": "codex", "limit": 5})
         assert status == 200
         assert "CLEMENT: hello room" in body["context"]
+    finally:
+        srv.close()
+
+
+def test_message_endpoint_auto_triggers_room_responders(tmp_path, monkeypatch):
+    module, srv = _server(tmp_path, monkeypatch)
+    calls = []
+
+    class ImmediateThread:
+        def __init__(self, target, args=(), kwargs=None, name=None, daemon=None):
+            self.target = target
+            self.args = args
+            self.kwargs = kwargs or {}
+            self.name = name
+            self.daemon = daemon
+
+        def start(self):
+            self.target(*self.args, **self.kwargs)
+
+    def fake_respond(message, task_id="", engines=None, timeout=45):
+        calls.append({
+            "message": message,
+            "task_id": task_id,
+            "engines": engines,
+            "timeout": timeout,
+        })
+        module.athos_room.add(
+            actor="claude",
+            content="auto claude",
+            msg_type="result",
+            task_id=task_id,
+            status="completed",
+            meta={"source": "test"},
+        )
+        module.athos_room.add(
+            actor="codex",
+            content="auto codex",
+            msg_type="result",
+            task_id=task_id,
+            status="completed",
+            meta={"source": "test"},
+        )
+        return {"ok": True, "results": []}
+
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_RESPOND", True)
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_RESPOND_ENGINES", ["claude", "codex"])
+    monkeypatch.setattr(module.config, "ATHOS_ROOM_AUTO_RESPOND_TIMEOUT", 7)
+    monkeypatch.setattr(module.threading, "Thread", ImmediateThread)
+    monkeypatch.setattr(module.room_responders, "respond", fake_respond)
+
+    try:
+        status, body = srv.post("/api/message", {
+            "actor": "clement",
+            "content": "répondez sans relance",
+            "task_id": "auto-room",
+        })
+        assert status == 200
+        assert body["ok"] is True
+        assert body["auto_response"]["scheduled"] is True
+        assert calls == [{
+            "message": "répondez sans relance",
+            "task_id": "auto-room",
+            "engines": ["claude", "codex"],
+            "timeout": 7,
+        }]
+
+        status, thread = srv.post("/api/conversation", {"action": "get", "task_id": "auto-room", "limit": 5})
+        assert status == 200
+        assert [(row["actor"], row["content"]) for row in thread["thread"]] == [
+            ("clement", "répondez sans relance"),
+            ("claude", "auto claude"),
+            ("codex", "auto codex"),
+        ]
     finally:
         srv.close()
 

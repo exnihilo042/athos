@@ -1699,7 +1699,8 @@ async function sendRoomMessage() {
   try {
     await apiFetch('/api/message', {actor:'clement', content, type:'message', task_id:taskId});
     await refreshRoom();
-    await apiFetch('/api/room/respond', {message:content, task_id:taskId, engines:['claude','codex']});
+    document.getElementById('room-status').textContent = 'Réponses automatiques en cours...';
+    await new Promise(resolve => setTimeout(resolve, 1500));
     await refreshRoom();
   } catch(e) {
     document.getElementById('room-status').textContent = `erreur: ${e.message}`;

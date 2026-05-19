@@ -4,3 +4,4 @@
 §offline_memory:2026-05-19T10:26:22+02:00|engine:codex|category:athos|summary:claude_long_lived_token_file_support_outside_repo_permission_guard_tests_168_passed
 §offline_memory:2026-05-19T10:39:00+02:00|engine:codex|category:athos|summary:claude_room_token_file_installed_from_keychain+token_file_overrides_exhausted_api_key+room_http_claude_codex_ok+tests_169_passed
 §offline_memory:2026-05-19T10:48:00+02:00|engine:codex|category:athos|summary:write_isolation_incident_fixed+client_projects_scanned_clean+absolute_path_rule_added_to_attach_prompt_and_integration
+§offline_memory:2026-05-19T11:01:00+02:00|engine:codex|category:athos|summary:room_auto_respond_enabled_on_clement_messages+ui_no_manual_room_respond_call+real_http_test_claude_codex_auto_ok+tests_170_passed

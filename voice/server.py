@@ -40,10 +40,64 @@ from named_protocols import run_protocol
 
 STATIC       = Path(__file__).parent
 ACCESS_TOKEN = config.ATHOS_ACCESS_TOKEN
+_ROOM_AUTORESPOND_LOCK = threading.Lock()
+_ROOM_AUTORESPOND_ACTIVE: set[str] = set()
 
 # ── Singletons partagés ───────────────────────────────────────────────────────
 _mem    = AthosMemory()
 _router = AthosRouter(_mem)
+
+
+def _schedule_room_auto_response(entry: dict) -> dict:
+    """Trigger Claude/Codex for new Clément Room messages.
+
+    The work runs inside the existing ATHOS HUB process and prints lifecycle
+    lines to the visible launchd log. It is bounded by responder timeouts and
+    guarded by entry-id dedupe, so a refresh/replay cannot fan out replies.
+    """
+    if not getattr(config, "ATHOS_ROOM_AUTO_RESPOND", True):
+        return {"scheduled": False, "reason": "disabled"}
+    if entry.get("actor") != "clement" or entry.get("type") != "message":
+        return {"scheduled": False, "reason": "not_clement_message"}
+    meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
+    if meta.get("auto_respond") is False or str(meta.get("auto_respond", "")).lower() == "false":
+        return {"scheduled": False, "reason": "explicitly_disabled"}
+
+    entry_id = entry.get("id") or ""
+    if not entry_id:
+        return {"scheduled": False, "reason": "missing_entry_id"}
+
+    with _ROOM_AUTORESPOND_LOCK:
+        if entry_id in _ROOM_AUTORESPOND_ACTIVE:
+            return {"scheduled": False, "reason": "already_running"}
+        _ROOM_AUTORESPOND_ACTIVE.add(entry_id)
+
+    engines = list(getattr(config, "ATHOS_ROOM_AUTO_RESPOND_ENGINES", ["claude", "codex"]) or ["claude", "codex"])
+    timeout = int(getattr(config, "ATHOS_ROOM_AUTO_RESPOND_TIMEOUT", 60))
+    task_id = entry.get("task_id") or f"room-auto-{entry_id}"
+    content = entry.get("content", "")
+
+    def worker():
+        try:
+            print(f"[ATHOS Room auto] start entry={entry_id} task={task_id} engines={','.join(engines)}", flush=True)
+            room_responders.respond(content, task_id=task_id, engines=engines, timeout=timeout)
+            print(f"[ATHOS Room auto] done entry={entry_id} task={task_id}", flush=True)
+        except Exception as exc:
+            athos_room.add(
+                actor="athos",
+                content=f"room auto respond failed: {exc}",
+                msg_type="error",
+                task_id=task_id,
+                status="failed",
+                meta={"source": "room_auto_respond", "entry_id": entry_id},
+            )
+            print(f"[ATHOS Room auto] error entry={entry_id}: {exc}", flush=True)
+        finally:
+            with _ROOM_AUTORESPOND_LOCK:
+                _ROOM_AUTORESPOND_ACTIVE.discard(entry_id)
+
+    threading.Thread(target=worker, name=f"athos-room-auto-{entry_id}", daemon=True).start()
+    return {"scheduled": True, "entry_id": entry_id, "task_id": task_id, "engines": engines}
 
 
 def _make_loop_llm():
@@ -398,13 +452,14 @@ class Handler(BaseHTTPRequestHandler):
             msg = body.get("message", "")
             task_id = body.get("task_id") or ""
             if msg:
-                athos_room.add(
+                entry = athos_room.add(
                     actor="clement",
                     content=msg,
                     msg_type="message",
                     task_id=task_id,
                     meta={"source": "main_prompt"},
                 )
+                _schedule_room_auto_response(entry)
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control",  "no-cache")
@@ -671,7 +726,8 @@ class Handler(BaseHTTPRequestHandler):
                 status=body.get("status"),
                 meta=body.get("meta"),
             )
-            self._json({"ok": True, "entry": entry}); return
+            auto_response = _schedule_room_auto_response(entry)
+            self._json({"ok": True, "entry": entry, "auto_response": auto_response}); return
 
         if p == "/api/room/respond":
             body = self._body()
