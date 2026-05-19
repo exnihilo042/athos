@@ -945,30 +945,255 @@
     display: flex; flex-direction: column; gap: 4px;
   }
   .room-msg {
-    padding: 5px 8px;
-    border-radius: 5px;
-    font-size: 11px; line-height: 1.45;
+    padding: 8px 11px 9px 11px;
+    border-radius: 8px;
+    font-size: 12px; line-height: 1.55;
     border-left: 2px solid transparent;
     color: #d9e7f5;
+    background: rgba(255,255,255,0.012);
+    position: relative;
   }
-  .room-msg.clement  { border-color: #f8f8f2; background: rgba(248,248,242,0.04); }
-  .room-msg.athos    { border-color: #50fa7b; background: rgba(80,250,123,0.04); }
-  .room-msg.claude   { border-color: #9b6bff; background: rgba(155,107,255,0.05); }
-  .room-msg.codex    { border-color: #00d4ff; background: rgba(0,212,255,0.05); }
+  .room-msg.clement  { border-color: #f8f8f2; background: rgba(248,248,242,0.045); }
+  .room-msg.athos    { border-color: #50fa7b; background: rgba(80,250,123,0.045); }
+  .room-msg.claude   { border-color: #9b6bff; background: rgba(155,107,255,0.06); }
+  .room-msg.codex    { border-color: #00d4ff; background: rgba(0,212,255,0.06); }
+
+  .room-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 5px;
+  }
   .room-actor {
-    font-size: 9px; font-weight: 600; letter-spacing: .1em;
-    text-transform: uppercase; margin-bottom: 2px;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .room-actor::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor; flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
   }
   .room-actor.clement { color: #f8f8f2; }
   .room-actor.athos   { color: #50fa7b; }
   .room-actor.claude  { color: #9b6bff; }
   .room-actor.codex   { color: #00d4ff; }
-  .room-type-tag {
-    font-size: 8px; color: #7b8baa; margin-left: 6px;
-    text-transform: uppercase; letter-spacing: .08em;
+
+  /* Type badges — Claude Code style */
+  .room-type-badge {
+    font-size: 8.5px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px;
+    border: 1px solid currentColor;
+    line-height: 1.3;
+    display: inline-flex; align-items: center; gap: 4px;
+    opacity: 0.88;
   }
-  .room-files { font-size: 9px; color: #7890aa; margin-top: 2px; }
-  .room-ts { font-size: 8px; color: #6d7b92; float: right; }
+  .room-type-badge.action      { color: #ffc857; border-color: rgba(255,200,87,0.4); background: rgba(255,200,87,0.06); }
+  .room-type-badge.result      { color: #50fa7b; border-color: rgba(80,250,123,0.4); background: rgba(80,250,123,0.06); }
+  .room-type-badge.error       { color: #ff6b6b; border-color: rgba(255,107,107,0.45); background: rgba(255,107,107,0.08); }
+  .room-type-badge.decision    { color: #d796ff; border-color: rgba(215,150,255,0.4); background: rgba(215,150,255,0.06); }
+  .room-type-badge.checkpoint  { color: #00d4ff; border-color: rgba(0,212,255,0.4); background: rgba(0,212,255,0.06); }
+  .room-type-badge.message     { display: none; }
+
+  .room-ts {
+    font-size: 9px; color: #6d7b92;
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Body content : markdown rendered */
+  .room-body {
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .room-body.md-room p { margin: 0 0 6px 0; }
+  .room-body.md-room p:last-child { margin-bottom: 0; }
+  .room-body.md-room ul, .room-body.md-room ol { margin: 4px 0 6px 0; padding-left: 20px; }
+  .room-body.md-room li { margin-bottom: 2px; }
+  .room-body.md-room h1, .room-body.md-room h2, .room-body.md-room h3 {
+    font-size: 12px; color: #fff; margin: 8px 0 4px 0;
+    letter-spacing: .04em; font-weight: 600;
+  }
+  .room-body.md-room strong { color: #fff; font-weight: 600; }
+  .room-body.md-room em { color: #b0b0cc; }
+  .room-body.md-room code:not(pre code) {
+    background: rgba(155,107,255,0.10);
+    border: 1px solid rgba(155,107,255,0.20);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: #d796ff;
+  }
+  .room-body.md-room pre {
+    background: #0a0a14 !important;
+    border: 1px solid rgba(155,107,255,0.18);
+    border-radius: 6px;
+    margin: 6px 0;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .room-body.md-room pre code {
+    background: transparent !important; padding: 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    color: #d9e7f5;
+  }
+  .room-body.md-room blockquote {
+    border-left: 2px solid rgba(155,107,255,0.4);
+    margin: 6px 0; padding-left: 10px;
+    color: #b0b0cc; font-style: italic;
+  }
+  .room-body.md-room a { color: #00d4ff; text-decoration: none; border-bottom: 1px dotted rgba(0,212,255,0.35); }
+  .room-body.md-room a:hover { color: #fff; border-bottom-color: #fff; }
+
+  /* Thinking blocks — dépliable */
+  .room-thinking {
+    margin: 6px 0;
+    background: rgba(155,107,255,0.04);
+    border: 1px solid rgba(155,107,255,0.18);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .room-thinking__toggle {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: #9b6bff;
+    transition: background 180ms ease;
+  }
+  .room-thinking__toggle:hover { background: rgba(155,107,255,0.08); }
+  .room-thinking__toggle::before {
+    content: '▶'; font-size: 9px;
+    transition: transform 200ms ease;
+  }
+  .room-thinking.open .room-thinking__toggle::before { transform: rotate(90deg); }
+  .room-thinking__body {
+    display: none;
+    padding: 6px 10px 8px 10px;
+    border-top: 1px solid rgba(155,107,255,0.18);
+    font-size: 11.5px;
+    color: #b0b0cc;
+    line-height: 1.55;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .room-thinking.open .room-thinking__body { display: block; }
+
+  /* Tool call cards (Bash, Read, Edit, Write, Grep, etc.) */
+  .room-tool {
+    margin: 6px 0;
+    border: 1px solid rgba(0,212,255,0.20);
+    border-radius: 6px;
+    background: rgba(0,212,255,0.04);
+    overflow: hidden;
+  }
+  .room-tool__head {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 10px 5px 9px;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: #00d4ff;
+    background: rgba(0,212,255,0.06);
+    border-bottom: 1px solid rgba(0,212,255,0.18);
+  }
+  .room-tool__name { color: #fff; font-weight: 700; }
+  .room-tool__icon {
+    width: 11px; height: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #00d4ff;
+  }
+  .room-tool__body {
+    padding: 6px 10px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: #d9e7f5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  /* Files list */
+  .room-files {
+    display: flex; flex-wrap: wrap; gap: 5px;
+    margin-top: 7px;
+  }
+  .room-file {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px;
+    padding: 2px 7px;
+    background: rgba(155,107,255,0.08);
+    border: 1px solid rgba(155,107,255,0.20);
+    border-radius: 999px;
+    color: #d796ff;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  .room-file::before { content: '📎'; font-size: 9px; opacity: 0.7; }
+
+  /* Status pill (running / completed / failed) */
+  .room-status {
+    font-size: 8.5px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  .room-status.running   { color: #ffc857; border-color: rgba(255,200,87,0.4); background: rgba(255,200,87,0.06); animation: room-pulse 1.4s ease-in-out infinite; }
+  .room-status.completed { color: #50fa7b; border-color: rgba(80,250,123,0.4); background: rgba(80,250,123,0.06); }
+  .room-status.failed    { color: #ff6b6b; border-color: rgba(255,107,107,0.4); background: rgba(255,107,107,0.06); }
+  @keyframes room-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .room-status.running { animation: none !important; }
+    .room-thinking__toggle::before { transition: none !important; }
+  }
+
+  /* Meta block (dépliable JSON) */
+  .room-meta {
+    margin-top: 6px;
+    font-size: 9.5px;
+    color: #6d7b92;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  .room-meta__toggle {
+    cursor: pointer;
+    color: #6d7b92;
+    border: none; background: none;
+    padding: 0; font-size: 9.5px;
+    text-transform: uppercase; letter-spacing: .06em;
+    font-family: inherit;
+  }
+  .room-meta__toggle:hover { color: #00d4ff; }
+  .room-meta__body {
+    display: none;
+    margin-top: 4px;
+    padding: 6px 8px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: #b0b0cc;
+    font-size: 9.5px;
+    line-height: 1.5;
+  }
+  .room-meta.open .room-meta__body { display: block; }
+
+  /* Diff blocks (Edit-like, vert/rouge) */
+  .room-body.md-room pre code.language-diff .hljs-addition,
+  .room-body.md-room pre code.language-diff .hljs-deletion {
+    display: inline-block; width: 100%;
+  }
+  .room-body.md-room pre code.language-diff .hljs-addition { background: rgba(80,250,123,0.10); color: #50fa7b; }
+  .room-body.md-room pre code.language-diff .hljs-deletion { background: rgba(255,107,107,0.10); color: #ff6b6b; }
   #room-input-bar {
     display: flex; gap: 6px; padding: 8px 10px;
     border-top: 1px solid #0a1a2e; flex-shrink: 0;
@@ -1656,6 +1881,88 @@ function toggleRoom() {
   }
 }
 
+// ── Rich Room rendering (Claude Code-style) ──────────────────────────────────
+
+// Extract <thinking>…</thinking> blocks (and synonyms) into separate parts.
+function _extractThinking(text) {
+  const thoughts = [];
+  let rest = String(text || '');
+  // <thinking>…</thinking> and ```thinking … ``` and antml-style
+  const patterns = [
+    /<thinking>([\s\S]*?)<\/thinking>/gi,
+    /<function_calls>[\s\S]*?<\/antml:function_calls>/gi,  // strip xml tool calls noise
+    /```thinking\s*([\s\S]*?)```/gi,
+    /\[THINKING\]([\s\S]*?)\[\/THINKING\]/gi,
+  ];
+  for (const p of patterns) {
+    rest = rest.replace(p, (m, body) => {
+      if (body && body.trim()) thoughts.push(body.trim());
+      return '';
+    });
+  }
+  return { thoughts, body: rest.trim() };
+}
+
+// Extract tool-call markers e.g. "[Bash] command" / "[Read] /path" lines.
+function _extractToolCalls(text) {
+  const tools = [];
+  const TOOL_RE = /^\[(Bash|Read|Edit|Write|Grep|Glob|Task|TodoWrite|WebFetch|WebSearch)\]\s*(.+?)(?:\n|$)/gm;
+  let m;
+  const stripped = String(text || '');
+  let rest = stripped;
+  while ((m = TOOL_RE.exec(stripped)) !== null) {
+    tools.push({ name: m[1], detail: m[2].trim() });
+  }
+  rest = stripped.replace(TOOL_RE, '');
+  return { tools, body: rest.trim() };
+}
+
+const TOOL_ICONS = {
+  Bash:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
+  Read:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+  Edit:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  Write:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  Grep:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+  Glob:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 8 12 18 2 8"/></svg>',
+  Task:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  TodoWrite:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  WebFetch:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg>',
+  WebSearch:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+};
+
+function _renderRoomBody(content) {
+  const { thoughts, body: noThinking } = _extractThinking(content);
+  const { tools, body: noTools } = _extractToolCalls(noThinking);
+  const parts = [];
+
+  // Thinking blocks first (collapsed by default)
+  for (let i = 0; i < thoughts.length; i++) {
+    const t = thoughts[i];
+    parts.push(`
+      <div class="room-thinking">
+        <div class="room-thinking__toggle" onclick="this.parentNode.classList.toggle('open')">Raisonnement</div>
+        <div class="room-thinking__body">${escHtml(t)}</div>
+      </div>`);
+  }
+  // Tool call cards
+  for (const t of tools) {
+    const icon = TOOL_ICONS[t.name] || TOOL_ICONS.Bash;
+    parts.push(`
+      <div class="room-tool">
+        <div class="room-tool__head">
+          <span class="room-tool__icon">${icon}</span>
+          <span class="room-tool__name">${escHtml(t.name)}</span>
+        </div>
+        <div class="room-tool__body">${escHtml(t.detail)}</div>
+      </div>`);
+  }
+  // Main content as markdown
+  if (noTools) {
+    parts.push(`<div class="room-body md-room" data-md="1"></div>`);
+  }
+  return { html: parts.join(''), markdown: noTools };
+}
+
 async function refreshRoom() {
   try {
     const r = await apiFetch('/api/conversation', {action:'get', limit:80});
@@ -1665,17 +1972,52 @@ async function refreshRoom() {
     if (!thread.length) {
       el.innerHTML = '<div style="color:#1a2a3a;font-size:11px;padding:8px">Fil vide — aucun message.</div>';
     } else {
-      el.innerHTML = thread.map(e => {
-        const actor  = (e.actor||'athos').toLowerCase();
-        const color  = ACTOR_COLORS[actor] || '#888';
-        const mtype  = e.type !== 'message' ? `<span class="room-type-tag">${escHtml(e.type)}</span>` : '';
-        const ts     = (e.ts||'').slice(11,19);
-        const files  = (e.files||[]).length ? `<div class="room-files">📄 ${escHtml(e.files.join(', '))}</div>` : '';
-        return `<div class="room-msg ${actor}">
-          <div class="room-actor ${actor}">${actor.toUpperCase()}${mtype}<span class="room-ts">${ts}</span></div>
-          <div>${escHtml(e.content||'')}</div>${files}
-        </div>`;
-      }).join('');
+      // Build DOM via fragments so we can post-process markdown / meta interactions
+      const frag = document.createDocumentFragment();
+      for (const e of thread) {
+        const actor = (e.actor || 'athos').toLowerCase();
+        const type  = (e.type || 'message').toLowerCase();
+        const status = (e.status || '').toLowerCase();
+        const ts    = (e.ts || '').slice(11, 19);
+        const meta  = e.meta && typeof e.meta === 'object' && Object.keys(e.meta).length ? e.meta : null;
+
+        const wrap = document.createElement('div');
+        wrap.className = `room-msg ${actor}`;
+
+        const typeBadge = type !== 'message'
+          ? `<span class="room-type-badge ${type}">${escHtml(type)}</span>` : '';
+        const statusBadge = (status && type !== 'message')
+          ? `<span class="room-status ${status}">${escHtml(status)}</span>` : '';
+        const header = `
+          <div class="room-header">
+            <span class="room-actor ${actor}">${escHtml(actor)}</span>
+            ${typeBadge}${statusBadge}
+            <span class="room-ts">${ts}</span>
+          </div>`;
+
+        const { html: bodyHtml, markdown } = _renderRoomBody(e.content || '');
+
+        const files = (e.files || []).length
+          ? `<div class="room-files">${(e.files || []).map(f => `<span class="room-file">${escHtml(String(f))}</span>`).join('')}</div>`
+          : '';
+
+        const metaBlock = meta
+          ? `<div class="room-meta">
+               <button class="room-meta__toggle" onclick="this.parentNode.classList.toggle('open')">▸ meta</button>
+               <pre class="room-meta__body">${escHtml(JSON.stringify(meta, null, 2))}</pre>
+             </div>`
+          : '';
+
+        wrap.innerHTML = header + bodyHtml + files + metaBlock;
+        // Render markdown inside body if present
+        if (markdown) {
+          const bodyEl = wrap.querySelector('.room-body.md-room[data-md="1"]');
+          if (bodyEl) renderMarkdown(bodyEl, markdown);
+        }
+        frag.appendChild(wrap);
+      }
+      el.innerHTML = '';
+      el.appendChild(frag);
       el.scrollTop = el.scrollHeight;
     }
     const total = summary.total || 0;

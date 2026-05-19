@@ -89,3 +89,4 @@
 §proj:athos|diag:claude_room_credit_low=ROOT_CAUSE_keychain_acl_apple-tool_blocks_node_claude+security_cli_only_decrypt
 §proj:athos|fix:room_responders_oauth_token_extraction=resolve_via_security_cli_pass_as_ANTHROPIC_API_KEY+venv_OK+launchd_hub_KO_pending_infra
 §proj:athos|fix:agency_hub_plist=SessionCreate_true+LimitLoadToSessionType_Aqua+HOME+USER_added
+§proj:athos|done:room_ui_rich_rendering=markdown_marked+hljs+thinking_collapsible+tool_call_cards+type_badges+status_pills+meta_fold+files_cards
