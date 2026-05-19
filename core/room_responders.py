@@ -5,6 +5,7 @@ import json
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import time
 from typing import Iterable
@@ -26,6 +27,32 @@ CLAUDE_CANDIDATES = [
 KEYCHAIN_SERVICE = "Claude Code-credentials"
 _KEYCHAIN_CACHE: dict[str, tuple[float, str]] = {}
 _KEYCHAIN_CACHE_TTL = 60  # seconds
+DEFAULT_CLAUDE_TOKEN_FILE = Path.home() / ".athos" / "claude_token"
+
+
+def _read_claude_token_file() -> str | None:
+    """Read a long-lived Claude token from a local protected file.
+
+    This file is intentionally outside the repo and Drive. It should be created
+    by `claude setup-token` or an operator-controlled setup script and must not
+    be group/world readable.
+    """
+    raw_path = os.getenv("ATHOS_CLAUDE_TOKEN_FILE", str(DEFAULT_CLAUDE_TOKEN_FILE)).strip()
+    if not raw_path:
+        return None
+    path = Path(raw_path).expanduser()
+    if not path.exists():
+        return None
+    try:
+        mode = path.stat().st_mode
+        if mode & (stat.S_IRWXG | stat.S_IRWXO):
+            raise RuntimeError(f"Claude token file permissions too open: {path}")
+        token = path.read_text("utf-8").strip()
+    except RuntimeError:
+        raise
+    except Exception:
+        return None
+    return token or None
 
 
 def _resolve_claude_oauth_token() -> str | None:
@@ -90,6 +117,10 @@ def _run_claude(prompt: str, timeout: int) -> str:
     if not claude:
         raise RuntimeError("claude CLI introuvable")
     env = os.environ.copy()
+    if not env.get("ANTHROPIC_API_KEY"):
+        file_token = _read_claude_token_file()
+        if file_token:
+            env["ANTHROPIC_API_KEY"] = file_token
     # Pre-resolve the OAuth token from Keychain so claude doesn't have to.
     # Required when the hub runs under launchd: in a LaunchAgent context the
     # `claude` CLI cannot read the Keychain item directly (its ACL restricts
@@ -111,7 +142,8 @@ def _run_claude(prompt: str, timeout: int) -> str:
         env=env,
     )
     if result.returncode != 0:
-        raise RuntimeError((result.stderr or result.stdout or "claude failed").strip()[:500])
+        error = (result.stderr or result.stdout or "claude failed").strip()[:500]
+        raise RuntimeError(error)
     return result.stdout.strip()
 
 
