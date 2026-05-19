@@ -97,6 +97,14 @@ def test_message_and_conversation_endpoints_roundtrip(tmp_path, monkeypatch):
         assert status == 200
         assert body["status"] == "healthy"
         assert body["checked_messages"] == 1
+
+        status, body = srv.post("/api/conversation", {"action": "runtime"})
+        assert status == 200
+        assert body["ok"] is True
+        assert body["auto_response"]["enabled"] is False
+        assert body["auto_response"]["active_count"] == 0
+        assert body["auto_work"]["enabled"] is False
+        assert body["auto_work"]["active_count"] == 0
     finally:
         srv.close()
 

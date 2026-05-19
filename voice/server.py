@@ -46,6 +46,33 @@ _ROOM_AUTOWORK_LOCK = threading.Lock()
 _ROOM_AUTOWORK_ACTIVE: set[str] = set()
 _ROOM_AUTOWORK_CURRENT: dict[str, str] = {}
 
+
+def _room_runtime_state() -> dict:
+    with _ROOM_AUTORESPOND_LOCK:
+        autorespond_active = sorted(_ROOM_AUTORESPOND_ACTIVE)
+    with _ROOM_AUTOWORK_LOCK:
+        autowork_active = sorted(_ROOM_AUTOWORK_ACTIVE)
+        current_work = dict(_ROOM_AUTOWORK_CURRENT)
+    return {
+        "auto_response": {
+            "enabled": bool(getattr(config, "ATHOS_ROOM_AUTO_RESPOND", True)),
+            "active_count": len(autorespond_active),
+            "active_entries": autorespond_active,
+            "engines": list(getattr(config, "ATHOS_ROOM_AUTO_RESPOND_ENGINES", ["claude", "codex"])),
+            "timeout": int(getattr(config, "ATHOS_ROOM_AUTO_RESPOND_TIMEOUT", 60)),
+            "coordination_rounds": int(getattr(config, "ATHOS_ROOM_AUTO_COORDINATION_ROUNDS", 0)),
+        },
+        "auto_work": {
+            "enabled": bool(getattr(config, "ATHOS_ROOM_AUTO_WORK", True)),
+            "active_count": len(autowork_active),
+            "active_entries": autowork_active,
+            "current": current_work,
+            "timeout": int(getattr(config, "ATHOS_ROOM_AUTO_WORK_TIMEOUT", 180)),
+            "review_enabled": bool(getattr(config, "ATHOS_ROOM_AUTO_WORK_REVIEW", True)),
+        },
+    }
+
+
 # ── Singletons partagés ───────────────────────────────────────────────────────
 _mem    = AthosMemory()
 _router = AthosRouter(_mem)
@@ -1079,6 +1106,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"context": athos_room.get_context_for_engine(engine, limit=int(body.get("limit", 40)))}); return
             if action == "health":
                 self._json(athos_room.health(limit=int(body.get("limit", 100)))); return
+            if action == "runtime":
+                self._json({"ok": True, **_room_runtime_state()}); return
             thread = athos_room.get_thread(
                 limit=int(body.get("limit", 100)),
                 task_id=body.get("task_id"),

@@ -1971,8 +1971,11 @@ function _renderRoomBody(content) {
 
 async function refreshRoom() {
   try {
-    const r = await apiFetch('/api/conversation', {action:'get', limit:80});
-    const health = await apiFetch('/api/conversation', {action:'health', limit:100});
+    const [r, health, runtime] = await Promise.all([
+      apiFetch('/api/conversation', {action:'get', limit:80}),
+      apiFetch('/api/conversation', {action:'health', limit:100}),
+      apiFetch('/api/conversation', {action:'runtime'})
+    ]);
     const thread = r.thread || [];
     const summary = r.summary || {};
     const el = document.getElementById('room-thread');
@@ -2032,10 +2035,15 @@ async function refreshRoom() {
     const statusEl = document.getElementById('room-status');
     const issueCount = (health.issues || []).length;
     const healthClass = health.ok && !issueCount ? 'healthy' : (health.ok ? 'warning' : 'unhealthy');
+    const work = runtime.auto_work || {};
+    const responders = runtime.auto_response || {};
+    const runtimeText = work.active_count
+      ? `travail:${work.current?.task_id || work.active_count}`
+      : (responders.active_count ? `réponses:${responders.active_count}` : 'idle');
     statusEl.className = healthClass;
     statusEl.textContent = total
-      ? `santé:${health.status || 'unknown'} · issues:${issueCount} · ${total} messages · ${actors}`
-      : `santé:${health.status || 'unknown'} · fil vide`;
+      ? `santé:${health.status || 'unknown'} · ${runtimeText} · issues:${issueCount} · ${total} messages · ${actors}`
+      : `santé:${health.status || 'unknown'} · ${runtimeText} · fil vide`;
   } catch(e) {
     const statusEl = document.getElementById('room-status');
     statusEl.className = 'unhealthy';
