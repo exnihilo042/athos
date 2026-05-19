@@ -135,6 +135,12 @@ bun run src/cli.ts import ~/Sites/athos/memory/
 
 ## ATHOS Room — garde-fous runtime
 
+Check opérateur canonique :
+
+```bash
+bash ~/Sites/athos/scripts/check_athos_room.sh
+```
+
 Avant de diagnostiquer “la Room boucle / ne répond pas / relance”, utiliser le check local :
 
 ```bash
@@ -156,6 +162,7 @@ Règles :
 - un message Clément ne doit déclencher qu'une seule orchestration active ;
 - les événements `toolbus` bruts restent dans les logs, la Room reçoit seulement un résumé ;
 - les checks de santé Room sont traités localement, sans failover LLM ;
+- le runtime Room doit rendre visibles `auto_work`, `auto_response`, responders disponibles, cooldowns et derniers blocages ;
 - pour relancer le HUB, utiliser `scripts/restart_athos_hub.sh` afin d'éviter les services fantômes.
 
 ---

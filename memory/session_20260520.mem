@@ -20,3 +20,5 @@
 §proj:athos|fix:room_responder_status_french_usage_limit=codex_limit_detected_after_restart|tests:191_passed
 
 §proj:athos|done:operator_room_check_script=scripts/check_athos_room.sh|tests:191_passed|live:room_healthy_responders_blocked_claude_invalid_codex_usage_limit
+
+§proj:athos|docs:room_operator_check_documented=ATHOS_ATTACH_PROMPT+ATHOS_INTEGRATION|tests:191_passed

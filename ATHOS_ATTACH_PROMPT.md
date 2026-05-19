@@ -244,6 +244,10 @@ Ne pas démarrer un service pour le principe. Le démarrer seulement s'il est n�
 
 ### ATHOS Room — santé et coordination
 
+- Check opérateur canonique (gère automatiquement `ATHOS_ACCESS_TOKEN` depuis `.env`) :
+  ```bash
+  bash ~/Sites/athos/scripts/check_athos_room.sh
+  ```
 - Vérifier la santé récente sans déclencher de moteur :
   ```bash
   curl -s -X POST http://localhost:7474/api/conversation \
@@ -257,6 +261,7 @@ Ne pas démarrer un service pour le principe. Le démarrer seulement s'il est n�
     -d '{"action":"health","limit":500}'
   ```
 - Une Room saine = une seule orchestration active par `task_id`, pas de replay auto-run, pas de dump terminal/toolbus brut.
+- Le runtime Room doit exposer clairement `auto_work`, `auto_response`, `claude`, `codex`, leurs cooldowns et derniers blocages.
 - Les checks “Room fonctionne / boucle / relance” doivent rester locaux via le kernel Room. Ne pas les envoyer aux LLMs externes.
 - Si `health` remonte `auto_work_loop` ou `toolbus_noise`, corriger le routeur Room avant de continuer le travail produit.
 
