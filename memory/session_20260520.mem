@@ -1,2 +1,3 @@
 §offline_memory:2026-05-20T00:19:08+02:00|engine:codex|category:athos|summary:room_health_endpoint_added+detects_auto_work_loop_and_toolbus_noise+default_recent_health_healthy+full_audit_500_keeps_historical_incident+tests_185_passed
 §offline_memory:2026-05-20T00:21:34+02:00|engine:codex|category:athos|summary:room_ui_health_status_added+panel_shows_recent_health_issue_count_messages_actors+tests_185_passed
+§offline_memory:2026-05-20T00:24:30+02:00|engine:codex|category:athos|summary:restart_athos_hub_script_added+bootout_stray_listener_bootstrap_kickstart_print_pid_port_logs+tests_185_passed
