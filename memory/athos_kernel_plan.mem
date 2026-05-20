@@ -25,3 +25,5 @@
 §kernel:roadmap|P0_done[ThreadingMixIn_server=ok,SSE_/api/events=ok,dashboard_scaffold=ok]
 §kernel:roadmap|P1_next[module_hub,module_room_migré,module_agents_graph,module_automations]
 §kernel:roadmap|defer[Finances,Commandes,CRM=pas_de_core_module_ni_data_source]
+§kernel:codex_runtime_2026-05-20|done[task_queue_legal_transitions,stale_running_to_blocked,api_report_daily_dashboard_payload,SSE_status_seed_test,codex_session_note_helper,api_autonomous_loop_alias]
+§kernel:codex_runtime_2026-05-20|responders:claude_available+codex_usage_limit_blocked|tests:201_passed|scope:runtime_only_no_dashboard_touch

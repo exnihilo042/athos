@@ -102,3 +102,5 @@
 §proj:athos|done:dashboard_v4=Paramètres[/api/settings_spend+security+env]+Projets[/api/projects_parse_§proj_mem]+nav_unwired_soon_badges+tests_194_passed
 §proj:athos|todo:codex_responder=usage_limit_wait_reset
 §proj:athos|todo:session_writer_e2e=requires_Codex_CLI_to_call_/api/memory/note
+§proj:athos|done:codex_runtime_2026-05-20=task_queue_state_machine+stale_sweep+daily_report_payload+SSE_seed_test+codex_session_note_helper+loop_alias|tests:201_passed
+§proj:athos|diag:codex_responder_live=blocked_usage_limit|claude_responder:available|room:healthy
