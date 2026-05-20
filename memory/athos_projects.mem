@@ -1,9 +1,9 @@
-§v:0.7|updated:2026-05-20|src:claude-sonnet-4-6|note:dashboard_v5_livré+PCC_frontend_démarré
+§v:0.5|updated:2026-05-18|src:claude-sonnet-4-6|note:sync_manuel_codex_ne_met_pas_a_jour
 
 §proj:athos|status:building|priority:0
 §proj:athos|identity:ATHOS_canonical|legacy:JARVIS=supprimé_runtime
 §proj:athos|sources[github:exnihilo042/athos@main,local:~/Sites/athos,drive:Mon_Drive/CLAUDE_AI/memory]
-§proj:athos|head:43a0ac1|tests:194_passed|server:port_7474|github:synced|last_audit:2026-05-20
+§proj:athos|head:a9a11b9|tests:203_passed|server:port_7474|github:synced_local_push_pending|last_audit:2026-05-20
 
 §proj:athos|arch:2026-05-18|pattern:un_module_une_responsabilite
 §proj:athos|arch:core/athos_memory.py=historique+contexte_Drive+echanges+budget+alertes
@@ -104,18 +104,8 @@
 §proj:athos|todo:session_writer_e2e=requires_Codex_CLI_to_call_/api/memory/note
 §proj:athos|done:codex_runtime_2026-05-20=task_queue_state_machine+stale_sweep+daily_report_payload+SSE_seed_test+codex_session_note_helper+loop_alias|tests:201_passed
 §proj:athos|diag:codex_responder_live=blocked_usage_limit|claude_responder:available|room:healthy
-§proj:athos|done:dashboard_v5=PageHeader_uniforme+InsetNotice+gitignore_dashboard_lib_fix+agents_refacto+projects_KPI+finances_restructurée+SEO_actions_IA|build:19routes_0TS_errors|tests:201_passed|commit:5ee16d9
-§proj:athos|done:dashboard_v5_scope=agents+alerts+commandes+finances+hub+projects+roadmap+seo+settings|design_system:InsetNotice_ajouté
-§proj:athos|VISION_GRAVÉE=ERP_IA_futuriste+OS_supervision_intelligent+centre_commande_multi_IA+cockpit_multi_projets+orchestrateur_agents+JARVIS_personnel_professionnel
-§proj:athos|VISION_GRAVÉE|fondation=dashboard_actuel|BUT=Project_Control_Center→Integrations_Registry→Social_Registry→Room_collaborative→Proactivité→JARVIS
-§proj:athos|PCC_priority=P2|status:frontend_prototype_en_cours|backend:Codex_scope_dès_dispo
-§proj:athos|PCC_modules[liste_projets_ERP,détail_projet,wizard_création_7étapes,integration_registry,social_registry,project_agents,goals_KPIs]
-§proj:athos|JARVIS_piliers_manquants[PCC,integration_registry,social_registry,Room_collaborative,orchestrateur_consensus,moteur_proactivité,memory_graph,voice_layer,edge_agents,alertes_prédictives,actions_réelles_outils,mode_mission_control,mode_war_room,orb_ATHOS_CORE,gouvernance_permissions,système_prédictif]
-§proj:athos|cloisonnement=Claude:dashboard+produit+docs+roadmap+design_system|Codex:runtime+backend+core+responders+workers+task_queue+session_writer
-§proj:athos|session_courante_pilote=création_complète_ATHOS|cette_conv_grave_vision+roadmap+mémoire+PCC_frontend
-§proj:athos|done:dashboard_v7=Room_War_Room_enrichie+Skill_Registry_documenté|build:21routes_0TS_errors|tests:201+_passed|commit:pending
-§proj:athos|done:dashboard_v7_scope=RoomClient_rewrite[search_filters_sidebar_war_room_actor_roster_project_context]+ActorStatusPill+BlockerCallout_UI+page_1400px+Promise.allSettled
-§proj:athos|done:skill_registry=documenté_ATHOS_SPEC_section7+ATHOS_GLOBAL_ROADMAP_P3+FRONTEND_HANDOFF_section11|scope:P3_futur
-§proj:athos|done:api_contracts_v1.0=Room_backend_futur[/api/conversation_enrichi+/api/conversation/search+/api/conversation/actors+/api/conversation/tag+project_id_sur_messages]
-§proj:athos|done:frontend_handoff_v1.2=Room_backend_scope[frontend_vs_backend_matrix+skill_registry_note]
-§proj:athos|todo:Room_backend=Codex_P1[fil_par_projet,historique_paginé,recherche_serveur,filtres_backend]|status:documenté_prêt_pour_Codex
+§proj:athos|done:codex_runtime_dashboard_v4_backend=conversation_health_enriched+daily_report_summary+autonomous_loop_pause_reset+performance_endpoint+crm_partial_endpoint+tasks_http_error_codes
+§proj:athos|tests:203_passed|scope:runtime_backend_only|worktree:ai/codex-backend-v2
+§proj:athos|done:dashboard_v8=Skills_module[skill-registry.ts_47skills_11cats+/dashboard/skills+SkillsClient+SkillCategoryBadge+SkillMaturityBadge+RecommendationEngine+AgentSkillMatrix+Hub+Agents+Automations_intégrés+SKILL_REGISTRY_SPEC.md+docs_5mis_à_jour]
+§proj:athos|done:dashboard_v8_scope=DashboardShell_Skills_nav+Hub_ModuleCard+ProductRow+Agents_link+Automations_link+ui_index_2_badges+build_22routes_0TS
+§proj:athos|todo:dashboard_v8_build=build_22routes_0TS_required+run_tests_201+commit_Jerykko

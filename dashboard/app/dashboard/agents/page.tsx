@@ -1,5 +1,6 @@
 import { athosPost } from "@/lib/athos";
 import { StatCard, SectionLabel, PageHeader, EngineBadge, Badge } from "@/components/ui";
+import Link from "next/link";
 
 interface GraphNode {
   id: string;
@@ -203,6 +204,37 @@ export default async function AgentsPage() {
           </div>
         </div>
       ))}
+
+      {/* ── Skills catalogue link ── */}
+      <div style={{ marginTop: 8, marginBottom: 24 }}>
+        <SectionLabel>Skills opérationnels</SectionLabel>
+        <Link href="/dashboard/skills" style={{ textDecoration: "none" }}>
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderLeft: "3px solid var(--accent)",
+              borderRadius: 8,
+              padding: "14px 18px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              cursor: "pointer",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>
+                ⬡ Skills & Capacités — Catalogue ATHOS
+              </div>
+              <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                47 skills documentés · 11 catégories · matrice agents × skills · moteur de recommandation
+              </div>
+            </div>
+            <Badge label="VOIR →" variant="accent" />
+          </div>
+        </Link>
+      </div>
     </div>
   );
 }

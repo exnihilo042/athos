@@ -73,6 +73,8 @@ voice/*_alert.json
 skills/
 # Mais core/skills/ est versionné (manifest, architects)
 !core/skills/
+# dashboard/app/dashboard/skills/ est une page Next.js — pas un repo git skill
+!dashboard/app/dashboard/skills/
 
 # dashboard/lib/ est du code frontend TypeScript — PAS Python
 # lib/ ci-dessus cible les virtualenvs Python uniquement

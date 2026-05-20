@@ -743,3 +743,64 @@ export function ProjectSection({
     </div>
   );
 }
+
+// ── SkillCategoryBadge ────────────────────────────────────────────────────────
+
+import type { SkillCategory, SkillMaturity } from "@/lib/skill-registry";
+import { SKILL_CATEGORIES } from "@/lib/skill-registry";
+
+export function SkillCategoryBadge({ category }: { category: SkillCategory }) {
+  const meta = SKILL_CATEGORIES[category];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 8px",
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 500,
+        background: `color-mix(in srgb, ${meta.color} 12%, transparent)`,
+        color: meta.color,
+        border: `1px solid color-mix(in srgb, ${meta.color} 25%, transparent)`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span style={{ fontSize: 10 }}>{meta.icon}</span>
+      {meta.label}
+    </span>
+  );
+}
+
+// ── SkillMaturityBadge ────────────────────────────────────────────────────────
+
+const MATURITY_STYLE: Record<SkillMaturity, { label: string; color: string }> = {
+  available_now:            { label: "Disponible",   color: "var(--green)" },
+  strategic:                { label: "Stratégique",  color: "var(--accent-2, #c084fc)" },
+  future_athos_integration: { label: "Futur ATHOS", color: "var(--blue)" },
+};
+
+export function SkillMaturityBadge({ maturity }: { maturity: SkillMaturity }) {
+  const { label, color } = MATURITY_STYLE[maturity];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 8px",
+        borderRadius: 20,
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        background: `color-mix(in srgb, ${color} 14%, transparent)`,
+        color,
+        border: `1px solid color-mix(in srgb, ${color} 28%, transparent)`,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}

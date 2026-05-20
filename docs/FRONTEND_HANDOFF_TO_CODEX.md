@@ -1,6 +1,6 @@
 # ATHOS Dashboard — Frontend Handoff to Codex
 
-**Version** : 1.2 | **Date** : 2026-05-20
+**Version** : 1.1 | **Date** : 2026-05-20
 **Auteur** : Claude (dashboard scope)
 **Destinataire** : Codex (runtime/backend scope)
 
@@ -268,117 +268,7 @@ Supprimer l'`InsetNotice` et le `MockBanner` associés dès que l'endpoint est o
 
 ---
 
-## 9. Project Control Center — Backend à prévoir (PRIORITÉ P2)
-
-> Spécification complète : `docs/PROJECT_CONTROL_CENTER_SPEC.md`
-> Contrats API détaillés : `docs/API_CONTRACTS.md` (section PCC)
-
-### Pages frontend existantes (prototype mockées)
-
-| Page | Route | Données actuelles | Backend requis |
-|------|-------|-------------------|----------------|
-| Liste projets enrichie | /dashboard/projects | /api/projects (§-format, existant) | Enrichissement : health_score, integrations_count, alerts_count |
-| Wizard création projet | /dashboard/projects/new | Local state uniquement (prototype) | POST /api/projects/create |
-| Détail projet | /dashboard/projects/[id] | Mock statique (rouge-pivoine, placerr) | POST /api/projects/detail |
-
-### Endpoints à créer
-
-1. **POST /api/projects/detail** — fiche projet complète (integrations, channels, agents, goals, tasks)
-2. **POST /api/projects/create** — persister un projet depuis le wizard (§-format dans .mem ou SQLite)
-3. **POST /api/projects/update** — modifier statut, priorité, champs d'un projet
-4. **POST /api/projects/agents** — agents IA dédiés par projet
-5. **POST /api/projects/goals** — objectifs et KPIs calculés
-
-### Enrichissement /api/projects existant
-
-La route `/api/projects` existe et parse athos_projects.mem.
-Ajouter dans la réponse :
-- `health_score` (0-1) — composite basé sur integrations + alerts + blockers
-- `integrations_count` + `integrations_ok` — depuis fiche projet
-- `alerts_count` — alertes actives
-- `next_action` — prochaine action extraite du §-format `next:`
-
-### Ce qui est prototype frontend et restera prototype jusqu'au backend
-
-- Données de détail projet (integrations, channels, agents, goals) : **mockées**
-- Création projet via wizard : **local state seulement, aucun POST**
-- Score santé projet : **mockée**
-
-### Ce qui est déjà réel
-
-- Liste projets depuis athos_projects.mem : **RÉEL**
-- KPI counts (actifs/bloqués/en attente/terminés) : **RÉEL**
-- Liens vers fiche détail : **fonctionnels pour rouge-pivoine et placerr**
-
----
-
-## 10. Room multi-IA — Backend à prévoir (PRIORITÉ P1)
-
-> Frontend Room v7 livré et fonctionnel. Les fonctionnalités suivantes nécessitent un backend Codex.
-> Contrats API détaillés : `docs/API_CONTRACTS.md` (section "Room multi-IA Enrichie — Backend futur")
-
-### Ce qui est 100% frontend (ne nécessite PAS de backend)
-
-| Fonctionnalité | Implémentation |
-|----------------|----------------|
-| Recherche full-text | `filterText` sur les 60 messages locaux via `useMemo` |
-| Filtres acteurs | Pills toggleables, `Set<string>`, `useMemo` |
-| Filtres types | Pills toggleables, `Set<string>`, `useMemo` |
-| War Room mode visuel | `warRoomMode` state, CSS box-shadow + border |
-| Sidebar collapsible | `showSidebar` state, 254px drawer |
-| Roster acteurs (statut local) | Calculé depuis timestamps du thread local |
-| Contexte projet (sélecteur) | Local state, données hardcodées — prototype |
-| Rendu message spécialisé | Par type : checkpoint/error/report/summary/message |
-| Pagination notice (>60) | Notice jaune si `total > thread.length` |
-
-### Ce qui nécessite un backend Codex
-
-| Fonctionnalité | Endpoint requis | Priorité |
-|----------------|-----------------|----------|
-| Fil par projet (`project_id`) | `POST /api/conversation` avec `project_id` | P1 |
-| Historique paginé (>60 msgs) | `POST /api/conversation` avec `offset` | P1 |
-| Recherche sur historique complet | `POST /api/conversation/search` | P1 |
-| Filtres acteur/type backend | `POST /api/conversation` avec `actor`, `type` | P1 |
-| Statut acteur réel (décompte total) | `POST /api/conversation/actors` | P2 |
-| Tags manuels sur messages | `POST /api/conversation/tag` | P2 |
-
-### Modification /api/message requise
-
-Pour lier les messages à un projet, enrichir le body :
-
-```json
-{ "actor": "clement", "content": "...", "type": "message", "project_id": "rouge-pivoine" }
-```
-
-Le frontend `ProjectContextCard` envoie déjà ce champ quand un projet est sélectionné. Le backend doit le persister dans le kernel JSONL.
-
-### Interface TypeScript Room déjà en place
-
-`RoomEntry` dans `dashboard/lib/types.ts` est prêt pour les champs enrichis :
-- `project_id?: string` — à utiliser quand le backend persiste ce champ
-- `tags?: string[]` — à utiliser quand `/api/conversation/tag` est implémenté
-
----
-
-## 11. Skill Registry — Note backend (P3)
-
-> Spécification complète : `docs/ATHOS_SPEC.md` section 7
-
-Le Skill Registry est un futur sous-système (P3 — après PCC). Il ne nécessite pas d'endpoint backend immédiat.
-
-Quand le développement commence, les endpoints requis seront :
-
-```
-POST /api/skills/list     → catalogue avec statut installé/obsolète + stats usage
-POST /api/skills/suggest  → recommandation contextuelle basée sur projet actif + contexte Room
-POST /api/skills/stats    → agrégat depuis ~/.gstack/analytics/skill-usage.jsonl
-```
-
-La page dashboard `/dashboard/skills` (scope Claude P3) sera construite dès que ces endpoints existent.
-
----
-
-## 12. Commande de vérification build
+## 9. Commande de vérification build
 
 Après chaque implémentation Codex, vérifier que le dashboard compile :
 
@@ -386,4 +276,30 @@ Après chaque implémentation Codex, vérifier que le dashboard compile :
 cd ~/Sites/athos/dashboard && npx next build
 ```
 
-Résultat attendu : 21+ routes (incluant PCC), 0 erreur TypeScript.
+Résultat attendu : 22+ routes, 0 erreur TypeScript.
+
+---
+
+## 11. Skills & Capacités — Statique, scope P3
+
+**Page** : `/dashboard/skills` — données 100% statiques depuis `dashboard/lib/skill-registry.ts`
+
+### Ce que Claude a fait (dashboard v8, scope Claude uniquement)
+- `dashboard/lib/skill-registry.ts` : types, 47 skills, SKILL_CATEGORIES, ATHO_AGENTS, SKILL_WORKFLOWS, SKILL_STATS
+- `dashboard/app/dashboard/skills/page.tsx` : server component, passe props à SkillsClient
+- `dashboard/components/SkillsClient.tsx` : filtres multi-critères, cards expand/collapse, RecommendationEngine, AgentSkillMatrix
+- `dashboard/components/ui/index.tsx` : `SkillCategoryBadge`, `SkillMaturityBadge` exportés
+- Navigation, Hub ModuleCard/ProductRow, Agents lien, Automations lien — tous intégrés
+
+### Ce que Codex devra faire en P3 (pas avant)
+
+```
+POST /api/skills/registry    → liste enrichie avec last_used, call_count, installed: boolean
+POST /api/skills/recommend   → recommandation contextuelle {context, phase, agent}
+POST /api/skills/execute     → déclenche un skill depuis ATHOS HUB
+POST /api/skills/log         → historique d'usage skill
+```
+
+**Voir** : `docs/SKILL_REGISTRY_SPEC.md` section 6 et `docs/API_CONTRACTS.md` section "Skills Registry API".
+
+**Important** : ne pas toucher `skill-registry.ts` ni `SkillsClient.tsx` tant que les endpoints P3 ne sont pas implémentés. Le frontend consommera les endpoints et remplacera les données statiques à ce moment-là.

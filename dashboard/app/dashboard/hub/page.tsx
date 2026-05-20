@@ -381,6 +381,7 @@ export default async function HubPage() {
           <ModuleCard href="/dashboard/finances"   icon="◻" label="Finances"         stat="budget réel + CA mock"       badge="yellow" />
           <ModuleCard href="/dashboard/seo"        icon="◲" label="SEO Analytics"    stat="MOCK · 5 actions IA P0-P2"   badge="muted" />
           <ModuleCard href="/dashboard/commandes"  icon="◼" label="Commandes"        stat="pipeline agence — MOCK"       badge="muted" />
+          <ModuleCard href="/dashboard/skills"     icon="⬡" label="Skills & Capacités" stat="47 skills — catalogue local" badge="green" />
           <ModuleCard href="/dashboard/alerts"     icon="⚠" label="Alertes"
             stat={failoverCount > 0 ? `${failoverCount} failover(s)` : "système propre"}
             statColor={failoverCount > 0 ? "var(--yellow)" : "var(--green)"}
@@ -414,6 +415,7 @@ export default async function HubPage() {
           <ProductRow icon="◼" page="Commandes"            status="mock"   source="données MOCK" dep="Décision source (Clément)" />
           <ProductRow icon="◾" page="CRM / Clients"        status="mock"   source="données MOCK" dep="/api/crm (Codex)" />
           <ProductRow icon="◪" page="Roadmap"              status="static" source="données statiques 2026-05-20" dep="mise à jour manuelle" />
+          <ProductRow icon="⬡" page="Skills & Capacités"  status="static" source="skill-registry.ts (local)" dep="API Codex P3" />
         </div>
       </div>
 

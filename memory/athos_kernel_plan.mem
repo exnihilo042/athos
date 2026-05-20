@@ -1,4 +1,4 @@
-§v:0.3|updated:2026-05-20|src:claude-sonnet-4-6|note:vision_JARVIS_gravée+PCC_démarré
+§v:0.1|created:2026-05-20|src:claude-audit
 
 §kernel:server|file:voice/server.py|port:7474|pid_last_known:92008|managed_by:launchd_agency.athos.hub
 §kernel:server|type:ThreadingHTTPServer(ThreadingMixIn+HTTPServer)|daemon_threads=True|concurrent_requests=ok
@@ -27,15 +27,8 @@
 §kernel:roadmap|defer[Finances,Commandes,CRM=pas_de_core_module_ni_data_source]
 §kernel:codex_runtime_2026-05-20|done[task_queue_legal_transitions,stale_running_to_blocked,api_report_daily_dashboard_payload,SSE_status_seed_test,codex_session_note_helper,api_autonomous_loop_alias]
 §kernel:codex_runtime_2026-05-20|responders:claude_available+codex_usage_limit_blocked|tests:201_passed|scope:runtime_only_no_dashboard_touch
-§kernel:dashboard_v5_2026-05-20|done[PageHeader_uniforme,InsetNotice_composant,gitignore_dashboard_lib,agents_refacto,projects_KPI_grid,finances_type_safe,SEO_actions_IA,Hub_updated]|build:19routes_0TS|tests:201|commit:5ee16d9
-§kernel:product_vision|ATHOS=ERP_IA+OS_supervision+cockpit_multi_projets+orchestrateur_agents+JARVIS_local_first
-§kernel:product_vision|dashboard_actuel=FONDATION|but_final=JARVIS_omniprésent_multi_device_vocal_prédictif
-§kernel:product_roadmap|P0:stabilité_système[FAIT]+P1:pilotage_opérateur[en_cours]+P2:Project_Control_Center[démarré]+P3:intégrations_réelles[futur]+P4:autonomie_proactivité[futur]+P5:JARVIS_omniprésent[long_terme]
-§kernel:PCC_plan|P2|frontend_prototype:wizard_7étapes+détail_projet+liste_enrichie|backend_Codex:CRUD_projects+/api/projects_enrichi+integration_registry
-§kernel:PCC_plan|pages_créées[/dashboard/projects/new,/dashboard/projects/[projectId]]|composants_UI[IntegrationBadge,WizardStepHeader,SocialChannelPill,ProjectSection]
-§kernel:JARVIS_missing[Project_Control_Center,Integration_Registry,Social_Registry,Room_multi_IA_active,orchestrateur_consensus,proactivité_watchtower,memory_graph,voice_layer,edge_agents_mac_iphone_vps,alertes_prédictives,actions_write_shopify_github,mode_Mission_Control,mode_War_Room,orb_ATHOS_CORE,gouvernance_permissions_multiuser,système_prédictif]
-§kernel:Room_vision|ne_pas_oublier=Room_doit_être_war_room_IA|IA_débattent+répartissent_tâches+ATHOS_arbitre|Claude_planifie+Codex_exécute|décisions_visibles_pas_pensées_brutes|consensus_visible|exécution_visible|revue
-§kernel:cloisonnement|Claude:dashboard+app+components+lib+docs+roadmap+design_system+memory_produit|Codex:core+voice+scripts+responders+router+workers+task_queue+autonomous_loop+report+memory_manager+session_writer+SSE_backend
-§kernel:dashboard_v7_2026-05-20|done[Room_War_Room_enrichie,RoomClient_rewrite,ActorStatusPill,BlockerCallout,page_1400px,Skill_Registry_ATHOS_SPEC_s7,API_CONTRACTS_v1.0_room_backend,FRONTEND_HANDOFF_v1.2]|build:21routes_0TS|tests:201|commit:pending
-§kernel:next_claude=watchtower_frontend+knowledge_graph_UI+/dashboard/skills_page(P3)|Room_backend_API_contracts_prêts_pour_Codex
-§kernel:next_codex=Room_backend_P1[/api/conversation_paginé+project_id+search+actors_endpoint]+PCC_backend(/api/projects_CRUD)+performance_Lighthouse+CRM_real+Commandes_Shopify
+§kernel:codex_runtime_2026-05-20_v2|done[/api_conversation_health_enriched,/api_report_summary,/api_autonomous_loop_pause_reset,/api_performance_real_snapshot,/api_crm_partial_from_mem,/api_tasks_http_error_codes]
+§kernel:codex_runtime_2026-05-20_v2|tests:203_passed|frontend_contracts:dashboard_v4_ready_partial|remaining[finances,seo,commandes,codex_responder_quota]
+§kernel:dashboard_v8_2026-05-20|done[Skills_module_complet_47skills_11cats+SkillsClient_filters_cards_matrix+SkillCategoryBadge+SkillMaturityBadge+Hub_intégré+Agents_intégré+Automations_intégré+SKILL_REGISTRY_SPEC+docs_5_mis_à_jour+memory_updated]|build:22routes_0TS_cible|commit:pending
+§kernel:next_claude=build_verify_22routes+tests_201+commit_Jerykko|skills_P3_API_contracts_ready_for_Codex
+§kernel:next_codex=skills_P3[/api/skills/registry+/api/skills/recommend+/api/skills/execute+/api/skills/log]+Room_backend_P1+PCC_backend+performance_Lighthouse

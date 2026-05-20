@@ -1,6 +1,6 @@
 # ATHOS — Design System
 
-**Version** : 1.0 | **Date** : 2026-05-20
+**Version** : 0.8 | **Date** : 2026-05-20
 
 ---
 
@@ -194,60 +194,6 @@
 - Utiliser systématiquement pour signaler un endpoint backend non encore implémenté
 - `detail` optionnel — typiquement l'interface TypeScript + scope Codex
 
-### IntegrationBadge (PCC)
-```tsx
-<IntegrationBadge tool="Shopify" status="connected" ref="rouge-pivoine.myshopify.com" />
-```
-- `status` : `"connected"` (vert) | `"configured"` (bleu) | `"error"` (rouge) | `"not_configured"` (gris)
-- Affiche : dot de statut · nom de l'outil · référence monospace · label statut
-- Utiliser dans les fiches projet pour les intégrations Shopify, GitHub, GSC, Stripe, etc.
-
-### WizardStepHeader (PCC)
-```tsx
-<WizardStepHeader steps={["Identité", "Présence", "Outils", "Réseaux", "Objectifs", "Agents", "Récap"]} current={2} />
-```
-- Barre de progression visuelle avec étape active mise en évidence
-- Étapes passées en vert, étape active en accent, futures en gris
-- Affiche "Étape N sur M" sous la barre
-
-### SocialChannelPill (PCC)
-```tsx
-<SocialChannelPill platform="instagram" handle="rougepivoine" configured={true} />
-```
-- Pill avec couleur spécifique par plateforme (instagram:#e1306c, tiktok:#69c9d0, etc.)
-- Opacité réduite si `configured={false}`
-- Plateformes supportées : instagram, tiktok, linkedin, x, youtube, facebook, pinterest, newsletter
-
-### ProjectSection (PCC)
-```tsx
-<ProjectSection title="Outils connectés" icon="◱" action={<button>Configurer</button>}>
-  {children}
-</ProjectSection>
-```
-- Section wrapper avec titre uppercase + séparateur + slot action optionnel
-- Utiliser dans les fiches projet pour chaque groupe d'informations
-- `marginBottom: 20` par convention
-
-### ActorStatusPill (Room)
-```tsx
-<ActorStatusPill actor="claude" label="Claude" color="var(--accent)" lastTs="2026-05-20T18:45:00Z" />
-<ActorStatusPill actor="clement" label="Clément" color="var(--blue)" lastTs={undefined} compact />
-```
-- Pill d'acteur avec dot de statut calculé depuis `lastTs`
-- Statuts calculés : `actif` (< 5min, vert) · `récent` (< 1h, jaune) · `silencieux` (> 1h, border) · `absent` (jamais vu, border)
-- `compact` supprime le label de statut
-- Utiliser dans les panneaux de contexte Room, la sidebar acteurs
-
-### BlockerCallout (Room)
-```tsx
-<BlockerCallout message="TypeScript error: module not found" actor="claude" ts="2026-05-20T18:30:00Z" />
-<BlockerCallout message="Dépendance manquante" compact />
-```
-- Callout rouge structuré pour les erreurs et blocages
-- `compact` pour les listes ou les contextes denses
-- Fond rouge translucide + borderLeft 3px rouge
-- Utiliser dans la Room pour les messages `type: "error"`, dans les alertes de projet
-
 ---
 
 ## 5. Layout system
@@ -342,7 +288,7 @@ ATHOS utilise les caractères Unicode géométriques comme icônes. Pas d'emoji,
 | Page | Route | Données | Composants clés | Notes v5 |
 |------|-------|---------|----------------|----------|
 | Vue Centrale | /dashboard/hub | MIXTE | ModuleCard, ProductRow, StatCard | PageHeader, module cards mis à jour |
-| Room / War Room | /dashboard/room | RÉEL | RoomClient (client), SSE, WarRoomHeader, RoomFilterBar, SessionContextPanel, ActorRosterPanel, ProjectContextCard | v7 — recherche + filtres + sidebar + War Room mode + contexte projet |
+| Room | /dashboard/room | RÉEL | RoomClient (client), SSE | Stable — aucun changement v5 |
 | Agents IA | /dashboard/agents | RÉEL | StatCard, EngineBadge, SectionLabel | Refacto complet → composants UI |
 | Automations | /dashboard/automations | RÉEL | CodexPendingZone, Card, SectionLabel | Stable |
 | Rapports | /dashboard/reports | RÉEL | CodexPendingZone, DataRow | Stable |
@@ -355,8 +301,15 @@ ATHOS utilise les caractères Unicode géométriques comme icônes. Pas d'emoji,
 | CRM / Clients | /dashboard/crm | MOCK | ClientCard | Stable |
 | Roadmap | /dashboard/roadmap | STATIQUE | Card, PageHeader | PageHeader ajouté v5 |
 | Paramètres | /dashboard/settings | RÉEL | Card, Toggle, PageHeader, Badge | PageHeader RÉEL badge v5 |
-| PCC — Nouveau projet | /dashboard/projects/new | PROTOTYPE | WizardStepHeader, IntegrationBadge, SocialChannelPill | Wizard 7 étapes · backend à brancher |
-| PCC — Détail projet | /dashboard/projects/[id] | PROTOTYPE | ProjectSection, IntegrationBadge, SocialChannelPill | Fiche Rouge Pivoine + Placerr mockées |
+| Skills & Capacités | /dashboard/skills | STATIQUE | SkillsClient, SkillCategoryBadge, SkillMaturityBadge | v8 — catalogue 47 skills, filters, matrix |
+
+### Nouveaux composants v8
+
+| Composant | Fichier | Usage |
+|-----------|---------|-------|
+| `SkillCategoryBadge` | `components/ui/index.tsx` | Badge catégorie skill avec icône et couleur de catégorie |
+| `SkillMaturityBadge` | `components/ui/index.tsx` | Badge maturité skill (Disponible / Stratégique / Futur ATHOS) |
+| `SkillsClient` | `components/SkillsClient.tsx` | Catalogue complet Skills — filtres, cards, matrix, recommendation engine |
 
 ### Convention annotations source
 
@@ -365,18 +318,3 @@ Utiliser `<RealityBadge level="..." />` dans les titres de section ou en `<Secti
 Utiliser `<CodexPendingZone>` pour les fonctionnalités qui attendent une implémentation Codex.
 Utiliser `<MockBanner>` en haut de toute page ou section dont les données sont entièrement fictives.
 Utiliser `<InsetNotice>` pour signaler un endpoint backend non encore implémenté (Codex scope).
-
-### Pattern Room War Room — v7
-
-La Room utilise un layout en deux colonnes (thread + sidebar collapsible).
-
-**Hiérarchie de la page :**
-1. `WarRoomHeader` — SSE status · moteur actif · toggles War Room + sidebar + refresh
-2. `RoomFilterBar` — recherche texte · pills acteurs (toggle) · pills types (toggle) · compteur filtré
-3. Thread — messages avec rendu spécialisé selon type (checkpoint / error / report / message)
-4. Input — zone de saisie avec `placeholder` adapté au mode War Room
-5. Sidebar (collapsible, 254px) — `SessionContextPanel` + `ActorRosterPanel` + `ProjectContextCard`
-
-**War Room mode :** toggle visuel activant un glow violet sur le thread (`box-shadow` CSS), un badge `◉ ACTIF`, un `borderBottom` violet sur le header. Pas d'animation lourde — transition 0.3s uniquement.
-
-**Filtres :** 100% frontend sur le thread local. Si total > thread.length → notice jaune de pagination.

@@ -1,6 +1,6 @@
 # ATHOS — Contrats API
 
-**Version** : 1.0 | **Date** : 2026-05-20
+**Version** : 0.8 | **Date** : 2026-05-20
 **Base URL** : `http://localhost:7474`
 **Auth** : `Authorization: Bearer $ATHOS_ACCESS_TOKEN` (toutes les routes)
 
@@ -212,6 +212,27 @@ Réponse `list` :
 }
 ```
 
+Réponse mutation :
+```json
+{
+  "ok": true,
+  "task": {
+    "id": "uuid",
+    "task_id": "room-123",
+    "status": "paused",
+    "blocked_reason": "",
+    "retry_count": 1,
+    "started_at": "ISO8601",
+    "completed_at": ""
+  }
+}
+```
+
+Codes d'erreur runtime :
+- `404` : `{"ok": false, "error": "not_found"}`
+- `409` : `{"ok": false, "error": "illegal_transition", "from": "...", "to": "..."}`
+- `400` : `{"ok": false, "error": "unknown_action", "action": "..."}`
+
 Transitions runtime :
 - `queued → running|paused|blocked|cancelled`
 - `running → completed|blocked|paused|cancelled`
@@ -276,14 +297,23 @@ Réponse dashboard :
 {
   "ok": true,
   "type": "daily",
-  "date": "YYYY-MM-DD",
+  "date": "YYYY-MM-DDTHH:MM:SS+00:00",
   "brief": "Rapport daily ATHOS — ...",
   "sections": [
     { "title": "Session", "content": "...", "data": {} },
     { "title": "Task queue", "content": "...", "data": {} },
     { "title": "Responders", "content": "...", "data": {} },
     { "title": "Failover", "content": "...", "data": {} }
-  ]
+  ],
+  "summary": {
+    "total_sessions": 1,
+    "total_messages": 42,
+    "failovers": 0,
+    "actions": 6,
+    "tasks_total": 3,
+    "tasks_active": 1,
+    "tasks_blocked": 0
+  }
 }
 ```
 
@@ -294,10 +324,10 @@ Réponse dashboard :
 **Statut** : RÉEL — alias backend de `/api/loop`
 
 ```json
-{ "action": "status|start|stop|events" }
+{ "action": "status|start|stop|pause|reset|events" }
 ```
 
-`stop` est idempotent. `start` exige `allow_autonomous=true` ou `ATHOS_AUTONOMOUS_LOOP_ENABLED=true`.
+`stop` est idempotent. `pause` fige la boucle côté backend et coupe le thread courant. `reset` remet `iterations` et `idle_ticks` à zéro. `start` exige `allow_autonomous=true` ou `ATHOS_AUTONOMOUS_LOOP_ENABLED=true`.
 
 ---
 
@@ -313,6 +343,7 @@ Réponse :
 ```json
 {
   "running": false,
+  "paused": false,
   "iterations": 42,
   "idle_ticks": 3,
   "last_event": { "type": "tick", "ts": "ISO8601", "data": {} },
@@ -322,6 +353,79 @@ Réponse :
     "default_tick": 60,
     "skill_mutation_enabled": false
   }
+}
+```
+
+---
+
+## POST /api/performance
+
+**Statut** : RÉEL — snapshot runtime honnête, sans mock Lighthouse
+
+```json
+{}
+```
+
+Réponse :
+```json
+{
+  "ok": true,
+  "source": "local_runtime",
+  "system": {
+    "uptime_seconds": 12345,
+    "listening_ports": 10,
+    "memory_ok": true,
+    "attached_engines": 1,
+    "loop_running": false,
+    "server_pid": 8299
+  },
+  "api_latencies": [
+    { "endpoint": "/api/status", "p50": 45.1, "p95": 130.2, "ok": true }
+  ],
+  "lighthouse": [],
+  "capabilities": {
+    "system_metrics": true,
+    "latency_sampling": true,
+    "lighthouse_configured": false
+  }
+}
+```
+
+---
+
+## POST /api/crm
+
+**Statut** : RÉEL — extraction partielle depuis `athos_projects.mem`
+
+```json
+{}
+```
+
+Réponse :
+```json
+{
+  "ok": true,
+  "source": "athos_projects.mem",
+  "data_quality": "partial",
+  "clients": [
+    {
+      "id": "rouge-pivoine",
+      "name": "Rouge Pivoine",
+      "status": "active",
+      "attention": "normal|medium|high",
+      "project": "Shopify theme",
+      "monthly_value": null,
+      "next_action": "Livrer la V2",
+      "tags": ["shopify", "theme"],
+      "blocked": false,
+      "data_quality": "partial"
+    }
+  ],
+  "active": 1,
+  "urgent": 0,
+  "blocked": 0,
+  "pipeline_total": null,
+  "missing_sources": ["CRM dédié", "valeur mensuelle client", "historique relationnel structuré"]
 }
 ```
 
@@ -346,322 +450,76 @@ Réponse :
 
 ---
 
-## Routes non encore implémentées — Business (scope Codex)
+## Routes non encore implémentées (scope Codex)
 
 | Route | Description | Interface TypeScript | Priorité |
 |-------|-------------|----------------------|----------|
 | /api/finances | CA, commandes, marge | `FinancesSummary`, `ProjectRevenue` | P2 |
 | /api/seo | Positions, CWV, trafic | `SeoSite`, `SeoPosition` | P2 |
-| /api/performance | Lighthouse batch, latences | `PerformancePayload` | P1 |
-| /api/crm | Clients, leads, pipeline | `CrmPayload`, `CrmClient` | P2 |
+| /api/performance | livré en snapshot runtime local ; Lighthouse reste absent par choix honnête | `PerformancePayload` | branchable |
+| /api/crm | livré en extraction partielle depuis mémoire projet ; pipeline réel encore absent | `CrmPayload`, `CrmClient` | branchable partiel |
 | /api/commandes | Shopify orders | `CommandesPayload`, `Order` | P2 |
 
+---
+
+## Skills Registry API (scope Codex P3)
+
+Le catalogue de skills actuel est statique (`dashboard/lib/skill-registry.ts`).
+L'orchestration réelle viendra en P3. Contrats prévus :
+
+```typescript
+// GET /api/skills/registry
+interface SkillRegistryResponse {
+  skills: SkillRecord[];
+  total: number;
+  last_updated: string;
+}
+
+interface SkillRecord {
+  id: string;
+  name: string;
+  slash: string;
+  categories: string[];
+  maturity: "available_now" | "strategic" | "future_athos_integration";
+  athos_integration: boolean;
+  last_used?: string;       // ISO date
+  call_count?: number;
+  available: boolean;        // skill installé sur la machine
+}
+
+// POST /api/skills/recommend
+interface SkillRecommendRequest {
+  context: string;           // description tâche courante
+  phase?: string;            // lifecycle phase
+  agent?: string;            // athos agent actif
+}
+interface SkillRecommendResponse {
+  recommendations: { skill_id: string; score: number; reason: string }[];
+}
+
+// POST /api/skills/execute
+interface SkillExecuteRequest {
+  skill_id: string;
+  params?: Record<string, unknown>;
+  agent?: string;
+}
+interface SkillExecuteResponse {
+  status: "queued" | "running" | "done" | "error";
+  task_id: string;
+  message?: string;
+}
+
+// POST /api/skills/log
+interface SkillLogRequest {
+  skill_id: string;
+  result: "success" | "partial" | "error";
+  duration_ms: number;
+  agent?: string;
+  context?: string;
+}
+```
+
+**Prérequis P3** : Room multi-IA collaborative + orchestrateur consensus + moteur proactivité watchtower.
+**Source spec** : `docs/SKILL_REGISTRY_SPEC.md` section 6.
+
 Toutes les interfaces TypeScript sont définies dans `dashboard/lib/types.ts`.
-
----
-
-## Project Control Center — Routes à implémenter (PROPOSAL / À ARBITRER CODEX)
-
-> Ces routes sont **proposées par Claude** suite à la conception du PCC frontend.
-> Elles ne sont pas encore implémentées. Spécification complète : `docs/PROJECT_CONTROL_CENTER_SPEC.md`.
-
-### POST /api/projects (enrichi)
-
-**Statut** : PARTIEL (liste de base existante, enrichissement requis)
-
-```json
-// Body
-{ "include_details": true, "filter_status": "active", "filter_type": "shopify" }
-
-// Response enrichie attendue (au-delà du §-format actuel)
-{
-  "projects": [
-    {
-      "id": "rouge-pivoine",
-      "name": "Rouge Pivoine",
-      "type": "shopify",
-      "status": "active",
-      "priority": 5,
-      "integrations_count": 5,
-      "integrations_ok": 2,
-      "alerts_count": 2,
-      "health_score": 0.72,
-      "next_action": "Push thème draft sur GitHub"
-    }
-  ],
-  "total": 7,
-  "active": 4
-}
-```
-
-### POST /api/projects/detail
-
-**Statut** : NON IMPLÉMENTÉ — Frontend mockée
-
-```json
-// Body
-{ "id": "rouge-pivoine" }
-
-// Response
-{
-  "project": {
-    "id": "rouge-pivoine",
-    "name": "Rouge Pivoine",
-    "type": "shopify",
-    "status": "active",
-    "priority": 5,
-    "description": "...",
-    "domains": ["rouge-pivoine.fr"],
-    "repos": [{ "url": "https://github.com/exnihilo042/rouge-pivoine-theme", "branch": "main" }],
-    "integrations": [
-      { "tool": "shopify", "status": "connected", "ref": "rouge-pivoine.myshopify.com" },
-      { "tool": "github", "status": "connected", "ref": "rouge-pivoine-theme" },
-      { "tool": "gsc", "status": "not_configured" }
-    ],
-    "channels": [
-      { "platform": "instagram", "handle": "rougepivoine", "configured": true, "followers": 1240 }
-    ],
-    "agents": [
-      { "role": "dev", "engine": "claude_code", "autonomy": "supervised", "status": "active", "last_activity": "2026-05-20" }
-    ],
-    "goals": [
-      { "label": "CA mensuel", "target": 2000, "current": 1200, "unit": "€", "trend": "up" }
-    ],
-    "alerts": [...],
-    "tasks": [...],
-    "next_actions": [...],
-    "blockers": []
-  }
-}
-```
-
-### POST /api/projects/create
-
-**Statut** : NON IMPLÉMENTÉ — Wizard frontend complet, backend à brancher
-
-```json
-// Body (output du wizard 7 étapes)
-{
-  "name": "Rouge Pivoine",
-  "type": "shopify",
-  "status": "active",
-  "priority": 5,
-  "description": "...",
-  "domains": ["rouge-pivoine.fr"],
-  "repo": "https://github.com/exnihilo042/rouge-pivoine-theme",
-  "drive": "Mon Drive/Clients/Rouge Pivoine",
-  "integrations": {
-    "shopify": "rouge-pivoine.myshopify.com",
-    "stripe": false,
-    "gsc": "",
-    "analytics": ""
-  },
-  "channels": {
-    "instagram": "rougepivoine",
-    "tiktok": ""
-  },
-  "goals": {
-    "ca_monthly": 2000,
-    "traffic": 5000
-  },
-  "agents": {
-    "seo": false,
-    "dev": true,
-    "autonomy": "supervised"
-  }
-}
-
-// Response
-{ "id": "rouge-pivoine", "created": true }
-```
-
-### POST /api/projects/update
-
-```json
-// Body
-{ "id": "rouge-pivoine", "fields": { "status": "done", "priority": 6 } }
-
-// Response
-{ "updated": true }
-```
-
-### POST /api/projects/agents
-
-```json
-// Body
-{ "project_id": "rouge-pivoine" }
-
-// Response
-{
-  "agents": [
-    { "role": "dev", "engine": "claude_code", "autonomy": "supervised", "status": "active", "last_activity": "2026-05-20" }
-  ]
-}
-```
-
-### POST /api/projects/goals
-
-```json
-// Body
-{ "project_id": "rouge-pivoine" }
-
-// Response
-{
-  "goals": [
-    { "label": "CA mensuel", "target": 2000, "current": 1200, "unit": "€", "trend": "up" },
-    { "label": "Trafic organique", "target": 5000, "current": 3800, "unit": "visites/mois", "trend": "stable" }
-  ]
-}
-```
-
----
-
-## Room multi-IA Enrichie — Backend futur (PROPOSAL / scope Codex P1)
-
-> Le frontend Room v7 est complet. Les fonctionnalités suivantes nécessitent un backend Codex.
-> Spécification Room : `docs/DESIGN_SYSTEM.md` section 10 "Pattern Room War Room — v7".
-
-### POST /api/conversation (enrichi)
-
-**Statut actuel** : RÉEL, limite 60 messages, sans filtre
-**Enrichissement requis** :
-
-```json
-// Body actuel
-{ "action": "get", "limit": 60 }
-
-// Body enrichi attendu
-{
-  "action": "get",
-  "limit": 60,
-  "offset": 0,
-  "actor": "clement|claude|codex|athos",
-  "type": "message|action|result|checkpoint|error|report|summary",
-  "project_id": "rouge-pivoine",
-  "task_id": "room-xxx"
-}
-
-// Réponse enrichie attendue
-{
-  "thread": [
-    {
-      "id": "uuid",
-      "ts": "ISO8601",
-      "actor": "clement|claude|codex|athos",
-      "type": "message|action|result|error|report|checkpoint|summary",
-      "content": "string",
-      "task_id": "string",
-      "project_id": "string",
-      "tags": ["important", "blocker"],
-      "metadata": {}
-    }
-  ],
-  "summary": {
-    "total": 247,
-    "returned": 60,
-    "offset": 0,
-    "has_more": true,
-    "actors": { "clement": 42, "claude": 180, "athos": 25 }
-  }
-}
-```
-
-**Champs enrichis à ajouter** :
-- `offset` — pagination côté serveur
-- `actor` / `type` — filtres côté serveur (>60 messages, filtres frontend insuffisants)
-- `project_id` — fil filtré par projet (lié à Integration Registry P2)
-- `tags` — labels manuels sur les messages
-- `summary.has_more` — signal de pagination pour le frontend
-
-### POST /api/conversation/search
-
-**Statut** : NON IMPLÉMENTÉ
-
-```json
-// Body
-{
-  "query": "string",
-  "actor": "claude",
-  "type": "checkpoint",
-  "project_id": "rouge-pivoine",
-  "limit": 20,
-  "offset": 0
-}
-
-// Response
-{
-  "results": [
-    {
-      "id": "uuid",
-      "ts": "ISO8601",
-      "actor": "claude",
-      "type": "checkpoint",
-      "content": "...",
-      "score": 0.92,
-      "context_before": "...",
-      "context_after": "..."
-    }
-  ],
-  "total": 7,
-  "query": "string"
-}
-```
-
-**Usage** : recherche full-text sur l'historique complet (>60 messages). Le frontend affiche actuellement un notice jaune quand `total > thread.length` — cet endpoint lève la limitation.
-
-### POST /api/conversation/actors
-
-**Statut** : NON IMPLÉMENTÉ
-
-```json
-// Body
-{}
-
-// Response
-{
-  "actors": [
-    {
-      "id": "claude",
-      "label": "Claude",
-      "color": "accent",
-      "message_count": 180,
-      "last_active": "ISO8601",
-      "status": "actif|récent|silencieux|absent",
-      "engine": "claude_code"
-    }
-  ]
-}
-```
-
-**Usage** : Le frontend `ActorRosterPanel` calcule actuellement le statut acteur côté client depuis les timestamps du thread local. Ce endpoint expose la vérité serveur et le décompte complet sur l'historique.
-
-### POST /api/conversation/tag
-
-**Statut** : NON IMPLÉMENTÉ
-
-```json
-// Body
-{ "message_id": "uuid", "tags": ["important", "blocker", "decision"] }
-
-// Response
-{ "ok": true, "tags": ["important", "blocker", "decision"] }
-```
-
-**Usage** : Tags manuels sur les messages (fonctionnalité UI future, bouton non encore exposé).
-
-### Liaison conversation → projet (`project_id`)
-
-**Requis** : enrichir `POST /api/message` pour accepter un `project_id` optionnel.
-
-```json
-// Body enrichi
-{
-  "actor": "clement",
-  "content": "string",
-  "type": "message",
-  "task_id": "room-1716210000000",
-  "project_id": "rouge-pivoine"
-}
-```
-
-Stocker `project_id` dans le kernel JSONL. Le sélecteur de projet dans `ProjectContextCard` (frontend Room) envoie déjà ce champ — le backend doit le persister.

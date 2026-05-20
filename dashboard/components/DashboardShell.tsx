@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard/room",        label: "Room",          icon: "◉", group: "Opérations" },
   { href: "/dashboard/agents",      label: "Agents IA",     icon: "⬡", group: "Opérations" },
   { href: "/dashboard/automations", label: "Automations",   icon: "⟳", group: "Opérations" },
+  { href: "/dashboard/skills",      label: "Skills",        icon: "⬡", group: "Opérations" },
   { href: "/dashboard/reports",     label: "Rapports",      icon: "◫", group: "Opérations" },
   { href: "/dashboard/alerts",      label: "Alertes",       icon: "⚠", group: "Système" },
   { href: "/dashboard/projects",  label: "Sites & Projets", icon: "◱", group: "Projets" },
