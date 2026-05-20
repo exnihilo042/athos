@@ -1,6 +1,6 @@
 # ATHOS — Design System
 
-**Version** : 0.6 | **Date** : 2026-05-20
+**Version** : 0.8 | **Date** : 2026-05-20
 
 ---
 
@@ -141,6 +141,44 @@
 - Flex, justifyContent: space-between
 - Séparé par `1px solid --border`
 
+### PageHeader
+```tsx
+<PageHeader title="Rapports" subtitle="Daily brief · Récapitulatifs session">
+  {/* optional right-side actions */}
+</PageHeader>
+```
+- Titre 22px 600, sous-titre 13px --muted
+- Slot `children` aligné à droite (badges, boutons d'action)
+- `marginBottom: 24` par convention
+
+### StatusDot
+```tsx
+<StatusDot ok={true} label="Serveur HUB" />
+```
+- Dot coloré 7×7, glowing si ok=true
+- --green / --red
+
+### RealityBadge
+```tsx
+<RealityBadge level="RÉEL" />
+<RealityBadge level="MOCK" />
+<RealityBadge level="MIXTE" />
+<RealityBadge level="STATIQUE" />
+<RealityBadge level="CODEX" />
+```
+- Annote la source de données d'une section
+- Variants : RÉEL → green · MOCK → yellow · MIXTE → blue · STATIQUE → muted · CODEX → border
+- À placer dans les titres de section ou cards pour audit de réalité instantané
+
+### EmptyPanel
+```tsx
+<EmptyPanel icon="◱" label="Queue vide" detail="Aucune tâche en cours" />
+```
+- Remplacement standardisé pour tous les états vides
+- `icon` optionnel, défaut "◱"
+- `label` obligatoire, `detail` optionnel
+- Surface + border + radius 8px + padding 32px + centré
+
 ---
 
 ## 5. Layout system
@@ -225,3 +263,33 @@ ATHOS utilise les caractères Unicode géométriques comme icônes. Pas d'emoji,
 - Sidebar mobile : drawer overlay avec backdrop semi-transparent
 - Navigation fermée par : tap backdrop, touche Escape, navigation
 - `.hide-mobile` masqué sur ≤768px (budget TopBar, etc.)
+
+---
+
+## 10. Dashboard v4 — État produit (2026-05-20)
+
+### Pages et statut source de données
+
+| Page | Route | Données | Composants clés | Notes |
+|------|-------|---------|----------------|-------|
+| Vue Centrale | /dashboard/hub | MIXTE | ModuleCard, ProductRow, StatCard | KPIs réels + modules nav |
+| Room | /dashboard/room | RÉEL | RoomClient (client), SSE | UX polish v4, zéro logique runtime |
+| Agents IA | /dashboard/agents | RÉEL | StatCard, Badge, BarChart | /api/capability_graph |
+| Automations | /dashboard/automations | RÉEL | CodexPendingZone, Card, SectionLabel | Controls désactivés → Codex |
+| Rapports | /dashboard/reports | RÉEL | CodexPendingZone, DataRow | 4 sections CODEX en attente |
+| Alertes | /dashboard/alerts | RÉEL | Badge, StatCard | /api/observability |
+| Sites & Projets | /dashboard/projects | RÉEL | Card, DataRow | /api/projects |
+| SEO Analytics | /dashboard/seo | MOCK | MockBanner, BarChart, Gauge | Google Search Console à connecter |
+| Performance | /dashboard/performance | MIXTE | Gauge, StatusDot, MockBanner | Score santé RÉEL, Lighthouse MOCK |
+| Finances | /dashboard/finances | MOCK | MockBanner, BarChart, StatCard | Stripe / Shopify à connecter |
+| Commandes | /dashboard/commandes | MOCK | MockBanner | Shopify Admin API à connecter |
+| CRM / Clients | /dashboard/crm | MOCK | ClientCard | ERP ATHOS — Codex scope |
+| Roadmap | /dashboard/roadmap | STATIQUE | Card | Markdown statique |
+| Paramètres | /dashboard/settings | RÉEL | Card, DataRow | /api/settings, /api/security |
+
+### Convention annotations source
+
+Chaque section ou Card doit être étiquetée par son niveau de réalité.
+Utiliser `<RealityBadge level="..." />` dans les titres de section ou en `<SectionLabel>`.
+Utiliser `<CodexPendingZone>` pour les fonctionnalités qui attendent une implémentation Codex.
+Utiliser `<MockBanner>` en haut de toute page ou section dont les données sont entièrement fictives.

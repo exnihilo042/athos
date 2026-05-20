@@ -1,4 +1,5 @@
 import { athosPost } from "@/lib/athos";
+import { Card } from "@/components/ui";
 
 interface SettingsPayload {
   spend_policy?: {
@@ -26,17 +27,6 @@ interface SettingsPayload {
   };
   engine_order?: string;
   env?: Record<string, string>;
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 20 }}>
-      <div style={{ fontSize: 11, letterSpacing: 1.5, color: "var(--muted)", textTransform: "uppercase", marginBottom: 16 }}>
-        {title}
-      </div>
-      {children}
-    </div>
-  );
 }
 
 function Toggle({ on, label, envKey }: { on: boolean; label: string; envKey: string }) {

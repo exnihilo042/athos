@@ -1,6 +1,6 @@
 # ATHOS — Architecture Technique
 
-**Version** : 0.6 | **Date** : 2026-05-20
+**Version** : 0.8 | **Date** : 2026-05-20
 
 ---
 
@@ -63,21 +63,30 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 **Port** : 3333 (via 9router proxy)
 **Pattern** : App Router, Server Components + Client Components
 
-**Routes** :
+**Routes** (v4 — 19 routes) :
 ```
-/dashboard/hub          → Vue Centrale (server component)
-/dashboard/room         → Room multi-IA (client via RoomClient.tsx)
-/dashboard/agents       → Capability Graph (server component)
-/dashboard/alerts       → Alertes système (server component)
-/dashboard/automations  → Automations (stub)
-/dashboard/reports      → Rapports (stub)
-/dashboard/projects     → Sites & Projets (server, mem data)
-/dashboard/settings     → Paramètres (server component)
-/dashboard/finances     → Finances (server + mock)
-/dashboard/seo          → SEO Analytics (mock)
-/api/athos-proxy        → POST proxy vers HUB avec auth
+/dashboard/hub          → Vue Centrale — MIXTE  (KPIs réels + modules nav)
+/dashboard/room         → Room multi-IA — RÉEL  (client: RoomClient.tsx + SSE)
+/dashboard/agents       → Capability Graph — RÉEL
+/dashboard/alerts       → Alertes système — RÉEL (/api/observability)
+/dashboard/automations  → Automations — RÉEL  (contrôles disabled → Codex)
+/dashboard/reports      → Rapports — RÉEL  (4 sections CODEX en attente)
+/dashboard/projects     → Sites & Projets — RÉEL (/api/projects, parse mem)
+/dashboard/settings     → Paramètres — RÉEL (/api/settings, /api/security)
+/dashboard/performance  → Performance — MIXTE (santé RÉEL, Lighthouse MOCK)
+/dashboard/crm          → CRM / Clients — MOCK (/api/crm non implémenté)
+/dashboard/finances     → Finances — MOCK (Stripe/Shopify à connecter)
+/dashboard/commandes    → Commandes — MOCK (Shopify Admin API)
+/dashboard/seo          → SEO Analytics — MOCK (GSC API)
+/dashboard/roadmap      → Roadmap — STATIQUE
+/api/athos-proxy        → POST proxy vers HUB avec auth (server-side token)
 /api/athos-events       → SSE proxy vers /api/events HUB
 ```
+
+**Design system** : `dashboard/components/ui/index.tsx`
+Composants : Card, StatCard, Badge, EngineBadge, SectionLabel, DataRow, MockBanner, BarChart, Gauge, PageHeader, StatusDot, RealityBadge, EmptyPanel
+
+**Séparation** : Server Components pour fetch ATHOS, Client Components pour SSE/interactif (Room, TopBar).
 
 **Sécurité** : ATHOS_TOKEN côté serveur uniquement. Jamais exposé au client. `/api/athos-proxy` valide que l'endpoint commence par `/api/`.
 

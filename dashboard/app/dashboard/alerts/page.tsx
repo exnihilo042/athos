@@ -1,4 +1,5 @@
 import { athosPost } from "@/lib/athos";
+import { Badge, StatCard } from "@/components/ui";
 
 interface FailoverEvent {
   ts?: string;
@@ -53,28 +54,14 @@ function formatTs(ts?: string): string {
   }
 }
 
-function Badge({ label, color }: { label: string; color: string }) {
-  return (
-    <span style={{
-      fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase",
-      padding: "2px 7px", borderRadius: 4,
-      background: `color-mix(in srgb, ${color} 15%, transparent)`,
-      color, border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
-      flexShrink: 0,
-    }}>
-      {label}
-    </span>
-  );
-}
+type BadgeVariant = "green" | "red" | "yellow" | "blue" | "accent" | "muted" | "border";
 
-function StatCard({ label, value, color }: { label: string; value: string | number; color?: string }) {
-  return (
-    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "14px 16px" }}>
-      <div style={{ fontSize: 22, fontWeight: 700, color: color ?? "var(--text)", marginBottom: 4 }}>{value}</div>
-      <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
-    </div>
-  );
-}
+const LEVEL_VARIANT: Record<string, BadgeVariant> = {
+  failover: "yellow",
+  error: "red",
+  warn: "yellow",
+  info: "blue",
+};
 
 export default async function AlertesPage() {
   let obs: ObsPayload = {};
@@ -169,7 +156,7 @@ export default async function AlertesPage() {
                 <span style={{ color, fontSize: 10, marginTop: 3, flexShrink: 0 }}>●</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-                    <Badge label={level} color={color} />
+                    <Badge label={level.toUpperCase()} variant={LEVEL_VARIANT[level] ?? "muted"} />
                     {e.engine && (
                       <span style={{ fontSize: 11, color: "var(--muted)" }}>{e.engine}</span>
                     )}

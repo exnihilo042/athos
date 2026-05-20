@@ -123,47 +123,79 @@ function EngineStatusBar({
   );
 }
 
+const CONTENT_COLLAPSE_THRESHOLD = 500;
+
 function RoomMessage({ entry }: { entry: RoomEntry }) {
+  const [expanded, setExpanded] = useState(false);
+
   const actorColor = ACTOR_COLOR[entry.actor ?? ""] ?? "var(--muted)";
   const displayActor = ACTOR_LABEL[entry.actor ?? ""] ?? entry.actor ?? "?";
   const typeStyle = TYPE_STYLE[entry.type ?? ""] ?? FALLBACK_TYPE;
   const ts = formatTs(entry.ts);
   const isSystem = entry.actor === "athos";
+  const isClement = entry.actor === "clement";
   const isError = entry.type === "error";
-  const isReport = entry.type === "report";
   const isCheckpoint = entry.type === "checkpoint";
+  const isLong = (entry.content?.length ?? 0) > CONTENT_COLLAPSE_THRESHOLD;
+  const displayContent = isLong && !expanded
+    ? entry.content!.slice(0, CONTENT_COLLAPSE_THRESHOLD) + "…"
+    : (entry.content ?? "");
 
   const contentColor = isError ? "var(--red)" :
     isCheckpoint ? "var(--accent)" :
     "var(--text)";
 
+  // Checkpoint: full-width separator style
+  if (isCheckpoint) {
+    return (
+      <div
+        style={{
+          padding: "12px 18px",
+          borderBottom: "1px solid var(--border)",
+          background: "rgba(120,60,255,0.06)",
+          borderLeft: "3px solid var(--accent)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "var(--accent)", letterSpacing: 1, textTransform: "uppercase" }}>
+            ◈ Checkpoint
+          </span>
+          <span style={{ fontSize: 9, color: "var(--border)" }}>{ts}</span>
+          <span style={{ fontSize: 9, color: "var(--muted)", marginLeft: "auto" }}>{displayActor}</span>
+        </div>
+        <div style={{ fontSize: 12, color: "var(--accent)", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+          {displayContent}
+        </div>
+        {isLong && (
+          <button onClick={() => setExpanded(!expanded)} style={{ marginTop: 6, fontSize: 10, color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+            {expanded ? "▲ réduire" : "▼ voir tout"}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
-        padding: "10px 18px",
+        padding: "9px 18px 9px 0",
         borderBottom: "1px solid var(--border)",
         display: "flex",
-        gap: 12,
-        background: isCheckpoint ? "rgba(120,60,255,0.04)" : "transparent",
+        gap: 0,
+        background: isClement ? "rgba(74,158,255,0.03)" : isError ? "rgba(255,69,58,0.03)" : "transparent",
+        borderLeft: `3px solid ${isClement ? "var(--blue)" : isError ? "var(--red)" : actorColor}`,
       }}
     >
       {/* Actor column */}
-      <div style={{ minWidth: 64, flexShrink: 0 }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: actorColor,
-            letterSpacing: 0.3,
-          }}
-        >
+      <div style={{ minWidth: 72, flexShrink: 0, paddingLeft: 12, paddingRight: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: actorColor, letterSpacing: 0.3 }}>
           {displayActor}
         </div>
         <div style={{ fontSize: 9, color: "var(--border)", marginTop: 2 }}>{ts}</div>
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
         <div
           style={{
             fontSize: 12,
@@ -171,27 +203,37 @@ function RoomMessage({ entry }: { entry: RoomEntry }) {
             lineHeight: 1.55,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
-            opacity: isSystem && entry.type === "action" ? 0.75 : 1,
+            opacity: isSystem && entry.type === "action" ? 0.7 : 1,
           }}
         >
-          {entry.content}
+          {displayContent}
         </div>
-        {entry.task_id && (
-          <div
+        {isLong && (
+          <button
+            onClick={() => setExpanded(!expanded)}
             style={{
               marginTop: 4,
-              fontSize: 9,
-              color: "var(--border)",
-              fontFamily: "monospace",
+              fontSize: 10,
+              color: "var(--muted)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              letterSpacing: 0.3,
             }}
           >
+            {expanded ? "▲ réduire" : `▼ voir tout (${entry.content!.length} car.)`}
+          </button>
+        )}
+        {entry.task_id && (
+          <div style={{ marginTop: 4, fontSize: 9, color: "var(--border)", fontFamily: "monospace" }}>
             task:{truncate(entry.task_id, 12)}
           </div>
         )}
       </div>
 
       {/* Type badge */}
-      <div style={{ flexShrink: 0, paddingTop: 1 }}>
+      <div style={{ flexShrink: 0, paddingTop: 1, paddingRight: 12 }}>
         <span
           style={{
             display: "inline-flex",
@@ -206,7 +248,7 @@ function RoomMessage({ entry }: { entry: RoomEntry }) {
             letterSpacing: 0.3,
           }}
         >
-          {typeStyle.icon} {isReport ? "report" : typeStyle.label}
+          {typeStyle.icon} {typeStyle.label}
         </span>
       </div>
     </div>
@@ -454,8 +496,16 @@ export default function RoomClient({
         }}
       >
         {thread.length === 0 ? (
-          <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
-            Room vide
+          <div style={{ padding: 60, textAlign: "center" }}>
+            <div style={{ fontSize: 28, color: "var(--border)", marginBottom: 12 }}>◉</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--muted)", marginBottom: 6 }}>
+              Room vide
+            </div>
+            <div style={{ fontSize: 12, color: "var(--border)", maxWidth: 280, margin: "0 auto", lineHeight: 1.5 }}>
+              {sseState === "error"
+                ? "Connexion SSE hors ligne — ATHOS HUB inaccessible. Vérifier :7474."
+                : "Envoyer un message pour démarrer une session ATHOS."}
+            </div>
           </div>
         ) : (
           thread.map((entry) => (

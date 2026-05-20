@@ -3,7 +3,15 @@ import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
-const NAV = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  group: string | null;
+  soon?: boolean;
+}
+
+const NAV: NavItem[] = [
   { href: "/dashboard/hub",         label: "Vue Centrale",  icon: "◈", group: null },
   { href: "/dashboard/room",        label: "Room",          icon: "◉", group: "Opérations" },
   { href: "/dashboard/agents",      label: "Agents IA",     icon: "⬡", group: "Opérations" },
@@ -12,10 +20,10 @@ const NAV = [
   { href: "/dashboard/alerts",      label: "Alertes",       icon: "⚠", group: "Système" },
   { href: "/dashboard/projects",  label: "Sites & Projets", icon: "◱", group: "Projets" },
   { href: "/dashboard/seo",       label: "SEO Analytics",   icon: "◲", group: "Projets" },
-  { href: "#",                    label: "Performance",      icon: "◳", group: "Projets", soon: true },
-  { href: "/dashboard/finances",  label: "Finances",         icon: "◻", group: "Business" },
-  { href: "/dashboard/commandes",  label: "Commandes",        icon: "◼", group: "Business" },
-  { href: "#",                    label: "CRM / Clients",    icon: "◾", group: "Business", soon: true },
+  { href: "/dashboard/performance", label: "Performance",      icon: "◳", group: "Projets" },
+  { href: "/dashboard/finances",    label: "Finances",         icon: "◻", group: "Business" },
+  { href: "/dashboard/commandes",   label: "Commandes",        icon: "◼", group: "Business" },
+  { href: "/dashboard/crm",         label: "CRM / Clients",    icon: "◾", group: "Business" },
   { href: "/dashboard/roadmap",   label: "Roadmap",          icon: "◪", group: "Système" },
   { href: "/dashboard/settings",  label: "Paramètres",       icon: "⊙", group: "Système" },
 ];

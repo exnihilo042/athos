@@ -121,7 +121,7 @@ function ProjectCard({ proj }: { proj: Project }) {
 
       {(proj.store || proj.repo) && (
         <div style={{ fontSize: 11, color: "var(--border)" }}>
-          {proj.store && <span>🏪 {proj.store}{"  "}</span>}
+          {proj.store && <span>◳ {proj.store}{"  "}</span>}
           {proj.repo && <span>⎇ {proj.repo}</span>}
         </div>
       )}

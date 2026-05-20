@@ -315,6 +315,87 @@ export function Gauge({ value, max = 100, color }: { value: number; max?: number
   );
 }
 
+// ── PageHeader ────────────────────────────────────────────────────────────────
+
+export function PageHeader({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: 24,
+        flexWrap: "wrap",
+        gap: 12,
+      }}
+    >
+      <div>
+        <h1 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 4px" }}>{title}</h1>
+        {subtitle && (
+          <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>{subtitle}</p>
+        )}
+      </div>
+      {children && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── RealityBadge ─────────────────────────────────────────────────────────────
+
+type RealityLevel = "RÉEL" | "MOCK" | "MIXTE" | "STATIQUE" | "CODEX";
+
+const REALITY_VARIANT: Record<RealityLevel, BadgeVariant> = {
+  "RÉEL":     "green",
+  "MOCK":     "yellow",
+  "MIXTE":    "blue",
+  "STATIQUE": "muted",
+  "CODEX":    "border",
+};
+
+export function RealityBadge({ level }: { level: RealityLevel }) {
+  return <Badge label={level} variant={REALITY_VARIANT[level]} />;
+}
+
+// ── EmptyPanel ────────────────────────────────────────────────────────────────
+
+export function EmptyPanel({
+  icon = "◱",
+  label,
+  detail,
+}: {
+  icon?: string;
+  label: string;
+  detail?: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        padding: "32px 24px",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: 20, color: "var(--border)", marginBottom: 8 }}>{icon}</div>
+      <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4 }}>{label}</div>
+      {detail && <div style={{ fontSize: 11, color: "var(--border)" }}>{detail}</div>}
+    </div>
+  );
+}
+
 // ── StatusDot ─────────────────────────────────────────────────────────────────
 
 export function StatusDot({ ok, label }: { ok: boolean; label: string }) {

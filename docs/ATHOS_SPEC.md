@@ -1,6 +1,6 @@
 # ATHOS — Spécification Système
 
-**Version** : 0.6 | **Date** : 2026-05-20 | **Source** : Claude Sonnet 4.6
+**Version** : 0.8 | **Date** : 2026-05-20 | **Source** : Claude Sonnet 4.6
 
 ---
 
@@ -33,7 +33,7 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 | Capability graph | ✅ RÉEL | 72 nœuds, 132 edges, score 1.0 |
 | Épistémie guard | ✅ RÉEL | Guardrails truth-over-comfort |
 | Task queue | ✅ RÉEL | core/task_queue.py, 194 tests |
-| Dashboard Next.js | ✅ RÉEL | Port 3333, 14 routes |
+| Dashboard Next.js | ✅ RÉEL | Port 3333, 19 routes — v4 |
 | SSE live events | ✅ RÉEL | /api/athos-events proxy → /api/events HUB |
 | Auth token | ✅ RÉEL | ATHOS_ACCESS_TOKEN, CORS strict |
 
@@ -59,7 +59,9 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 |--------|--------|---------------|
 | Dashboard Finances | 🔸 MOCK | Stripe API / Shopify Admin API |
 | Dashboard SEO | 🔸 MOCK | Google Search Console API |
-| Dashboard Performance | 🔸 MOCK | Non défini |
+| Dashboard Performance | 🔸 MIXTE | Score santé RÉEL, Lighthouse MOCK → /api/performance (Codex P1) |
+| Dashboard CRM | 🔸 MOCK | /api/crm (Codex P2) |
+| Dashboard Commandes | 🔸 MOCK | Shopify Admin API (Codex P2) |
 
 ---
 

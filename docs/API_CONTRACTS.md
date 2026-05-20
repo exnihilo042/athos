@@ -1,6 +1,6 @@
 # ATHOS — Contrats API
 
-**Version** : 0.6 | **Date** : 2026-05-20
+**Version** : 0.8 | **Date** : 2026-05-20
 **Base URL** : `http://localhost:7474`
 **Auth** : `Authorization: Bearer $ATHOS_ACCESS_TOKEN` (toutes les routes)
 
@@ -301,11 +301,59 @@ Réponse dashboard :
 
 ---
 
-## Routes non encore implémentées
+## POST /api/loop *(alias /api/autonomous_loop)*
 
-| Route | Description | Scope |
-|-------|-------------|-------|
-| /api/finances | CA, commandes, marge | MOCK → Stripe/Shopify |
-| /api/seo | Positions, CWV, trafic | MOCK → GSC API |
-| /api/performance | Lighthouse, uptime | MOCK |
-| /api/crm | Clients, leads | MOCK |
+**Statut** : RÉEL
+
+```json
+{ "action": "status" }
+```
+
+Réponse :
+```json
+{
+  "running": false,
+  "iterations": 42,
+  "idle_ticks": 3,
+  "last_event": { "type": "tick", "ts": "ISO8601", "data": {} },
+  "events": [ { "type": "tick|failover|skill|...", "ts": "ISO8601", "data": {} } ],
+  "policy": {
+    "env_enabled": false,
+    "default_tick": 60,
+    "skill_mutation_enabled": false
+  }
+}
+```
+
+---
+
+## POST /api/skills
+
+**Statut** : RÉEL
+
+```json
+{}
+```
+
+Réponse :
+```json
+{
+  "skills": [
+    { "name": "web_search", "description": "...", "installed": true, "offline": false }
+  ]
+}
+```
+
+---
+
+## Routes non encore implémentées (scope Codex)
+
+| Route | Description | Interface TypeScript | Priorité |
+|-------|-------------|----------------------|----------|
+| /api/finances | CA, commandes, marge | `FinancesSummary`, `ProjectRevenue` | P2 |
+| /api/seo | Positions, CWV, trafic | `SeoSite`, `SeoPosition` | P2 |
+| /api/performance | Lighthouse batch, latences | `PerformancePayload` | P1 |
+| /api/crm | Clients, leads, pipeline | `CrmPayload`, `CrmClient` | P2 |
+| /api/commandes | Shopify orders | `CommandesPayload`, `Order` | P2 |
+
+Toutes les interfaces TypeScript sont définies dans `dashboard/lib/types.ts`.
