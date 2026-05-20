@@ -459,3 +459,187 @@ export function StatusDot({ ok, label }: { ok: boolean; label: string }) {
     </div>
   );
 }
+
+// ── PCC — IntegrationBadge ────────────────────────────────────────────────────
+
+type IntegrationStatus = "connected" | "configured" | "error" | "not_configured";
+
+const INTEGRATION_STATUS_MAP: Record<IntegrationStatus, { color: string; label: string }> = {
+  connected:      { color: "var(--green)",  label: "connecté" },
+  configured:     { color: "var(--blue)",   label: "configuré" },
+  error:          { color: "var(--red)",    label: "erreur" },
+  not_configured: { color: "var(--border)", label: "non configuré" },
+};
+
+export function IntegrationBadge({
+  tool,
+  status,
+  ref: refLabel,
+}: {
+  tool: string;
+  status: IntegrationStatus;
+  ref?: string;
+}) {
+  const s = INTEGRATION_STATUS_MAP[status];
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "7px 10px",
+        background: "var(--surface)",
+        border: `1px solid color-mix(in srgb, ${s.color} 30%, var(--border))`,
+        borderRadius: 6,
+        fontSize: 12,
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: s.color,
+          flexShrink: 0,
+          display: "inline-block",
+        }}
+      />
+      <span style={{ flex: 1, color: "var(--text)", fontWeight: 500 }}>{tool}</span>
+      {refLabel && (
+        <span style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace" }}>{refLabel}</span>
+      )}
+      <span style={{ fontSize: 10, color: s.color, fontWeight: 600 }}>{s.label}</span>
+    </div>
+  );
+}
+
+// ── PCC — WizardStepHeader ────────────────────────────────────────────────────
+
+export function WizardStepHeader({
+  steps,
+  current,
+}: {
+  steps: string[];
+  current: number;
+}) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 16 }}>
+        {steps.map((label, i) => {
+          const done = i < current;
+          const active = i === current;
+          const color = done ? "var(--green)" : active ? "var(--accent)" : "var(--border)";
+          return (
+            <React.Fragment key={label}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: active ? 2 : 1 }}>
+                <div
+                  style={{
+                    width: "100%",
+                    height: 3,
+                    borderRadius: 2,
+                    background: color,
+                    transition: "all 0.2s",
+                  }}
+                />
+                {active && (
+                  <span style={{ fontSize: 10, color: "var(--accent)", fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {i + 1}. {label}
+                  </span>
+                )}
+              </div>
+              {i < steps.length - 1 && !active && (
+                <div style={{ width: 4, height: 3, borderRadius: 1, background: "var(--border)", flexShrink: 0 }} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 11, color: "var(--muted)" }}>
+        Étape {current + 1} sur {steps.length}
+      </div>
+    </div>
+  );
+}
+
+// ── PCC — SocialChannelPill ───────────────────────────────────────────────────
+
+const SOCIAL_COLORS: Record<string, string> = {
+  instagram: "#e1306c",
+  tiktok:    "#69c9d0",
+  linkedin:  "#0077b5",
+  x:         "var(--text)",
+  youtube:   "#ff0000",
+  facebook:  "#1877f2",
+  pinterest: "#bd081c",
+  newsletter: "var(--yellow)",
+};
+
+export function SocialChannelPill({
+  platform,
+  handle,
+  configured = true,
+}: {
+  platform: string;
+  handle?: string;
+  configured?: boolean;
+}) {
+  const color = configured ? (SOCIAL_COLORS[platform] ?? "var(--muted)") : "var(--border)";
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "3px 9px",
+        borderRadius: 20,
+        fontSize: 11,
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 28%, transparent)`,
+        color: configured ? color : "var(--border)",
+        opacity: configured ? 1 : 0.5,
+      }}
+    >
+      <span style={{ fontSize: 8 }}>●</span>
+      {platform}
+      {handle && <span style={{ opacity: 0.7 }}>@{handle.replace("@", "")}</span>}
+    </span>
+  );
+}
+
+// ── PCC — ProjectSection ──────────────────────────────────────────────────────
+
+export function ProjectSection({
+  title,
+  icon,
+  children,
+  action,
+}: {
+  title: string;
+  icon?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 10,
+          paddingBottom: 8,
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {icon && <span style={{ color: "var(--muted)", fontSize: 14 }}>{icon}</span>}
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase", color: "var(--muted)" }}>
+            {title}
+          </span>
+        </div>
+        {action && <div>{action}</div>}
+      </div>
+      {children}
+    </div>
+  );
+}

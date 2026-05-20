@@ -1,6 +1,6 @@
 # ATHOS — Design System
 
-**Version** : 0.8 | **Date** : 2026-05-20
+**Version** : 0.9 | **Date** : 2026-05-20
 
 ---
 
@@ -194,6 +194,40 @@
 - Utiliser systématiquement pour signaler un endpoint backend non encore implémenté
 - `detail` optionnel — typiquement l'interface TypeScript + scope Codex
 
+### IntegrationBadge (PCC)
+```tsx
+<IntegrationBadge tool="Shopify" status="connected" ref="rouge-pivoine.myshopify.com" />
+```
+- `status` : `"connected"` (vert) | `"configured"` (bleu) | `"error"` (rouge) | `"not_configured"` (gris)
+- Affiche : dot de statut · nom de l'outil · référence monospace · label statut
+- Utiliser dans les fiches projet pour les intégrations Shopify, GitHub, GSC, Stripe, etc.
+
+### WizardStepHeader (PCC)
+```tsx
+<WizardStepHeader steps={["Identité", "Présence", "Outils", "Réseaux", "Objectifs", "Agents", "Récap"]} current={2} />
+```
+- Barre de progression visuelle avec étape active mise en évidence
+- Étapes passées en vert, étape active en accent, futures en gris
+- Affiche "Étape N sur M" sous la barre
+
+### SocialChannelPill (PCC)
+```tsx
+<SocialChannelPill platform="instagram" handle="rougepivoine" configured={true} />
+```
+- Pill avec couleur spécifique par plateforme (instagram:#e1306c, tiktok:#69c9d0, etc.)
+- Opacité réduite si `configured={false}`
+- Plateformes supportées : instagram, tiktok, linkedin, x, youtube, facebook, pinterest, newsletter
+
+### ProjectSection (PCC)
+```tsx
+<ProjectSection title="Outils connectés" icon="◱" action={<button>Configurer</button>}>
+  {children}
+</ProjectSection>
+```
+- Section wrapper avec titre uppercase + séparateur + slot action optionnel
+- Utiliser dans les fiches projet pour chaque groupe d'informations
+- `marginBottom: 20` par convention
+
 ---
 
 ## 5. Layout system
@@ -301,6 +335,8 @@ ATHOS utilise les caractères Unicode géométriques comme icônes. Pas d'emoji,
 | CRM / Clients | /dashboard/crm | MOCK | ClientCard | Stable |
 | Roadmap | /dashboard/roadmap | STATIQUE | Card, PageHeader | PageHeader ajouté v5 |
 | Paramètres | /dashboard/settings | RÉEL | Card, Toggle, PageHeader, Badge | PageHeader RÉEL badge v5 |
+| PCC — Nouveau projet | /dashboard/projects/new | PROTOTYPE | WizardStepHeader, IntegrationBadge, SocialChannelPill | Wizard 7 étapes · backend à brancher |
+| PCC — Détail projet | /dashboard/projects/[id] | PROTOTYPE | ProjectSection, IntegrationBadge, SocialChannelPill | Fiche Rouge Pivoine + Placerr mockées |
 
 ### Convention annotations source
 

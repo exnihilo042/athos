@@ -1,5 +1,6 @@
 import { athosPost } from "@/lib/athos";
-import { StatCard, SectionLabel, PageHeader, EmptyPanel } from "@/components/ui";
+import { StatCard, SectionLabel, PageHeader, EmptyPanel, InsetNotice } from "@/components/ui";
+import Link from "next/link";
 
 interface Project {
   name: string;
@@ -69,8 +70,17 @@ function PriorityBadge({ priority }: { priority?: string }) {
   );
 }
 
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+}
+
+const PCC_PROJECTS = new Set(["rouge-pivoine", "placerr"]);
+
 function ProjectCard({ proj }: { proj: Project }) {
   const localCmd = proj.local?.replace(/_/g, " ");
+  const slug = slugify(proj.name);
+  const hasDetail = PCC_PROJECTS.has(slug);
+
   return (
     <div style={{
       background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8,
@@ -126,6 +136,26 @@ function ProjectCard({ proj }: { proj: Project }) {
           {proj.repo && <span>⎇ {proj.repo}</span>}
         </div>
       )}
+
+      {/* PCC detail link */}
+      <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
+        {hasDetail ? (
+          <Link
+            href={`/dashboard/projects/${slug}`}
+            style={{
+              fontSize: 11, color: "var(--accent)", textDecoration: "none",
+              padding: "3px 10px", border: "1px solid rgba(120,60,255,0.3)",
+              borderRadius: 4, background: "rgba(120,60,255,0.07)",
+            }}
+          >
+            Fiche projet →
+          </Link>
+        ) : (
+          <span style={{ fontSize: 10, color: "var(--border)", fontStyle: "italic" }}>
+            Fiche PCC non encore configurée
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -153,6 +183,24 @@ export default async function ProjectsPage() {
       <PageHeader
         title="Sites & Projets"
         subtitle={`Source : athos_projects.mem — ${projects.length} projet(s) chargé(s)`}
+      >
+        <Link
+          href="/dashboard/projects/new"
+          style={{
+            fontSize: 12, fontWeight: 600, color: "#fff", textDecoration: "none",
+            padding: "5px 14px", background: "var(--accent)", borderRadius: 6,
+            display: "inline-flex", alignItems: "center", gap: 5,
+          }}
+        >
+          + Créer un projet
+        </Link>
+      </PageHeader>
+
+      <InsetNotice
+        icon="◱"
+        text="Project Control Center — prototype frontend"
+        detail="Les fiches détail sont disponibles pour Rouge Pivoine et Placerr · Backend persistance : Scope Codex P2"
+        variant="blue"
       />
 
       {/* ── KPIs ── */}

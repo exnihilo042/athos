@@ -1,6 +1,6 @@
 # ATHOS — Contrats API
 
-**Version** : 0.8 | **Date** : 2026-05-20
+**Version** : 0.9 | **Date** : 2026-05-20
 **Base URL** : `http://localhost:7474`
 **Auth** : `Authorization: Bearer $ATHOS_ACCESS_TOKEN` (toutes les routes)
 
@@ -346,7 +346,7 @@ Réponse :
 
 ---
 
-## Routes non encore implémentées (scope Codex)
+## Routes non encore implémentées — Business (scope Codex)
 
 | Route | Description | Interface TypeScript | Priorité |
 |-------|-------------|----------------------|----------|
@@ -357,3 +357,159 @@ Réponse :
 | /api/commandes | Shopify orders | `CommandesPayload`, `Order` | P2 |
 
 Toutes les interfaces TypeScript sont définies dans `dashboard/lib/types.ts`.
+
+---
+
+## Project Control Center — Routes à implémenter (PROPOSAL / À ARBITRER CODEX)
+
+> Ces routes sont **proposées par Claude** suite à la conception du PCC frontend.
+> Elles ne sont pas encore implémentées. Spécification complète : `docs/PROJECT_CONTROL_CENTER_SPEC.md`.
+
+### POST /api/projects (enrichi)
+
+**Statut** : PARTIEL (liste de base existante, enrichissement requis)
+
+```json
+// Body
+{ "include_details": true, "filter_status": "active", "filter_type": "shopify" }
+
+// Response enrichie attendue (au-delà du §-format actuel)
+{
+  "projects": [
+    {
+      "id": "rouge-pivoine",
+      "name": "Rouge Pivoine",
+      "type": "shopify",
+      "status": "active",
+      "priority": 5,
+      "integrations_count": 5,
+      "integrations_ok": 2,
+      "alerts_count": 2,
+      "health_score": 0.72,
+      "next_action": "Push thème draft sur GitHub"
+    }
+  ],
+  "total": 7,
+  "active": 4
+}
+```
+
+### POST /api/projects/detail
+
+**Statut** : NON IMPLÉMENTÉ — Frontend mockée
+
+```json
+// Body
+{ "id": "rouge-pivoine" }
+
+// Response
+{
+  "project": {
+    "id": "rouge-pivoine",
+    "name": "Rouge Pivoine",
+    "type": "shopify",
+    "status": "active",
+    "priority": 5,
+    "description": "...",
+    "domains": ["rouge-pivoine.fr"],
+    "repos": [{ "url": "https://github.com/exnihilo042/rouge-pivoine-theme", "branch": "main" }],
+    "integrations": [
+      { "tool": "shopify", "status": "connected", "ref": "rouge-pivoine.myshopify.com" },
+      { "tool": "github", "status": "connected", "ref": "rouge-pivoine-theme" },
+      { "tool": "gsc", "status": "not_configured" }
+    ],
+    "channels": [
+      { "platform": "instagram", "handle": "rougepivoine", "configured": true, "followers": 1240 }
+    ],
+    "agents": [
+      { "role": "dev", "engine": "claude_code", "autonomy": "supervised", "status": "active", "last_activity": "2026-05-20" }
+    ],
+    "goals": [
+      { "label": "CA mensuel", "target": 2000, "current": 1200, "unit": "€", "trend": "up" }
+    ],
+    "alerts": [...],
+    "tasks": [...],
+    "next_actions": [...],
+    "blockers": []
+  }
+}
+```
+
+### POST /api/projects/create
+
+**Statut** : NON IMPLÉMENTÉ — Wizard frontend complet, backend à brancher
+
+```json
+// Body (output du wizard 7 étapes)
+{
+  "name": "Rouge Pivoine",
+  "type": "shopify",
+  "status": "active",
+  "priority": 5,
+  "description": "...",
+  "domains": ["rouge-pivoine.fr"],
+  "repo": "https://github.com/exnihilo042/rouge-pivoine-theme",
+  "drive": "Mon Drive/Clients/Rouge Pivoine",
+  "integrations": {
+    "shopify": "rouge-pivoine.myshopify.com",
+    "stripe": false,
+    "gsc": "",
+    "analytics": ""
+  },
+  "channels": {
+    "instagram": "rougepivoine",
+    "tiktok": ""
+  },
+  "goals": {
+    "ca_monthly": 2000,
+    "traffic": 5000
+  },
+  "agents": {
+    "seo": false,
+    "dev": true,
+    "autonomy": "supervised"
+  }
+}
+
+// Response
+{ "id": "rouge-pivoine", "created": true }
+```
+
+### POST /api/projects/update
+
+```json
+// Body
+{ "id": "rouge-pivoine", "fields": { "status": "done", "priority": 6 } }
+
+// Response
+{ "updated": true }
+```
+
+### POST /api/projects/agents
+
+```json
+// Body
+{ "project_id": "rouge-pivoine" }
+
+// Response
+{
+  "agents": [
+    { "role": "dev", "engine": "claude_code", "autonomy": "supervised", "status": "active", "last_activity": "2026-05-20" }
+  ]
+}
+```
+
+### POST /api/projects/goals
+
+```json
+// Body
+{ "project_id": "rouge-pivoine" }
+
+// Response
+{
+  "goals": [
+    { "label": "CA mensuel", "target": 2000, "current": 1200, "unit": "€", "trend": "up" },
+    { "label": "Trafic organique", "target": 5000, "current": 3800, "unit": "visites/mois", "trend": "stable" }
+  ]
+}
+```

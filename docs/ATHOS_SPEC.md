@@ -1,6 +1,6 @@
 # ATHOS — Spécification Système
 
-**Version** : 0.8 | **Date** : 2026-05-20 | **Source** : Claude Sonnet 4.6
+**Version** : 0.9 | **Date** : 2026-05-20 | **Source** : Claude Sonnet 4.6
 
 ---
 
@@ -33,7 +33,7 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 | Capability graph | ✅ RÉEL | 72 nœuds, 132 edges, score 1.0 |
 | Épistémie guard | ✅ RÉEL | Guardrails truth-over-comfort |
 | Task queue | ✅ RÉEL | core/task_queue.py, 194 tests |
-| Dashboard Next.js | ✅ RÉEL | Port 3333, 19 routes — v4 |
+| Dashboard Next.js | ✅ RÉEL | Port 3333, 19+ routes — v5 |
 | SSE live events | ✅ RÉEL | /api/athos-events proxy → /api/events HUB |
 | Auth token | ✅ RÉEL | ATHOS_ACCESS_TOKEN, CORS strict |
 
@@ -120,7 +120,32 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 
 ---
 
-## 6. Règles non négociables
+## 6. Vision produit — ce qui reste à bâtir
+
+> ATHOS est une fondation, pas un aboutissement. Le dashboard actuel couvre la supervision système.
+> Les modules suivants transformeront ATHOS en ERP IA / JARVIS réel.
+
+### Modules manquants pour atteindre la vision
+
+| Module | Priorité | Description |
+|--------|----------|-------------|
+| Project Control Center | P2 | Gestion ERP multi-projets — frontend prototype en cours |
+| Integration Registry | P2 | Outils rattachés par projet (Shopify, Stripe, GSC, GitHub...) |
+| Social Channel Registry | P2 | Réseaux sociaux par projet (IG, TikTok, LinkedIn, X...) |
+| Project Agents | P2 | Agents IA dédiés par projet avec rôles et permissions |
+| Project Goals & KPIs | P2 | Métriques business par projet (CA, trafic, leads...) |
+| Room collaborative | P4 | Vraie war room multi-IA avec débats et consensus |
+| Moteur de proactivité | P4 | Watchtowers business/SEO/infra + alertes prédictives |
+| Knowledge Graph | P4 | Graphe structuré projets × clients × outils × événements |
+| Voice Layer | P5 | STT/TTS local, wake word, orb ATHOS CORE |
+| Edge Agents | P5 | Mac, iPhone, VPS — présence continue multi-device |
+| Gouvernance permissions | P5 | Multi-user, audit trail, rôles granulaires |
+| Mode Mission Control | P5 | Supervision globale temps réel tous projets |
+| Système prédictif | P5 | Anticipe les besoins avant formulation |
+
+---
+
+## 7. Règles non négociables
 
 1. Ne jamais committer sans demande explicite de Clément
 2. Ne jamais logger ou exposer ATHOS_ACCESS_TOKEN
@@ -128,3 +153,7 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 4. Zéro dépense API payante par défaut
 5. Tout changement durable → Drive + GitHub + tests
 6. Co-author git : `Jerykko/Ex-nihilo <contact@ex-nihilo.agency>`
+7. Cloisonnement Claude/Codex : dashboard/produit = Claude · runtime/backend = Codex
+8. Vérité > confort : ATHOS corrige les biais, sépare faits/inférences/opinions
+9. Austérité locale : fonctionnel offline, sans cloud, sans capteurs
+10. Toute action : visible, loggée, stoppable, reportée

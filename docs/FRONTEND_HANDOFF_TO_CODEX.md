@@ -268,7 +268,51 @@ Supprimer l'`InsetNotice` et le `MockBanner` associés dès que l'endpoint est o
 
 ---
 
-## 9. Commande de vérification build
+## 9. Project Control Center — Backend à prévoir (PRIORITÉ P2)
+
+> Spécification complète : `docs/PROJECT_CONTROL_CENTER_SPEC.md`
+> Contrats API détaillés : `docs/API_CONTRACTS.md` (section PCC)
+
+### Pages frontend existantes (prototype mockées)
+
+| Page | Route | Données actuelles | Backend requis |
+|------|-------|-------------------|----------------|
+| Liste projets enrichie | /dashboard/projects | /api/projects (§-format, existant) | Enrichissement : health_score, integrations_count, alerts_count |
+| Wizard création projet | /dashboard/projects/new | Local state uniquement (prototype) | POST /api/projects/create |
+| Détail projet | /dashboard/projects/[id] | Mock statique (rouge-pivoine, placerr) | POST /api/projects/detail |
+
+### Endpoints à créer
+
+1. **POST /api/projects/detail** — fiche projet complète (integrations, channels, agents, goals, tasks)
+2. **POST /api/projects/create** — persister un projet depuis le wizard (§-format dans .mem ou SQLite)
+3. **POST /api/projects/update** — modifier statut, priorité, champs d'un projet
+4. **POST /api/projects/agents** — agents IA dédiés par projet
+5. **POST /api/projects/goals** — objectifs et KPIs calculés
+
+### Enrichissement /api/projects existant
+
+La route `/api/projects` existe et parse athos_projects.mem.
+Ajouter dans la réponse :
+- `health_score` (0-1) — composite basé sur integrations + alerts + blockers
+- `integrations_count` + `integrations_ok` — depuis fiche projet
+- `alerts_count` — alertes actives
+- `next_action` — prochaine action extraite du §-format `next:`
+
+### Ce qui est prototype frontend et restera prototype jusqu'au backend
+
+- Données de détail projet (integrations, channels, agents, goals) : **mockées**
+- Création projet via wizard : **local state seulement, aucun POST**
+- Score santé projet : **mockée**
+
+### Ce qui est déjà réel
+
+- Liste projets depuis athos_projects.mem : **RÉEL**
+- KPI counts (actifs/bloqués/en attente/terminés) : **RÉEL**
+- Liens vers fiche détail : **fonctionnels pour rouge-pivoine et placerr**
+
+---
+
+## 10. Commande de vérification build
 
 Après chaque implémentation Codex, vérifier que le dashboard compile :
 
@@ -276,4 +320,4 @@ Après chaque implémentation Codex, vérifier que le dashboard compile :
 cd ~/Sites/athos/dashboard && npx next build
 ```
 
-Résultat attendu : 19+ routes, 0 erreur TypeScript.
+Résultat attendu : 21+ routes (incluant PCC), 0 erreur TypeScript.
