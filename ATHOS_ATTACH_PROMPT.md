@@ -173,6 +173,15 @@ athos_report claude result "résumé court de l'action" fichier_1 fichier_2
 
 Si ATHOS HUB est offline, `athos_report` écrit dans `memory/room_offline_YYYYMMDD.jsonl`.
 
+4b. En fin de session Codex, écrire une note §-compressée exploitable par `session_writer.py` :
+
+```bash
+cd ~/Sites/athos
+scripts/codex_session_note.sh '§session:YYYY-MM-DD|engine=codex|result=...|tests=...|next=...'
+```
+
+Ce helper appelle `/api/memory/note` si le HUB répond, sinon il écrit dans `temp/session_notes.mem`.
+
 5. Si le statut d'un projet change, mettre à jour `~/Sites/athos/memory/athos_projects.mem` en format §-compressé, exemple :
 
 ```text

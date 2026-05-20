@@ -92,6 +92,14 @@ curl -s -X POST http://localhost:8765/memories \
   -d '{"category":"athos","document":"[résumé]"}'
 ```
 
+**Note de fin de session Codex** :
+```bash
+cd ~/Sites/athos
+scripts/codex_session_note.sh '§session:YYYY-MM-DD|engine=codex|result=...|tests=...|next=...'
+```
+
+Ce helper poste vers `/api/memory/note` avec le token ATHOS si disponible. Si le HUB est offline, il écrit dans `temp/session_notes.mem` pour reprise par `core/session_writer.py`.
+
 **Lire** (début de session / recherche) :
 ```bash
 curl -s http://localhost:8765/memories/search \

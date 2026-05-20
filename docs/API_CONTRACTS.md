@@ -200,17 +200,24 @@ data: { error: string }
 
 ```json
 {
-  "action": "list|create|update|cancel"
+  "action": "list|create|get|start|pause|resume|retry|cancel|complete|block|sweep_stale"
 }
 ```
 
 Réponse `list` :
 ```json
 {
-  "tasks": [ { "id": "uuid", "title": "...", "status": "pending|running|done|failed", "priority": "normal", ... } ],
-  "summary": { "total": 0, "pending": 0, "running": 0 }
+  "tasks": [ { "id": "uuid", "task_id": "...", "title": "...", "status": "queued|running|paused|blocked|completed|cancelled", "priority": 5 } ],
+  "summary": { "total": 0, "active": 0, "counts": { "queued": 0, "running": 0, "blocked": 0 }, "stale_after_seconds": 600 }
 }
 ```
+
+Transitions runtime :
+- `queued → running|paused|blocked|cancelled`
+- `running → completed|blocked|paused|cancelled`
+- `paused → queued|blocked|cancelled`
+- `blocked → queued|cancelled`
+- `completed|cancelled` sont terminaux.
 
 ---
 
@@ -229,6 +236,11 @@ Réponse :
 
 **Usage** : Permet à Codex CLI d'écrire dans `session_notes.mem` avant la fin de session.
 
+Helper Codex :
+```bash
+scripts/codex_session_note.sh '§session:2026-05-20|engine=codex|result=...'
+```
+
 ---
 
 ## POST /api/events *(HUB direct)*
@@ -242,6 +254,50 @@ Cache-Control: no-cache
 ```
 
 Envoie immédiatement un `event: status` seed, puis tail du kernel JSONL (1s poll), heartbeat 30s.
+
+---
+
+## POST /api/report
+
+**Statut** : RÉEL — double usage
+
+1. Report attach protocol :
+```json
+{ "attach_id": "...", "engine": "codex", "summary": "...", "status": "completed" }
+```
+
+2. Rapport dashboard :
+```json
+{ "type": "daily" }
+```
+
+Réponse dashboard :
+```json
+{
+  "ok": true,
+  "type": "daily",
+  "date": "YYYY-MM-DD",
+  "brief": "Rapport daily ATHOS — ...",
+  "sections": [
+    { "title": "Session", "content": "...", "data": {} },
+    { "title": "Task queue", "content": "...", "data": {} },
+    { "title": "Responders", "content": "...", "data": {} },
+    { "title": "Failover", "content": "...", "data": {} }
+  ]
+}
+```
+
+---
+
+## POST /api/autonomous_loop
+
+**Statut** : RÉEL — alias backend de `/api/loop`
+
+```json
+{ "action": "status|start|stop|events" }
+```
+
+`stop` est idempotent. `start` exige `allow_autonomous=true` ou `ATHOS_AUTONOMOUS_LOOP_ENABLED=true`.
 
 ---
 
