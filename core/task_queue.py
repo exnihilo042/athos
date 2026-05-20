@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +23,14 @@ except ImportError:
 TASK_QUEUE_FILE = config.DRIVE / "athos_task_queue.json"
 STATUSES = {"queued", "running", "paused", "blocked", "completed", "cancelled"}
 TERMINAL_STATUSES = {"completed", "cancelled"}
+LEGAL_TRANSITIONS = {
+    "queued": {"running", "paused", "blocked", "cancelled"},
+    "running": {"completed", "blocked", "paused", "cancelled"},
+    "paused": {"queued", "blocked", "cancelled"},
+    "blocked": {"queued", "cancelled"},
+    "completed": set(),
+    "cancelled": set(),
+}
 _lock = threading.Lock()
 
 
@@ -42,6 +50,15 @@ def _safe_meta(value: Any) -> dict[str, Any]:
         for k, v in value.items()
         if isinstance(v, (str, int, float, bool, type(None), list, dict))
     }
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def _read_unlocked() -> list[dict[str, Any]]:
@@ -84,6 +101,16 @@ def _record_transition(action: str, task: dict[str, Any], result: str = "") -> N
         )
     except Exception:
         pass
+
+
+def _can_transition(current: str, target: str) -> bool:
+    current = current if current in STATUSES else "queued"
+    return target in LEGAL_TRANSITIONS.get(current, set())
+
+
+def _stale_cutoff(seconds: int | None = None) -> datetime:
+    age = seconds if seconds is not None else int(getattr(config, "ATHOS_TASK_STALE_AFTER_SECONDS", 600))
+    return datetime.now(timezone.utc) - timedelta(seconds=max(1, int(age)))
 
 
 def create(
@@ -160,6 +187,17 @@ def transition(
         if index is None:
             return {"ok": False, "error": "not_found"}
         task = dict(items[index])
+        current = task.get("status", "queued")
+        if current == status:
+            return {"ok": True, "task": task, "idempotent": True}
+        if not _can_transition(current, status):
+            return {
+                "ok": False,
+                "error": "illegal_transition",
+                "from": current,
+                "to": status,
+                "task": task,
+            }
         task["status"] = status
         task["updated_at"] = now
         if status == "running" and not task.get("started_at"):
@@ -212,6 +250,9 @@ def retry(*, task_id: str = "", item_id: str = "") -> dict[str, Any]:
         if index is None:
             return {"ok": False, "error": "not_found"}
         task = dict(items[index])
+        current = task.get("status", "queued")
+        if current in TERMINAL_STATUSES:
+            return {"ok": False, "error": "illegal_transition", "from": current, "to": "queued", "task": task}
         task["status"] = "queued"
         task["updated_at"] = now
         task["completed_at"] = ""
@@ -223,7 +264,35 @@ def retry(*, task_id: str = "", item_id: str = "") -> dict[str, Any]:
     return {"ok": True, "task": task}
 
 
+def sweep_stale(stale_after_seconds: int | None = None) -> dict[str, Any]:
+    """Block running tasks older than the conservative stale timeout."""
+    cutoff = _stale_cutoff(stale_after_seconds)
+    changed: list[dict[str, Any]] = []
+    now = _now()
+    with _lock:
+        items = _read_unlocked()
+        for index, item in enumerate(items):
+            if item.get("status") != "running":
+                continue
+            started = _parse_ts(item.get("started_at")) or _parse_ts(item.get("updated_at")) or _parse_ts(item.get("created_at"))
+            if started and started > cutoff:
+                continue
+            task = dict(item)
+            task["status"] = "blocked"
+            task["updated_at"] = now
+            task["blocked_reason"] = "stale_timeout"
+            task["meta"] = {**_safe_meta(task.get("meta")), "stale_after_seconds": stale_after_seconds or int(getattr(config, "ATHOS_TASK_STALE_AFTER_SECONDS", 600))}
+            items[index] = task
+            changed.append(task)
+        if changed:
+            _write_unlocked(items)
+    for task in changed:
+        _record_transition("stale_timeout", task, "stale_timeout")
+    return {"ok": True, "changed": len(changed), "tasks": changed}
+
+
 def list_tasks(status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    sweep_stale()
     with _lock:
         items = _read_unlocked()
     if status:
@@ -234,6 +303,7 @@ def list_tasks(status: str | None = None, limit: int = 100) -> list[dict[str, An
 
 
 def get(*, task_id: str = "", item_id: str = "") -> dict[str, Any] | None:
+    sweep_stale()
     with _lock:
         items = _read_unlocked()
     index = _find_index(items, task_id=_safe_text(task_id, 160), item_id=_safe_text(item_id, 80))
@@ -241,6 +311,7 @@ def get(*, task_id: str = "", item_id: str = "") -> dict[str, Any] | None:
 
 
 def summary() -> dict[str, Any]:
+    sweep_stale()
     with _lock:
         items = _read_unlocked()
     counts: dict[str, int] = {status: 0 for status in sorted(STATUSES)}
@@ -248,10 +319,12 @@ def summary() -> dict[str, Any]:
         status = item.get("status", "queued")
         counts[status] = counts.get(status, 0) + 1
     active = [item for item in items if item.get("status") in {"queued", "running", "paused", "blocked"}]
+    stale_after = int(getattr(config, "ATHOS_TASK_STALE_AFTER_SECONDS", 600))
     active_sorted = sorted(active, key=lambda item: item.get("updated_at", ""), reverse=True)
     return {
         "file": str(TASK_QUEUE_FILE),
         "exists": TASK_QUEUE_FILE.exists(),
+        "stale_after_seconds": stale_after,
         "total": len(items),
         "counts": counts,
         "active": len(active),

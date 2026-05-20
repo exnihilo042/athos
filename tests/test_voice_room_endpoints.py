@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import threading
+import socket
 import urllib.error
 import urllib.request
 
@@ -142,6 +143,81 @@ def test_tasks_endpoint_lifecycle(tmp_path, monkeypatch):
         status, body = srv.post("/api/tasks", {"action": "list"})
         assert status == 200
         assert body["summary"]["counts"]["cancelled"] == 1
+    finally:
+        srv.close()
+
+
+def test_memory_note_endpoint_writes_session_note(tmp_path, monkeypatch):
+    _, srv = _server(tmp_path, monkeypatch)
+    import memory_manager
+    memory_manager.TEMP = tmp_path / "temp"
+    try:
+        status, body = srv.post("/api/memory/note", {
+            "note": "§session:2026-05-20|engine=codex|result=note_endpoint_ok",
+        })
+        assert status == 200
+        assert body["ok"] is True
+        assert "note_endpoint_ok" in (tmp_path / "temp" / "session_notes.mem").read_text("utf-8")
+
+        status, body = srv.post("/api/memory/note", {"note": ""})
+        assert status == 400
+        assert body["ok"] is False
+    finally:
+        srv.close()
+
+
+def test_report_endpoint_daily_payload_is_dashboard_ready(tmp_path, monkeypatch):
+    _, srv = _server(tmp_path, monkeypatch)
+    try:
+        status, body = srv.post("/api/report", {"type": "daily"})
+        assert status == 200
+        assert body["ok"] is True
+        assert body["type"] == "daily"
+        assert body["date"]
+        assert body["brief"]
+        assert isinstance(body["sections"], list)
+        assert {section["title"] for section in body["sections"]} >= {"Session", "Task queue", "Responders"}
+    finally:
+        srv.close()
+
+
+def test_autonomous_loop_alias_status_and_stop_are_idempotent(tmp_path, monkeypatch):
+    _, srv = _server(tmp_path, monkeypatch)
+    try:
+        status, body = srv.post("/api/autonomous_loop", {"action": "status"})
+        assert status == 200
+        assert body["running"] is False
+        assert "policy" in body
+
+        status, body = srv.post("/api/autonomous_loop", {"action": "stop"})
+        assert status == 200
+        assert body["ok"] is True
+        assert body["running"] is False
+    finally:
+        srv.close()
+
+
+def test_events_endpoint_emits_status_seed_event(tmp_path, monkeypatch):
+    _, srv = _server(tmp_path, monkeypatch)
+    req = urllib.request.Request(
+        srv.base + "/api/events",
+        data=b"{}",
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as response:
+            assert response.status == 200
+            assert response.headers.get("Content-Type") == "text/event-stream"
+            first = response.readline().decode("utf-8")
+            second = response.readline().decode("utf-8")
+            assert first == "event: status\n"
+            assert second.startswith("data: ")
+            payload = json.loads(second.removeprefix("data: "))
+            assert "session" in payload
+            assert "capability_graph" in payload
+    except socket.timeout:
+        raise AssertionError("SSE seed event was not emitted before timeout")
     finally:
         srv.close()
 

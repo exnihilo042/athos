@@ -39,7 +39,11 @@ FAILOVER_TEST_ENGINES = {
 GROK_KEY = os.getenv("GROK_API_KEY", "").strip()
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1").strip()
 GROK_MODEL = os.getenv("GROK_MODEL", "grok-beta").strip()
-ATHOS_ENGINE_ORDER = os.getenv("ATHOS_ENGINE_ORDER", "chatgpt_plus,claude_code,anthropic_api,grok,ollama").strip()
+ATHOS_ENGINE_ORDER = os.getenv(
+    "ATHOS_ENGINE_ORDER",
+    "chatgpt_plus,claude_code,anthropic_api,grok,lmstudio,vllm,llamacpp,ollama",
+).strip()
+ATHOS_TASK_STALE_AFTER_SECONDS = int(os.getenv("ATHOS_TASK_STALE_AFTER_SECONDS", "600"))
 ATHOS_ACCESS_TOKEN = os.getenv("ATHOS_ACCESS_TOKEN", "").strip()
 ATHOS_BIND_HOST = os.getenv("ATHOS_BIND_HOST", "127.0.0.1").strip() or "127.0.0.1"
 ATHOS_PORT = int(os.getenv("ATHOS_PORT", "7474"))

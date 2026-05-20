@@ -1,5 +1,6 @@
 """ATHOS Voice Server — couche HTTP pure. Toute la logique est dans core/."""
 import sys, json, subprocess, threading, uuid, tempfile, shutil, os, atexit
+from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from pathlib import Path
@@ -73,6 +74,55 @@ def _room_runtime_state() -> dict:
         },
         "task_queue": task_queue.summary(),
         "responders": room_responders.responder_status(),
+    }
+
+
+def _dashboard_report(body: dict) -> dict:
+    report_type = str(body.get("type") or "daily").lower()
+    date = datetime.now().date().isoformat()
+    session = session_kernel.status()
+    queue = task_queue.summary()
+    responders = room_responders.responder_status()
+    try:
+        from observability import recent_failover_events
+        failovers = recent_failover_events(limit=6)
+    except Exception:
+        failovers = []
+    sections = [
+        {
+            "title": "Session",
+            "content": session.get("recent_summary") or "Aucune activité session récente.",
+            "data": session,
+        },
+        {
+            "title": "Task queue",
+            "content": (
+                f"{queue.get('active', 0)} tâche(s) active(s), "
+                f"{queue.get('counts', {}).get('completed', 0)} terminée(s), "
+                f"{queue.get('counts', {}).get('blocked', 0)} bloquée(s)."
+            ),
+            "data": queue,
+        },
+        {
+            "title": "Responders",
+            "content": " · ".join(
+                f"{name}:{'ok' if info.get('available') else (info.get('last_problem') or {}).get('kind', 'off')}"
+                for name, info in (responders.get("actors") or {}).items()
+            ) or "Aucun responder déclaré.",
+            "data": responders,
+        },
+        {
+            "title": "Failover",
+            "content": f"{len(failovers)} événement(s) failover récent(s).",
+            "data": {"events": failovers},
+        },
+    ]
+    return {
+        "ok": True,
+        "type": report_type,
+        "date": date,
+        "brief": f"Rapport {report_type} ATHOS — {session.get('events', 0)} événement(s), {queue.get('active', 0)} tâche(s) active(s).",
+        "sections": sections,
     }
 
 
@@ -722,7 +772,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(delegate_request(self._body())); return
 
         if p == "/api/report":
-            self._json(attach_report(self._body())); return
+            body = self._body()
+            if str(body.get("type") or "").lower() in {"daily", "session", "weekly"}:
+                self._json(_dashboard_report(body)); return
+            self._json(attach_report(body)); return
 
         if p == "/api/checkpoint":
             body = self._body()
@@ -1194,6 +1247,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(task_queue.retry(task_id=task_id, item_id=item_id)); return
             if action == "cancel":
                 self._json(task_queue.cancel(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
+            if action == "sweep_stale":
+                self._json(task_queue.sweep_stale(stale_after_seconds=body.get("stale_after_seconds"))); return
             if action == "start":
                 self._json(task_queue.start(task_id=task_id, item_id=item_id)); return
             if action == "complete":
@@ -1279,7 +1334,7 @@ class Handler(BaseHTTPRequestHandler):
                 "message": "ATHOS actif. Données financières live : connecter Shopify Admin API. SEO live : connecter Google Search Console.",
             }); return
 
-        if p == "/api/loop":
+        if p in {"/api/loop", "/api/autonomous_loop"}:
             from autonomous_loop import recent_events, start_loop, status as loop_status, stop_loop
             body = self._body()
             action = body.get("action", "status")

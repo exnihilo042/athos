@@ -39,6 +39,7 @@ def test_task_queue_lifecycle_persists_and_summarizes(tmp_path, monkeypatch):
     assert retried["task"]["retry_count"] == 1
     assert retried["task"]["blocked_reason"] == ""
 
+    queue.start(task_id="room-a")
     completed = queue.complete(task_id="room-a", result="tests passed")
     assert completed["task"]["status"] == "completed"
     assert completed["task"]["result"] == "tests passed"
@@ -56,3 +57,50 @@ def test_task_queue_api_helpers_filter_and_cancel(tmp_path, monkeypatch):
     assert [item["task_id"] for item in paused] == ["first"]
     assert queue.get(item_id=first["id"])["status"] == "paused"
     assert queue.summary()["counts"]["cancelled"] == 1
+
+
+def test_task_queue_rejects_illegal_terminal_transitions(tmp_path, monkeypatch):
+    queue = _queue(tmp_path, monkeypatch)
+    queue.create("Terminal", task_id="terminal")
+    queue.start(task_id="terminal")
+    queue.complete(task_id="terminal", result="done")
+
+    retry = queue.retry(task_id="terminal")
+    assert retry["ok"] is False
+    assert retry["error"] == "illegal_transition"
+
+    pause = queue.pause(task_id="terminal")
+    assert pause["ok"] is False
+    assert pause["error"] == "illegal_transition"
+    assert queue.get(task_id="terminal")["status"] == "completed"
+
+
+def test_task_queue_requires_start_before_complete(tmp_path, monkeypatch):
+    queue = _queue(tmp_path, monkeypatch)
+    queue.create("Queued", task_id="queued")
+
+    result = queue.complete(task_id="queued", result="too early")
+
+    assert result["ok"] is False
+    assert result["error"] == "illegal_transition"
+    assert result["from"] == "queued"
+    assert result["to"] == "completed"
+
+
+def test_task_queue_sweeps_stale_running_tasks(tmp_path, monkeypatch):
+    queue = _queue(tmp_path, monkeypatch)
+    queue.create("Stale", task_id="stale")
+    queue.start(task_id="stale")
+
+    items = queue._read_unlocked()
+    items[0]["started_at"] = "2020-01-01T00:00:00+00:00"
+    queue._write_unlocked(items)
+
+    swept = queue.sweep_stale(stale_after_seconds=1)
+
+    assert swept["ok"] is True
+    assert swept["changed"] == 1
+    task = queue.get(task_id="stale")
+    assert task["status"] == "blocked"
+    assert task["blocked_reason"] == "stale_timeout"
+    assert queue.summary()["counts"]["blocked"] == 1
