@@ -21,7 +21,18 @@ def _load_server(tmp_path, monkeypatch):
     for path in (voice_path, core_path):
         if path not in sys.path:
             sys.path.insert(0, path)
-    for name in ("config", "session_kernel", "sync_manager", "task_queue", "session_compactor", "athos_room", "attach_protocol", "server"):
+    for name in (
+        "config",
+        "session_kernel",
+        "sync_manager",
+        "task_queue",
+        "session_compactor",
+        "athos_room",
+        "attach_protocol",
+        "dashboard_runtime",
+        "autonomous_loop",
+        "server",
+    ):
         sys.modules.pop(name, None)
     import voice.server as server
     importlib.reload(server)
@@ -99,6 +110,19 @@ def test_message_and_conversation_endpoints_roundtrip(tmp_path, monkeypatch):
         assert status == 200
         assert body["status"] == "healthy"
         assert body["checked_messages"] == 1
+        assert body["active_sessions"] == 0
+        assert body["total_messages"] == 1
+        assert body["summary"] == {
+            "total": 0,
+            "running": 0,
+            "done": 0,
+            "blocked": 0,
+            "pending": 0,
+            "paused": 0,
+            "cancelled": 0,
+        }
+        assert body["room_summary"]["total"] == 1
+        assert body["task_summary"] == body["summary"]
 
         status, body = srv.post("/api/conversation", {"action": "runtime"})
         assert status == 200
@@ -143,6 +167,16 @@ def test_tasks_endpoint_lifecycle(tmp_path, monkeypatch):
         status, body = srv.post("/api/tasks", {"action": "list"})
         assert status == 200
         assert body["summary"]["counts"]["cancelled"] == 1
+
+        status, body = srv.post("/api/tasks", {"action": "unknown", "task_id": "api-task"})
+        assert status == 400
+        assert body["ok"] is False
+        assert body["error"] == "unknown_action"
+
+        status, body = srv.post("/api/tasks", {"action": "pause", "task_id": "missing"})
+        assert status == 404
+        assert body["ok"] is False
+        assert body["error"] == "not_found"
     finally:
         srv.close()
 
@@ -176,7 +210,11 @@ def test_report_endpoint_daily_payload_is_dashboard_ready(tmp_path, monkeypatch)
         assert body["date"]
         assert body["brief"]
         assert isinstance(body["sections"], list)
-        assert {section["title"] for section in body["sections"]} >= {"Session", "Task queue", "Responders"}
+        assert {section["title"] for section in body["sections"]} >= {"Session", "Task queue", "Responders", "Failover"}
+        assert body["summary"]["total_sessions"] >= 0
+        assert body["summary"]["total_messages"] >= 0
+        assert body["summary"]["actions"] >= 0
+        assert body["summary"]["tasks_active"] >= 0
     finally:
         srv.close()
 
@@ -188,11 +226,91 @@ def test_autonomous_loop_alias_status_and_stop_are_idempotent(tmp_path, monkeypa
         assert status == 200
         assert body["running"] is False
         assert "policy" in body
+        assert body["paused"] is False
+
+        status, body = srv.post("/api/autonomous_loop", {"action": "pause"})
+        assert status == 200
+        assert body["ok"] is True
+        assert body["paused"] is True
+
+        status, body = srv.post("/api/autonomous_loop", {"action": "reset"})
+        assert status == 200
+        assert body["ok"] is True
+        assert body["iterations"] == 0
+        assert body["idle_ticks"] == 0
+        assert body["paused"] is False
 
         status, body = srv.post("/api/autonomous_loop", {"action": "stop"})
         assert status == 200
         assert body["ok"] is True
         assert body["running"] is False
+
+        status, body = srv.post("/api/autonomous_loop", {"action": "nope"})
+        assert status == 400
+        assert body["ok"] is False
+        assert body["error"] == "unknown_action"
+    finally:
+        srv.close()
+
+
+def test_performance_endpoint_returns_real_runtime_payload(tmp_path, monkeypatch):
+    _, srv = _server(tmp_path, monkeypatch)
+    try:
+        status, body = srv.post("/api/performance", {})
+        assert status == 200
+        assert body["ok"] is True
+        assert body["source"] == "local_runtime"
+        assert body["system"]["listening_ports"] >= 0
+        assert body["system"]["attached_engines"] >= 0
+        assert isinstance(body["api_latencies"], list)
+        assert {row["endpoint"] for row in body["api_latencies"]} >= {
+            "/api/status",
+            "/api/conversation health",
+            "/api/tasks",
+            "/api/observability",
+        }
+        assert body["lighthouse"] == []
+        assert body["capabilities"] == {
+            "system_metrics": True,
+            "latency_sampling": True,
+            "lighthouse_configured": False,
+        }
+    finally:
+        srv.close()
+
+
+def test_crm_endpoint_derives_partial_clients_from_project_memory(tmp_path, monkeypatch):
+    projects = tmp_path / "athos_projects.mem"
+    projects.write_text(
+        "\n".join(
+            [
+                "§proj:athos|status:building",
+                "§proj:rouge-pivoine|status:active|store:Shopify theme|next:Livrer la V2",
+                "§proj:placerr|status:blocked|stack:Next.js|blocker:attente_design|todo:relancer_client",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    _, srv = _server(tmp_path, monkeypatch)
+    try:
+        status, body = srv.post("/api/crm", {})
+        assert status == 200
+        assert body["ok"] is True
+        assert body["source"] == "athos_projects.mem"
+        assert body["data_quality"] == "partial"
+        assert body["active"] == 1
+        assert body["blocked"] == 1
+        assert body["urgent"] == 1
+        assert body["pipeline_total"] is None
+        assert len(body["clients"]) == 2
+
+        by_id = {client["id"]: client for client in body["clients"]}
+        assert by_id["rouge-pivoine"]["name"] == "Rouge Pivoine"
+        assert by_id["rouge-pivoine"]["status"] == "active"
+        assert by_id["rouge-pivoine"]["project"] == "Shopify theme"
+        assert by_id["rouge-pivoine"]["next_action"] == "Livrer la V2"
+        assert by_id["placerr"]["blocked"] is True
+        assert by_id["placerr"]["attention"] == "high"
     finally:
         srv.close()
 

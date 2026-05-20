@@ -27,3 +27,5 @@
 §kernel:roadmap|defer[Finances,Commandes,CRM=pas_de_core_module_ni_data_source]
 §kernel:codex_runtime_2026-05-20|done[task_queue_legal_transitions,stale_running_to_blocked,api_report_daily_dashboard_payload,SSE_status_seed_test,codex_session_note_helper,api_autonomous_loop_alias]
 §kernel:codex_runtime_2026-05-20|responders:claude_available+codex_usage_limit_blocked|tests:201_passed|scope:runtime_only_no_dashboard_touch
+§kernel:codex_runtime_2026-05-20_v2|done[/api_conversation_health_enriched,/api_report_summary,/api_autonomous_loop_pause_reset,/api_performance_real_snapshot,/api_crm_partial_from_mem,/api_tasks_http_error_codes]
+§kernel:codex_runtime_2026-05-20_v2|tests:203_passed|frontend_contracts:dashboard_v4_ready_partial|remaining[finances,seo,commandes,codex_responder_quota]

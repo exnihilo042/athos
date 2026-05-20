@@ -1,6 +1,5 @@
 """ATHOS Voice Server — couche HTTP pure. Toute la logique est dans core/."""
 import sys, json, subprocess, threading, uuid, tempfile, shutil, os, atexit
-from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from pathlib import Path
@@ -29,6 +28,7 @@ import truth_ledger
 import engine_router
 import failover_simulator
 import room_responders
+import dashboard_runtime
 from auth import request_authorized
 from memory_extractor import extract_and_save_async
 from athos_memory import AthosMemory
@@ -74,55 +74,6 @@ def _room_runtime_state() -> dict:
         },
         "task_queue": task_queue.summary(),
         "responders": room_responders.responder_status(),
-    }
-
-
-def _dashboard_report(body: dict) -> dict:
-    report_type = str(body.get("type") or "daily").lower()
-    date = datetime.now().date().isoformat()
-    session = session_kernel.status()
-    queue = task_queue.summary()
-    responders = room_responders.responder_status()
-    try:
-        from observability import recent_failover_events
-        failovers = recent_failover_events(limit=6)
-    except Exception:
-        failovers = []
-    sections = [
-        {
-            "title": "Session",
-            "content": session.get("recent_summary") or "Aucune activité session récente.",
-            "data": session,
-        },
-        {
-            "title": "Task queue",
-            "content": (
-                f"{queue.get('active', 0)} tâche(s) active(s), "
-                f"{queue.get('counts', {}).get('completed', 0)} terminée(s), "
-                f"{queue.get('counts', {}).get('blocked', 0)} bloquée(s)."
-            ),
-            "data": queue,
-        },
-        {
-            "title": "Responders",
-            "content": " · ".join(
-                f"{name}:{'ok' if info.get('available') else (info.get('last_problem') or {}).get('kind', 'off')}"
-                for name, info in (responders.get("actors") or {}).items()
-            ) or "Aucun responder déclaré.",
-            "data": responders,
-        },
-        {
-            "title": "Failover",
-            "content": f"{len(failovers)} événement(s) failover récent(s).",
-            "data": {"events": failovers},
-        },
-    ]
-    return {
-        "ok": True,
-        "type": report_type,
-        "date": date,
-        "brief": f"Rapport {report_type} ATHOS — {session.get('events', 0)} événement(s), {queue.get('active', 0)} tâche(s) active(s).",
-        "sections": sections,
     }
 
 
@@ -720,10 +671,15 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
 
     def _json(self, data, status=200):
-        body = json.dumps(data).encode()
+        body = json.dumps(data).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
-        self.cors(); self.end_headers(); self.wfile.write(body)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Connection", "close")
+        self.cors()
+        self.end_headers()
+        self.wfile.write(body)
+        self.close_connection = True
 
     def _auth(self) -> bool:
         if request_authorized(self.headers, ACCESS_TOKEN, require_token=config.ATHOS_TOKEN_ENFORCED): return True
@@ -774,7 +730,7 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/report":
             body = self._body()
             if str(body.get("type") or "").lower() in {"daily", "session", "weekly"}:
-                self._json(_dashboard_report(body)); return
+                self._json(dashboard_runtime.daily_report(str(body.get("type") or "daily"))); return
             self._json(attach_report(body)); return
 
         if p == "/api/checkpoint":
@@ -1183,7 +1139,7 @@ class Handler(BaseHTTPRequestHandler):
                 engine = body.get("engine", "athos")
                 self._json({"context": athos_room.get_context_for_engine(engine, limit=int(body.get("limit", 40)))}); return
             if action == "health":
-                self._json(athos_room.health(limit=int(body.get("limit", 100)))); return
+                self._json(dashboard_runtime.conversation_health(athos_room.health(limit=int(body.get("limit", 100))))); return
             if action == "runtime":
                 self._json({"ok": True, **_room_runtime_state()}); return
             thread = athos_room.get_thread(
@@ -1225,6 +1181,13 @@ class Handler(BaseHTTPRequestHandler):
             action = body.get("action", "list")
             task_id = body.get("task_id", "")
             item_id = body.get("id", "")
+            def _task_response(payload):
+                if payload.get("ok") is False:
+                    if payload.get("error") == "not_found":
+                        self._json(payload, 404); return
+                    if payload.get("error") in {"illegal_transition", "invalid_status"}:
+                        self._json(payload, 409); return
+                self._json(payload); return
             if action == "create":
                 task = task_queue.create(
                     body.get("title") or body.get("content") or "ATHOS task",
@@ -1240,26 +1203,28 @@ class Handler(BaseHTTPRequestHandler):
                 task = task_queue.get(task_id=task_id, item_id=item_id)
                 self._json({"ok": bool(task), "task": task}); return
             if action == "pause":
-                self._json(task_queue.pause(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
+                _task_response(task_queue.pause(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
             if action == "resume":
-                self._json(task_queue.resume(task_id=task_id, item_id=item_id)); return
+                _task_response(task_queue.resume(task_id=task_id, item_id=item_id)); return
             if action == "retry":
-                self._json(task_queue.retry(task_id=task_id, item_id=item_id)); return
+                _task_response(task_queue.retry(task_id=task_id, item_id=item_id)); return
             if action == "cancel":
-                self._json(task_queue.cancel(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
+                _task_response(task_queue.cancel(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
             if action == "sweep_stale":
                 self._json(task_queue.sweep_stale(stale_after_seconds=body.get("stale_after_seconds"))); return
             if action == "start":
-                self._json(task_queue.start(task_id=task_id, item_id=item_id)); return
+                _task_response(task_queue.start(task_id=task_id, item_id=item_id)); return
             if action == "complete":
-                self._json(task_queue.complete(task_id=task_id, item_id=item_id, result=body.get("result", ""))); return
+                _task_response(task_queue.complete(task_id=task_id, item_id=item_id, result=body.get("result", ""))); return
             if action == "block":
-                self._json(task_queue.block(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
-            self._json({
+                _task_response(task_queue.block(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
+            if action == "list":
+                self._json({
                 "ok": True,
                 "tasks": task_queue.list_tasks(status=body.get("status"), limit=int(body.get("limit", 100))),
                 "summary": task_queue.summary(),
-            }); return
+                }); return
+            self._json({"ok": False, "error": "unknown_action", "action": action}, 400); return
 
         if p == "/api/room/respond":
             body = self._body()
@@ -1335,7 +1300,7 @@ class Handler(BaseHTTPRequestHandler):
             }); return
 
         if p in {"/api/loop", "/api/autonomous_loop"}:
-            from autonomous_loop import recent_events, start_loop, status as loop_status, stop_loop
+            from autonomous_loop import recent_events, pause_loop, reset_loop, start_loop, status as loop_status, stop_loop
             body = self._body()
             action = body.get("action", "status")
             if action == "start":
@@ -1353,9 +1318,23 @@ class Handler(BaseHTTPRequestHandler):
             if action == "stop":
                 stop_loop()
                 self._json({"ok": True, **loop_status()}); return
+            if action == "pause":
+                pause_loop()
+                self._json({"ok": True, **loop_status()}); return
+            if action == "reset":
+                reset_loop()
+                self._json({"ok": True, **loop_status()}); return
             if action == "events":
                 self._json({"events": recent_events(limit=int(body.get("limit", 20))), "status": loop_status()}); return
+            if action != "status":
+                self._json({"ok": False, "error": "unknown_action", "action": action, **loop_status()}, 400); return
             self._json(loop_status()); return
+
+        if p == "/api/performance":
+            self._json(dashboard_runtime.performance_payload()); return
+
+        if p == "/api/crm":
+            self._json(dashboard_runtime.crm_payload()); return
 
         if p == "/api/settings":
             import ast

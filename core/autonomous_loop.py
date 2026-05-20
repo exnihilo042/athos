@@ -287,6 +287,7 @@ RÉSULTAT:"""
 # ── Module-level singleton helpers ─────────────────────────────────────────────
 
 _loop_instance: AutonomousLoop | None = None
+_paused = False
 
 
 def get_loop() -> AutonomousLoop | None:
@@ -301,11 +302,13 @@ def start_loop(
     allow_skill_mutation: bool = False,
     on_event: Callable[[str, dict], None] | None = None,
 ) -> AutonomousLoop:
-    global _loop_instance
+    global _loop_instance, _paused
     if _loop_instance and _loop_instance.is_alive():
+        _paused = False
         return _loop_instance
     if not (allow_autonomous or getattr(config, "AUTONOMOUS_LOOP_ENABLED", False)):
         raise PermissionError("autonomous loop start requires explicit allow_autonomous=true or ATHOS_AUTONOMOUS_LOOP_ENABLED=true")
+    _paused = False
     _loop_instance = AutonomousLoop(
         llm_call=llm_call,
         tick_interval=tick_interval,
@@ -325,10 +328,33 @@ def start_loop(
 
 
 def stop_loop() -> None:
-    global _loop_instance
+    global _loop_instance, _paused
+    _paused = False
     if _loop_instance:
         _loop_instance.stop()
         session_kernel.record_action("autonomous_loop_stop", "manual", "stopping", engine="athos_kernel")
+
+
+def pause_loop() -> None:
+    global _loop_instance, _paused
+    _paused = True
+    if _loop_instance:
+        _loop_instance.stop()
+    session_kernel.record_action("autonomous_loop_pause", "manual", "paused", engine="athos_kernel")
+
+
+def reset_loop() -> None:
+    global _loop_instance, _paused
+    if _loop_instance and _loop_instance.is_alive():
+        _loop_instance._iteration = 0
+        _loop_instance._idle_ticks = 0
+        _loop_instance._last_event = {"type": "loop_reset", "ts": time.time()}
+        _write_state(_loop_instance.status())
+    else:
+        _loop_instance = None
+        _write_state(status())
+    _paused = False
+    session_kernel.record_action("autonomous_loop_reset", "manual", "reset", engine="athos_kernel")
 
 
 def loop_policy() -> dict:
@@ -345,9 +371,10 @@ def loop_policy() -> dict:
 def status() -> dict:
     loop = get_loop()
     if loop:
-        return {**loop.status(), "policy": loop_policy()}
+        return {**loop.status(), "paused": _paused, "policy": loop_policy()}
     return {
         "running": False,
+        "paused": _paused,
         "iterations": 0,
         "idle_ticks": 0,
         "last_event": _read_last_event(),

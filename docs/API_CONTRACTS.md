@@ -212,6 +212,27 @@ Réponse `list` :
 }
 ```
 
+Réponse mutation :
+```json
+{
+  "ok": true,
+  "task": {
+    "id": "uuid",
+    "task_id": "room-123",
+    "status": "paused",
+    "blocked_reason": "",
+    "retry_count": 1,
+    "started_at": "ISO8601",
+    "completed_at": ""
+  }
+}
+```
+
+Codes d'erreur runtime :
+- `404` : `{"ok": false, "error": "not_found"}`
+- `409` : `{"ok": false, "error": "illegal_transition", "from": "...", "to": "..."}`
+- `400` : `{"ok": false, "error": "unknown_action", "action": "..."}`
+
 Transitions runtime :
 - `queued → running|paused|blocked|cancelled`
 - `running → completed|blocked|paused|cancelled`
@@ -276,14 +297,23 @@ Réponse dashboard :
 {
   "ok": true,
   "type": "daily",
-  "date": "YYYY-MM-DD",
+  "date": "YYYY-MM-DDTHH:MM:SS+00:00",
   "brief": "Rapport daily ATHOS — ...",
   "sections": [
     { "title": "Session", "content": "...", "data": {} },
     { "title": "Task queue", "content": "...", "data": {} },
     { "title": "Responders", "content": "...", "data": {} },
     { "title": "Failover", "content": "...", "data": {} }
-  ]
+  ],
+  "summary": {
+    "total_sessions": 1,
+    "total_messages": 42,
+    "failovers": 0,
+    "actions": 6,
+    "tasks_total": 3,
+    "tasks_active": 1,
+    "tasks_blocked": 0
+  }
 }
 ```
 
@@ -294,10 +324,10 @@ Réponse dashboard :
 **Statut** : RÉEL — alias backend de `/api/loop`
 
 ```json
-{ "action": "status|start|stop|events" }
+{ "action": "status|start|stop|pause|reset|events" }
 ```
 
-`stop` est idempotent. `start` exige `allow_autonomous=true` ou `ATHOS_AUTONOMOUS_LOOP_ENABLED=true`.
+`stop` est idempotent. `pause` fige la boucle côté backend et coupe le thread courant. `reset` remet `iterations` et `idle_ticks` à zéro. `start` exige `allow_autonomous=true` ou `ATHOS_AUTONOMOUS_LOOP_ENABLED=true`.
 
 ---
 
@@ -313,6 +343,7 @@ Réponse :
 ```json
 {
   "running": false,
+  "paused": false,
   "iterations": 42,
   "idle_ticks": 3,
   "last_event": { "type": "tick", "ts": "ISO8601", "data": {} },
@@ -322,6 +353,79 @@ Réponse :
     "default_tick": 60,
     "skill_mutation_enabled": false
   }
+}
+```
+
+---
+
+## POST /api/performance
+
+**Statut** : RÉEL — snapshot runtime honnête, sans mock Lighthouse
+
+```json
+{}
+```
+
+Réponse :
+```json
+{
+  "ok": true,
+  "source": "local_runtime",
+  "system": {
+    "uptime_seconds": 12345,
+    "listening_ports": 10,
+    "memory_ok": true,
+    "attached_engines": 1,
+    "loop_running": false,
+    "server_pid": 8299
+  },
+  "api_latencies": [
+    { "endpoint": "/api/status", "p50": 45.1, "p95": 130.2, "ok": true }
+  ],
+  "lighthouse": [],
+  "capabilities": {
+    "system_metrics": true,
+    "latency_sampling": true,
+    "lighthouse_configured": false
+  }
+}
+```
+
+---
+
+## POST /api/crm
+
+**Statut** : RÉEL — extraction partielle depuis `athos_projects.mem`
+
+```json
+{}
+```
+
+Réponse :
+```json
+{
+  "ok": true,
+  "source": "athos_projects.mem",
+  "data_quality": "partial",
+  "clients": [
+    {
+      "id": "rouge-pivoine",
+      "name": "Rouge Pivoine",
+      "status": "active",
+      "attention": "normal|medium|high",
+      "project": "Shopify theme",
+      "monthly_value": null,
+      "next_action": "Livrer la V2",
+      "tags": ["shopify", "theme"],
+      "blocked": false,
+      "data_quality": "partial"
+    }
+  ],
+  "active": 1,
+  "urgent": 0,
+  "blocked": 0,
+  "pipeline_total": null,
+  "missing_sources": ["CRM dédié", "valeur mensuelle client", "historique relationnel structuré"]
 }
 ```
 
@@ -352,8 +456,8 @@ Réponse :
 |-------|-------------|----------------------|----------|
 | /api/finances | CA, commandes, marge | `FinancesSummary`, `ProjectRevenue` | P2 |
 | /api/seo | Positions, CWV, trafic | `SeoSite`, `SeoPosition` | P2 |
-| /api/performance | Lighthouse batch, latences | `PerformancePayload` | P1 |
-| /api/crm | Clients, leads, pipeline | `CrmPayload`, `CrmClient` | P2 |
+| /api/performance | livré en snapshot runtime local ; Lighthouse reste absent par choix honnête | `PerformancePayload` | branchable |
+| /api/crm | livré en extraction partielle depuis mémoire projet ; pipeline réel encore absent | `CrmPayload`, `CrmClient` | branchable partiel |
 | /api/commandes | Shopify orders | `CommandesPayload`, `Order` | P2 |
 
 Toutes les interfaces TypeScript sont définies dans `dashboard/lib/types.ts`.

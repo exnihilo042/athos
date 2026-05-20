@@ -155,6 +155,9 @@ Une fois le backend validé, Claude peut implémenter les boutons en un seul com
 - [x] `POST /api/tasks { action: "retry", task_id }` → tâche relancée si non terminale
 - [x] Tests unitaires pour transitions et transitions illégales
 - [x] Retour `{ ok: true, task: {...} }` sur succès
+- [x] `404` sur tâche inconnue
+- [x] `409` sur transition illégale
+- [x] `400` sur action inconnue
 
 ---
 
@@ -195,6 +198,7 @@ La page `dashboard/reports/page.tsx` appelle `/api/report { type: "daily" }`. Ce
 **Ce que Codex doit valider** :
 - [x] `POST /api/report { type: "daily" }` → retourne un rapport structuré.
 - [x] Rapport inclut session, task queue, responders, failover.
+- [x] `summary` ajouté pour éviter le recalcul côté dashboard.
 - [ ] Affichage page dashboard reste validation UI Claude.
 
 **Fichiers concernés** :
@@ -215,8 +219,10 @@ La page `dashboard/reports/page.tsx` appelle `/api/report { type: "daily" }`. Ce
 
 **Livré** :
 - `/api/autonomous_loop` est alias de `/api/loop`.
-- `status|start|stop|events` supportés.
+- `status|start|stop|pause|reset|events` supportés.
 - `stop` idempotent testé.
+- `pause` coupe proprement le thread courant et expose `paused=true`.
+- `reset` remet les compteurs locaux à zéro et journalise l'action.
 - `start` conserve la garde explicite `allow_autonomous=true` ou env `ATHOS_AUTONOMOUS_LOOP_ENABLED=true`.
 
 **Frontend attendu (Claude après Codex)** :
@@ -224,7 +230,56 @@ Boutons Start/Stop dans la page Automations avec feedback SSE temps réel.
 
 ---
 
-### CODEX-008 — Finances : endpoint /api/finances
+### CODEX-008 — Performance : endpoint /api/performance
+
+**Priorité** : P1
+**Statut** : ✅ Livré côté backend runtime
+
+**Livré** :
+- `POST /api/performance`
+- snapshot local honnête : `system`, `api_latencies`, `lighthouse=[]`, `capabilities`
+- aucune donnée fake Lighthouse
+- tests endpoint dédiés
+
+**Reste** :
+- Brancher la page Claude sur les données réelles
+- Ajouter Lighthouse seulement avec une vraie source/config dédiée
+
+---
+
+### CODEX-009 — CRM : endpoint /api/crm
+
+**Priorité** : P1
+**Statut** : ✅ Livré en mode partiel et honnête
+
+**Livré** :
+- `POST /api/crm`
+- extraction depuis `athos_projects.mem`
+- `data_quality=partial`
+- champs utiles : `clients`, `active`, `urgent`, `blocked`, `missing_sources`
+- tests endpoint dédiés
+
+**Limites assumées** :
+- pas de pipeline financier fiable
+- pas de `monthly_value`
+- pas d'historique relationnel structuré
+
+---
+
+### CODEX-010 — Conversation health enrichi pour Reports / Automations
+
+**Priorité** : P1
+**Statut** : ✅ Livré
+
+**Livré** :
+- `POST /api/conversation { action:"health" }`
+- enrichi avec `active_sessions`, `total_messages`, `task_summary`
+- `summary` désormais aligné sur le shape attendu par le dashboard
+- `room_summary` conservé pour la compatibilité ascendante
+
+---
+
+### CODEX-011 — Finances : endpoint /api/finances
 
 **Priorité** : P2
 **Statut** : Non implémenté — données MOCK côté dashboard
@@ -244,7 +299,7 @@ La page `/dashboard/finances` affiche des données mock (MOCK_CA_MONTH, MOCK_VEN
 
 ---
 
-### CODEX-009 — SEO Analytics : endpoint /api/seo
+### CODEX-012 — SEO Analytics : endpoint /api/seo
 
 **Priorité** : P2
 **Statut** : Non implémenté — données MOCK côté dashboard
