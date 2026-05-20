@@ -20,7 +20,7 @@ def _load_server(tmp_path, monkeypatch):
     for path in (voice_path, core_path):
         if path not in sys.path:
             sys.path.insert(0, path)
-    for name in ("config", "session_kernel", "sync_manager", "session_compactor", "athos_room", "attach_protocol", "server"):
+    for name in ("config", "session_kernel", "sync_manager", "task_queue", "session_compactor", "athos_room", "attach_protocol", "server"):
         sys.modules.pop(name, None)
     import voice.server as server
     importlib.reload(server)
@@ -30,6 +30,7 @@ def _load_server(tmp_path, monkeypatch):
     server.athos_room._DRIVE_MIRROR = tmp_path / "drive" / "athos_conversation.jsonl"
     server.session_kernel.SESSION_FILE = tmp_path / "athos_session_kernel.jsonl"
     server.sync_manager.OUTBOX_FILE = tmp_path / "athos_sync_outbox.jsonl"
+    server.task_queue.TASK_QUEUE_FILE = tmp_path / "athos_task_queue.json"
     server.session_compactor.SUMMARY_FILE = tmp_path / "athos_session_summary.mem"
 
     # The route handlers call functions imported from attach_protocol at import
@@ -105,8 +106,42 @@ def test_message_and_conversation_endpoints_roundtrip(tmp_path, monkeypatch):
         assert body["auto_response"]["active_count"] == 0
         assert body["auto_work"]["enabled"] is False
         assert body["auto_work"]["active_count"] == 0
+        assert body["task_queue"]["total"] == 0
         assert "responders" in body
         assert set(body["responders"]["actors"]) == {"claude", "codex"}
+    finally:
+        srv.close()
+
+
+def test_tasks_endpoint_lifecycle(tmp_path, monkeypatch):
+    _, srv = _server(tmp_path, monkeypatch)
+    try:
+        status, body = srv.post("/api/tasks", {
+            "action": "create",
+            "task_id": "api-task",
+            "title": "API task",
+            "content": "queue pilotable",
+        })
+        assert status == 200
+        assert body["ok"] is True
+        assert body["task"]["status"] == "queued"
+
+        status, body = srv.post("/api/tasks", {"action": "pause", "task_id": "api-task", "reason": "operator"})
+        assert status == 200
+        assert body["task"]["status"] == "paused"
+
+        status, body = srv.post("/api/tasks", {"action": "retry", "task_id": "api-task"})
+        assert status == 200
+        assert body["task"]["status"] == "queued"
+        assert body["task"]["retry_count"] == 1
+
+        status, body = srv.post("/api/tasks", {"action": "cancel", "task_id": "api-task", "reason": "done elsewhere"})
+        assert status == 200
+        assert body["task"]["status"] == "cancelled"
+
+        status, body = srv.post("/api/tasks", {"action": "list"})
+        assert status == 200
+        assert body["summary"]["counts"]["cancelled"] == 1
     finally:
         srv.close()
 
@@ -340,6 +375,13 @@ def test_message_endpoint_runs_coordinated_work_cycle_for_work_intent(tmp_path, 
         assert "fake_edit: tests ok" in contents
         assert "travail concret terminé" in contents
         assert contents[-1].startswith("orchestration ATHOS terminée")
+
+        status, tasks = srv.post("/api/tasks", {"action": "get", "task_id": "natural-work"})
+        assert status == 200
+        assert tasks["ok"] is True
+        assert tasks["task"]["status"] == "completed"
+        assert tasks["task"]["kind"] == "room_auto_work"
+        assert tasks["task"]["result"] == "travail concret terminé"
     finally:
         srv.close()
 

@@ -2037,6 +2037,9 @@ async function refreshRoom() {
     const healthClass = health.ok && !issueCount ? 'healthy' : (health.ok ? 'warning' : 'unhealthy');
     const work = runtime.auto_work || {};
     const responders = runtime.auto_response || {};
+    const queue = runtime.task_queue || {};
+    const counts = queue.counts || {};
+    const queueText = `queue:${counts.queued || 0}/${counts.running || 0}/${counts.blocked || 0}`;
     const runtimeText = work.active_count
       ? `travail:${work.current?.task_id || work.active_count}`
       : (responders.active_count ? `réponses:${responders.active_count}` : 'idle');
@@ -2046,8 +2049,8 @@ async function refreshRoom() {
       .join(' · ');
     statusEl.className = healthClass;
     statusEl.textContent = total
-      ? `santé:${health.status || 'unknown'} · ${runtimeText} · ${responderText} · issues:${issueCount} · ${total} messages · ${actors}`
-      : `santé:${health.status || 'unknown'} · ${runtimeText} · ${responderText} · fil vide`;
+      ? `santé:${health.status || 'unknown'} · ${runtimeText} · ${queueText} · ${responderText} · issues:${issueCount} · ${total} messages · ${actors}`
+      : `santé:${health.status || 'unknown'} · ${runtimeText} · ${queueText} · ${responderText} · fil vide`;
   } catch(e) {
     const statusEl = document.getElementById('room-status');
     statusEl.className = 'unhealthy';

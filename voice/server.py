@@ -10,6 +10,7 @@ import config
 import athos_room
 import session_kernel
 import sync_manager
+import task_queue
 import memory_status
 import session_compactor
 import metacognition
@@ -70,6 +71,7 @@ def _room_runtime_state() -> dict:
             "timeout": int(getattr(config, "ATHOS_ROOM_AUTO_WORK_TIMEOUT", 180)),
             "review_enabled": bool(getattr(config, "ATHOS_ROOM_AUTO_WORK_REVIEW", True)),
         },
+        "task_queue": task_queue.summary(),
         "responders": room_responders.responder_status(),
     }
 
@@ -247,6 +249,15 @@ def _schedule_room_athos_work(entry: dict) -> dict:
     timeout = int(getattr(config, "ATHOS_ROOM_AUTO_WORK_TIMEOUT", 180))
     responder_timeout = int(getattr(config, "ATHOS_ROOM_AUTO_WORK_RESPONDER_TIMEOUT", 60))
     toolbus_stats = {"count": 0}
+    task_queue.create(
+        f"Room objective: {str(content).strip()[:120]}",
+        content=content,
+        task_id=task_id,
+        source="room",
+        kind="room_auto_work",
+        status="queued",
+        meta={"entry_id": entry_id, "actor": entry.get("actor")},
+    )
 
     def room_sse(obj):
         try:
@@ -295,6 +306,7 @@ def _schedule_room_athos_work(entry: dict) -> dict:
 
     def worker():
         try:
+            task_queue.start(task_id=task_id)
             athos_room.add(
                 actor="athos",
                 content="orchestration ATHOS lancée depuis la Room",
@@ -348,6 +360,7 @@ def _schedule_room_athos_work(entry: dict) -> dict:
                 t.start()
                 t.join(timeout=timeout)
                 if t.is_alive():
+                    task_queue.block(task_id=task_id, reason=f"timeout {timeout}s")
                     athos_room.add(
                         actor="athos",
                         content=f"travail ATHOS stoppé: timeout {timeout}s",
@@ -401,8 +414,10 @@ def _schedule_room_athos_work(entry: dict) -> dict:
                 status="completed",
                 meta={"source": "room_auto_work", "entry_id": entry_id},
             )
+            task_queue.complete(task_id=task_id, result=reply or "orchestration completed")
             print(f"[ATHOS Room work] done entry={entry_id} task={task_id}", flush=True)
         except Exception as exc:
+            task_queue.block(task_id=task_id, reason=str(exc))
             athos_room.add(
                 actor="athos",
                 content=f"travail ATHOS échoué: {exc}",
@@ -1141,6 +1156,45 @@ class Handler(BaseHTTPRequestHandler):
                 "entry": entry,
                 "auto_response": auto_response,
                 "auto_work": auto_work,
+            }); return
+
+        if p == "/api/tasks":
+            body = self._body()
+            action = body.get("action", "list")
+            task_id = body.get("task_id", "")
+            item_id = body.get("id", "")
+            if action == "create":
+                task = task_queue.create(
+                    body.get("title") or body.get("content") or "ATHOS task",
+                    content=body.get("content", ""),
+                    task_id=task_id,
+                    source=body.get("source", "api"),
+                    kind=body.get("kind", "manual"),
+                    priority=int(body.get("priority", 5)),
+                    meta=body.get("meta"),
+                )
+                self._json({"ok": True, "task": task, "summary": task_queue.summary()}); return
+            if action == "get":
+                task = task_queue.get(task_id=task_id, item_id=item_id)
+                self._json({"ok": bool(task), "task": task}); return
+            if action == "pause":
+                self._json(task_queue.pause(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
+            if action == "resume":
+                self._json(task_queue.resume(task_id=task_id, item_id=item_id)); return
+            if action == "retry":
+                self._json(task_queue.retry(task_id=task_id, item_id=item_id)); return
+            if action == "cancel":
+                self._json(task_queue.cancel(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
+            if action == "start":
+                self._json(task_queue.start(task_id=task_id, item_id=item_id)); return
+            if action == "complete":
+                self._json(task_queue.complete(task_id=task_id, item_id=item_id, result=body.get("result", ""))); return
+            if action == "block":
+                self._json(task_queue.block(task_id=task_id, item_id=item_id, reason=body.get("reason", ""))); return
+            self._json({
+                "ok": True,
+                "tasks": task_queue.list_tasks(status=body.get("status"), limit=int(body.get("limit", 100))),
+                "summary": task_queue.summary(),
             }); return
 
         if p == "/api/room/respond":

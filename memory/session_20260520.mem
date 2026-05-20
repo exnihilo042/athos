@@ -24,3 +24,4 @@
 §proj:athos|docs:room_operator_check_documented=ATHOS_ATTACH_PROMPT+ATHOS_INTEGRATION|tests:191_passed
 
 §proj:athos|source:jarvis_videos_20260520=Downloads_jarvis_1_2_3_4|analysis:command_center+business_telemetry+named_agents+named_protocols+controlled_proactivity|doc:docs/JARVIS_VIDEO_ANALYSIS_2026-05-20.md|roadmap:P1_HUD_command_center+crew_athos+project_telemetry+business_protocols
+§proj:athos|done:task_queue_p0=core_task_queue+persistent_api_tasks+room_auto_work_lifecycle+runtime_ui_queue_counts|tests:194_passed
