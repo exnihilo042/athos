@@ -1,6 +1,6 @@
 # ATHOS — Contrats API
 
-**Version** : 0.9 | **Date** : 2026-05-20
+**Version** : 1.0 | **Date** : 2026-05-20
 **Base URL** : `http://localhost:7474`
 **Auth** : `Authorization: Bearer $ATHOS_ACCESS_TOKEN` (toutes les routes)
 
@@ -513,3 +513,155 @@ Toutes les interfaces TypeScript sont définies dans `dashboard/lib/types.ts`.
   ]
 }
 ```
+
+---
+
+## Room multi-IA Enrichie — Backend futur (PROPOSAL / scope Codex P1)
+
+> Le frontend Room v7 est complet. Les fonctionnalités suivantes nécessitent un backend Codex.
+> Spécification Room : `docs/DESIGN_SYSTEM.md` section 10 "Pattern Room War Room — v7".
+
+### POST /api/conversation (enrichi)
+
+**Statut actuel** : RÉEL, limite 60 messages, sans filtre
+**Enrichissement requis** :
+
+```json
+// Body actuel
+{ "action": "get", "limit": 60 }
+
+// Body enrichi attendu
+{
+  "action": "get",
+  "limit": 60,
+  "offset": 0,
+  "actor": "clement|claude|codex|athos",
+  "type": "message|action|result|checkpoint|error|report|summary",
+  "project_id": "rouge-pivoine",
+  "task_id": "room-xxx"
+}
+
+// Réponse enrichie attendue
+{
+  "thread": [
+    {
+      "id": "uuid",
+      "ts": "ISO8601",
+      "actor": "clement|claude|codex|athos",
+      "type": "message|action|result|error|report|checkpoint|summary",
+      "content": "string",
+      "task_id": "string",
+      "project_id": "string",
+      "tags": ["important", "blocker"],
+      "metadata": {}
+    }
+  ],
+  "summary": {
+    "total": 247,
+    "returned": 60,
+    "offset": 0,
+    "has_more": true,
+    "actors": { "clement": 42, "claude": 180, "athos": 25 }
+  }
+}
+```
+
+**Champs enrichis à ajouter** :
+- `offset` — pagination côté serveur
+- `actor` / `type` — filtres côté serveur (>60 messages, filtres frontend insuffisants)
+- `project_id` — fil filtré par projet (lié à Integration Registry P2)
+- `tags` — labels manuels sur les messages
+- `summary.has_more` — signal de pagination pour le frontend
+
+### POST /api/conversation/search
+
+**Statut** : NON IMPLÉMENTÉ
+
+```json
+// Body
+{
+  "query": "string",
+  "actor": "claude",
+  "type": "checkpoint",
+  "project_id": "rouge-pivoine",
+  "limit": 20,
+  "offset": 0
+}
+
+// Response
+{
+  "results": [
+    {
+      "id": "uuid",
+      "ts": "ISO8601",
+      "actor": "claude",
+      "type": "checkpoint",
+      "content": "...",
+      "score": 0.92,
+      "context_before": "...",
+      "context_after": "..."
+    }
+  ],
+  "total": 7,
+  "query": "string"
+}
+```
+
+**Usage** : recherche full-text sur l'historique complet (>60 messages). Le frontend affiche actuellement un notice jaune quand `total > thread.length` — cet endpoint lève la limitation.
+
+### POST /api/conversation/actors
+
+**Statut** : NON IMPLÉMENTÉ
+
+```json
+// Body
+{}
+
+// Response
+{
+  "actors": [
+    {
+      "id": "claude",
+      "label": "Claude",
+      "color": "accent",
+      "message_count": 180,
+      "last_active": "ISO8601",
+      "status": "actif|récent|silencieux|absent",
+      "engine": "claude_code"
+    }
+  ]
+}
+```
+
+**Usage** : Le frontend `ActorRosterPanel` calcule actuellement le statut acteur côté client depuis les timestamps du thread local. Ce endpoint expose la vérité serveur et le décompte complet sur l'historique.
+
+### POST /api/conversation/tag
+
+**Statut** : NON IMPLÉMENTÉ
+
+```json
+// Body
+{ "message_id": "uuid", "tags": ["important", "blocker", "decision"] }
+
+// Response
+{ "ok": true, "tags": ["important", "blocker", "decision"] }
+```
+
+**Usage** : Tags manuels sur les messages (fonctionnalité UI future, bouton non encore exposé).
+
+### Liaison conversation → projet (`project_id`)
+
+**Requis** : enrichir `POST /api/message` pour accepter un `project_id` optionnel.
+
+```json
+// Body enrichi
+{
+  "actor": "clement",
+  "content": "string",
+  "type": "message",
+  "task_id": "room-1716210000000",
+  "project_id": "rouge-pivoine"
+}
+```
+
+Stocker `project_id` dans le kernel JSONL. Le sélecteur de projet dans `ProjectContextCard` (frontend Room) envoie déjà ce champ — le backend doit le persister.

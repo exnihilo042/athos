@@ -113,3 +113,9 @@
 §proj:athos|JARVIS_piliers_manquants[PCC,integration_registry,social_registry,Room_collaborative,orchestrateur_consensus,moteur_proactivité,memory_graph,voice_layer,edge_agents,alertes_prédictives,actions_réelles_outils,mode_mission_control,mode_war_room,orb_ATHOS_CORE,gouvernance_permissions,système_prédictif]
 §proj:athos|cloisonnement=Claude:dashboard+produit+docs+roadmap+design_system|Codex:runtime+backend+core+responders+workers+task_queue+session_writer
 §proj:athos|session_courante_pilote=création_complète_ATHOS|cette_conv_grave_vision+roadmap+mémoire+PCC_frontend
+§proj:athos|done:dashboard_v7=Room_War_Room_enrichie+Skill_Registry_documenté|build:21routes_0TS_errors|tests:201+_passed|commit:pending
+§proj:athos|done:dashboard_v7_scope=RoomClient_rewrite[search_filters_sidebar_war_room_actor_roster_project_context]+ActorStatusPill+BlockerCallout_UI+page_1400px+Promise.allSettled
+§proj:athos|done:skill_registry=documenté_ATHOS_SPEC_section7+ATHOS_GLOBAL_ROADMAP_P3+FRONTEND_HANDOFF_section11|scope:P3_futur
+§proj:athos|done:api_contracts_v1.0=Room_backend_futur[/api/conversation_enrichi+/api/conversation/search+/api/conversation/actors+/api/conversation/tag+project_id_sur_messages]
+§proj:athos|done:frontend_handoff_v1.2=Room_backend_scope[frontend_vs_backend_matrix+skill_registry_note]
+§proj:athos|todo:Room_backend=Codex_P1[fil_par_projet,historique_paginé,recherche_serveur,filtres_backend]|status:documenté_prêt_pour_Codex

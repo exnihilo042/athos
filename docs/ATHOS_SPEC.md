@@ -1,6 +1,6 @@
 # ATHOS — Spécification Système
 
-**Version** : 0.9 | **Date** : 2026-05-20 | **Source** : Claude Sonnet 4.6
+**Version** : 1.0 | **Date** : 2026-05-20 | **Source** : Claude Sonnet 4.6
 
 ---
 
@@ -134,7 +134,9 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 | Social Channel Registry | P2 | Réseaux sociaux par projet (IG, TikTok, LinkedIn, X...) |
 | Project Agents | P2 | Agents IA dédiés par projet avec rôles et permissions |
 | Project Goals & KPIs | P2 | Métriques business par projet (CA, trafic, leads...) |
-| Room collaborative | P4 | Vraie war room multi-IA avec débats et consensus |
+| Room / War Room | P1 | Enrichissement frontend — filtres, sidebar, contexte projet, War Room mode (v7 livré) |
+| Skill Registry / Capability Layer | P3 | ATHOS doit connaître ses skills et les recommander au bon moment (voir section 8) |
+| Room collaborative | P4 | Vraie war room multi-IA avec débats et consensus — fondations posées en v7 |
 | Moteur de proactivité | P4 | Watchtowers business/SEO/infra + alertes prédictives |
 | Knowledge Graph | P4 | Graphe structuré projets × clients × outils × événements |
 | Voice Layer | P5 | STT/TTS local, wake word, orb ATHOS CORE |
@@ -145,7 +147,64 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 
 ---
 
-## 7. Règles non négociables
+## 7. Skill Registry / Capability Layer
+
+> Sous-système futur — vision gravée ici pour ne jamais l'oublier.
+
+### Pourquoi ATHOS a besoin d'un Skill Registry
+
+ATHOS orchestre des agents IA. Ces agents disposent de skills opératoires (QA, review, benchmark, design, SEO, ship, scraping...). Sans un registre structuré, ces skills ne sont pas exploités au bon moment : ils existent mais ne sont pas recommandés.
+
+Le Skill Registry est le catalogue vivant de ce qu'ATHOS sait faire opérationnellement — et la couche qui associe les bons skills aux bons moments.
+
+### Catégories de skills à modéliser
+
+| Catégorie | Skills représentatifs |
+|-----------|----------------------|
+| Sécurité & guardrails | `/careful`, `/guard`, `/cso` |
+| Design & UI | `/ui-ux-pro-max`, `/design-review`, `/design-consultation`, `/emil-design-eng` |
+| QA & Tests | `/qa`, `/qa-only`, `/browse`, `/canary` |
+| Planning & architecture | `/plan-eng-review`, `/plan-ceo-review`, `/autoplan`, `/office-hours` |
+| Ship & déploiement | `/ship`, `/land-and-deploy`, `/review` |
+| Documentation | `/document-generate`, `/document-release`, `/retro` |
+| Contexte & mémoire | `/context-save`, `/context-restore` |
+| Scraping & données | `/scrape`, `/skillify` |
+| Experts métier | `/shopify-expert`, `/seo-expert` |
+| Agents & outillage avancé | `/codex`, `/pair-agent`, `/benchmark-models` |
+
+### Association skills × workflows ATHOS
+
+| Déclencheur | Skill recommandé | Quand |
+|-------------|-----------------|-------|
+| Gros chantier frontend terminé | `/qa` | Avant commit |
+| Avant merge de branche | `/review` | Systématique |
+| Après optimisation perf | `/benchmark` | Pour mesurer le gain |
+| Avant décision architecture | `/plan-eng-review` | En amont du code |
+| Fin de session de travail | `/context-save` | Toujours |
+| Avant release UI | `/design-review` | Systématique |
+| Problème / erreur inexpliquée | `/investigate` | Sur incident |
+| Idée nouvelle | `/office-hours` | Avant de coder |
+
+### Différences conceptuelles importantes
+
+- **Skill Claude disponible aujourd'hui** : outil opératoire installé dans `~/.claude/skills/`, invocable via `/skill-name`
+- **Capability ATHOS à modéliser demain** : représentation dans le graphe de capacités (`capability_graph`) avec statut, coût, risque
+- **Automation intégrée plus tard** : ATHOS recommande automatiquement le skill dans la Room ou dans un rapport, basé sur le contexte
+
+### Module dashboard futur : "Skills & Capabilities"
+
+Ajouter à terme une page `/dashboard/skills` :
+- Catalogue des skills disponibles sur la machine
+- Statut : installé / non installé / obsolète
+- Statistiques d'usage (depuis `~/.gstack/analytics/skill-usage.jsonl`)
+- Recommandations contextuelles basées sur les projets actifs
+- Lien vers la documentation de chaque skill
+
+**Priorité** : P3 — après PCC (P2). À inscrire dans la roadmap.
+
+---
+
+## 8. Règles non négociables
 
 1. Ne jamais committer sans demande explicite de Clément
 2. Ne jamais logger ou exposer ATHOS_ACCESS_TOKEN

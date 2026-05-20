@@ -1,6 +1,6 @@
 # ATHOS — Design System
 
-**Version** : 0.9 | **Date** : 2026-05-20
+**Version** : 1.0 | **Date** : 2026-05-20
 
 ---
 
@@ -228,6 +228,26 @@
 - Utiliser dans les fiches projet pour chaque groupe d'informations
 - `marginBottom: 20` par convention
 
+### ActorStatusPill (Room)
+```tsx
+<ActorStatusPill actor="claude" label="Claude" color="var(--accent)" lastTs="2026-05-20T18:45:00Z" />
+<ActorStatusPill actor="clement" label="Clément" color="var(--blue)" lastTs={undefined} compact />
+```
+- Pill d'acteur avec dot de statut calculé depuis `lastTs`
+- Statuts calculés : `actif` (< 5min, vert) · `récent` (< 1h, jaune) · `silencieux` (> 1h, border) · `absent` (jamais vu, border)
+- `compact` supprime le label de statut
+- Utiliser dans les panneaux de contexte Room, la sidebar acteurs
+
+### BlockerCallout (Room)
+```tsx
+<BlockerCallout message="TypeScript error: module not found" actor="claude" ts="2026-05-20T18:30:00Z" />
+<BlockerCallout message="Dépendance manquante" compact />
+```
+- Callout rouge structuré pour les erreurs et blocages
+- `compact` pour les listes ou les contextes denses
+- Fond rouge translucide + borderLeft 3px rouge
+- Utiliser dans la Room pour les messages `type: "error"`, dans les alertes de projet
+
 ---
 
 ## 5. Layout system
@@ -322,7 +342,7 @@ ATHOS utilise les caractères Unicode géométriques comme icônes. Pas d'emoji,
 | Page | Route | Données | Composants clés | Notes v5 |
 |------|-------|---------|----------------|----------|
 | Vue Centrale | /dashboard/hub | MIXTE | ModuleCard, ProductRow, StatCard | PageHeader, module cards mis à jour |
-| Room | /dashboard/room | RÉEL | RoomClient (client), SSE | Stable — aucun changement v5 |
+| Room / War Room | /dashboard/room | RÉEL | RoomClient (client), SSE, WarRoomHeader, RoomFilterBar, SessionContextPanel, ActorRosterPanel, ProjectContextCard | v7 — recherche + filtres + sidebar + War Room mode + contexte projet |
 | Agents IA | /dashboard/agents | RÉEL | StatCard, EngineBadge, SectionLabel | Refacto complet → composants UI |
 | Automations | /dashboard/automations | RÉEL | CodexPendingZone, Card, SectionLabel | Stable |
 | Rapports | /dashboard/reports | RÉEL | CodexPendingZone, DataRow | Stable |
@@ -345,3 +365,18 @@ Utiliser `<RealityBadge level="..." />` dans les titres de section ou en `<Secti
 Utiliser `<CodexPendingZone>` pour les fonctionnalités qui attendent une implémentation Codex.
 Utiliser `<MockBanner>` en haut de toute page ou section dont les données sont entièrement fictives.
 Utiliser `<InsetNotice>` pour signaler un endpoint backend non encore implémenté (Codex scope).
+
+### Pattern Room War Room — v7
+
+La Room utilise un layout en deux colonnes (thread + sidebar collapsible).
+
+**Hiérarchie de la page :**
+1. `WarRoomHeader` — SSE status · moteur actif · toggles War Room + sidebar + refresh
+2. `RoomFilterBar` — recherche texte · pills acteurs (toggle) · pills types (toggle) · compteur filtré
+3. Thread — messages avec rendu spécialisé selon type (checkpoint / error / report / message)
+4. Input — zone de saisie avec `placeholder` adapté au mode War Room
+5. Sidebar (collapsible, 254px) — `SessionContextPanel` + `ActorRosterPanel` + `ProjectContextCard`
+
+**War Room mode :** toggle visuel activant un glow violet sur le thread (`box-shadow` CSS), un badge `◉ ACTIF`, un `borderBottom` violet sur le header. Pas d'animation lourde — transition 0.3s uniquement.
+
+**Filtres :** 100% frontend sur le thread local. Si total > thread.length → notice jaune de pagination.

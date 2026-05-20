@@ -1,15 +1,6 @@
 import { athosPost } from "@/lib/athos";
 import RoomClient from "@/components/RoomClient";
-
-interface RoomEntry {
-  id?: string;
-  ts?: string;
-  actor?: string;
-  type?: string;
-  content?: string;
-  status?: string;
-  task_id?: string;
-}
+import type { AthosStatus, RoomEntry } from "@/lib/types";
 
 interface ConversationPayload {
   thread?: RoomEntry[];
@@ -17,17 +8,20 @@ interface ConversationPayload {
 }
 
 export default async function RoomPage() {
-  let data: ConversationPayload = {};
+  const [convResult, statusResult] = await Promise.allSettled([
+    athosPost<ConversationPayload>("/api/conversation", { action: "get", limit: 60 }),
+    athosPost<AthosStatus>("/api/status"),
+  ]);
 
-  try {
-    data = await athosPost<ConversationPayload>("/api/conversation", { action: "get", limit: 60 });
-  } catch {}
+  const data = convResult.status === "fulfilled" ? convResult.value : {};
+  const athosStatus = statusResult.status === "fulfilled" ? statusResult.value : undefined;
 
   return (
-    <div style={{ maxWidth: 900, height: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
+    <div style={{ maxWidth: 1400, height: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
       <RoomClient
         initialThread={data.thread ?? []}
         totalMessages={data.summary?.total ?? 0}
+        athosStatus={athosStatus}
       />
     </div>
   );

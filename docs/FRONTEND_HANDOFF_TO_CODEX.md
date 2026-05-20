@@ -1,6 +1,6 @@
 # ATHOS Dashboard — Frontend Handoff to Codex
 
-**Version** : 1.1 | **Date** : 2026-05-20
+**Version** : 1.2 | **Date** : 2026-05-20
 **Auteur** : Claude (dashboard scope)
 **Destinataire** : Codex (runtime/backend scope)
 
@@ -312,7 +312,73 @@ Ajouter dans la réponse :
 
 ---
 
-## 10. Commande de vérification build
+## 10. Room multi-IA — Backend à prévoir (PRIORITÉ P1)
+
+> Frontend Room v7 livré et fonctionnel. Les fonctionnalités suivantes nécessitent un backend Codex.
+> Contrats API détaillés : `docs/API_CONTRACTS.md` (section "Room multi-IA Enrichie — Backend futur")
+
+### Ce qui est 100% frontend (ne nécessite PAS de backend)
+
+| Fonctionnalité | Implémentation |
+|----------------|----------------|
+| Recherche full-text | `filterText` sur les 60 messages locaux via `useMemo` |
+| Filtres acteurs | Pills toggleables, `Set<string>`, `useMemo` |
+| Filtres types | Pills toggleables, `Set<string>`, `useMemo` |
+| War Room mode visuel | `warRoomMode` state, CSS box-shadow + border |
+| Sidebar collapsible | `showSidebar` state, 254px drawer |
+| Roster acteurs (statut local) | Calculé depuis timestamps du thread local |
+| Contexte projet (sélecteur) | Local state, données hardcodées — prototype |
+| Rendu message spécialisé | Par type : checkpoint/error/report/summary/message |
+| Pagination notice (>60) | Notice jaune si `total > thread.length` |
+
+### Ce qui nécessite un backend Codex
+
+| Fonctionnalité | Endpoint requis | Priorité |
+|----------------|-----------------|----------|
+| Fil par projet (`project_id`) | `POST /api/conversation` avec `project_id` | P1 |
+| Historique paginé (>60 msgs) | `POST /api/conversation` avec `offset` | P1 |
+| Recherche sur historique complet | `POST /api/conversation/search` | P1 |
+| Filtres acteur/type backend | `POST /api/conversation` avec `actor`, `type` | P1 |
+| Statut acteur réel (décompte total) | `POST /api/conversation/actors` | P2 |
+| Tags manuels sur messages | `POST /api/conversation/tag` | P2 |
+
+### Modification /api/message requise
+
+Pour lier les messages à un projet, enrichir le body :
+
+```json
+{ "actor": "clement", "content": "...", "type": "message", "project_id": "rouge-pivoine" }
+```
+
+Le frontend `ProjectContextCard` envoie déjà ce champ quand un projet est sélectionné. Le backend doit le persister dans le kernel JSONL.
+
+### Interface TypeScript Room déjà en place
+
+`RoomEntry` dans `dashboard/lib/types.ts` est prêt pour les champs enrichis :
+- `project_id?: string` — à utiliser quand le backend persiste ce champ
+- `tags?: string[]` — à utiliser quand `/api/conversation/tag` est implémenté
+
+---
+
+## 11. Skill Registry — Note backend (P3)
+
+> Spécification complète : `docs/ATHOS_SPEC.md` section 7
+
+Le Skill Registry est un futur sous-système (P3 — après PCC). Il ne nécessite pas d'endpoint backend immédiat.
+
+Quand le développement commence, les endpoints requis seront :
+
+```
+POST /api/skills/list     → catalogue avec statut installé/obsolète + stats usage
+POST /api/skills/suggest  → recommandation contextuelle basée sur projet actif + contexte Room
+POST /api/skills/stats    → agrégat depuis ~/.gstack/analytics/skill-usage.jsonl
+```
+
+La page dashboard `/dashboard/skills` (scope Claude P3) sera construite dès que ces endpoints existent.
+
+---
+
+## 12. Commande de vérification build
 
 Après chaque implémentation Codex, vérifier que le dashboard compile :
 

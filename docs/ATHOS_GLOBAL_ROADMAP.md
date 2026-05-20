@@ -1,6 +1,6 @@
 # ATHOS — Roadmap Globale
 
-**Version** : 1.0 | **Date** : 2026-05-20 | **Source** : Claude Sonnet 4.6
+**Version** : 1.1 | **Date** : 2026-05-20 | **Source** : Claude Sonnet 4.6
 
 ---
 
@@ -30,7 +30,8 @@ Le dashboard actuel est une **fondation solide**, pas l'achèvement de la vision
 | Capability graph (72 nœuds) | ✅ RÉEL | Score 1.0, austere mode ready |
 | Task queue + boucle autonome | ✅ RÉEL | 201 tests passants |
 | Observabilité complète | ✅ RÉEL | /api/observability — failover, ports, mémoire |
-| Dashboard Next.js v5 | ✅ LIVRÉ | 19 routes, 0 TS errors |
+| Dashboard Next.js v6 | ✅ LIVRÉ | 21 routes, PCC, 0 TS errors |
+| Dashboard Next.js v7 | ✅ LIVRÉ | Room War Room enrichie, Skill Registry spec |
 | SSE live events | ✅ RÉEL | /api/athos-events → /api/events HUB |
 | Auth token + CORS strict | ✅ RÉEL | ATHOS_ACCESS_TOKEN, localhost only |
 | Pages : Hub, Room, Agents, Alertes | ✅ RÉEL | Données temps réel |
@@ -74,13 +75,21 @@ Le dashboard actuel est une **fondation solide**, pas l'achèvement de la vision
 | SEO Analytics | MOCK | Google Search Console API | Codex P2 |
 | Performance | MIXTE (score réel / Lighthouse mock) | Lighthouse CLI | Codex P1 |
 
-### Room multi-IA — enrichissement
+### Room multi-IA — enrichissement (v7 — frontend livré)
 
-- [ ] Fil de conversation structuré par projet
-- [ ] Historique paginé (>60 messages)
-- [ ] Recherche dans la Room
-- [ ] Tags/labels sur les messages
-- [ ] Filtres par acteur, type, date
+- [x] Recherche full-text dans le fil — frontend
+- [x] Filtres par acteur (toggle multi-sélection) — frontend
+- [x] Filtres par type de message (msg / action / result / checkpoint / error / report / summary) — frontend
+- [x] Panneau session (SSE state, moteur, événements, objectif courant)
+- [x] Roster acteurs (statut actif/récent/silencieux/absent, compteurs, toggle filtre)
+- [x] Contexte projet prototype (sélecteur + mini card + lien fiche PCC)
+- [x] War Room mode visuel (glow violet, badge ◉ ACTIF, header tactique)
+- [x] Rendu spécialisé : checkpoint (accent), error/blocage (rouge), report (jaune condensé)
+- [x] Pagination notice quand total > 60 messages visibles
+- [ ] Fil structuré par projet (lié à project_id) — backend Codex requis
+- [ ] Historique paginé côté serveur (>60 messages) — backend Codex requis
+- [ ] Recherche serveur sur historique complet — backend Codex requis
+- [ ] Tags/labels sur les messages — backend Codex requis
 
 ### Observabilité avancée
 
@@ -195,6 +204,21 @@ Métriques à piloter par projet :
 - [ ] Grok (xAI)
 - [ ] DeepSeek, Mistral, Together, Cerebras
 - [ ] LM Studio / llama.cpp local
+
+### Skill Registry / Capability Layer
+
+> Identifié comme futur sous-système ATHOS — spécification complète dans `docs/ATHOS_SPEC.md` section 7.
+
+ATHOS orchestre des agents IA dotés de skills opératoires. Sans registre structuré, ces skills ne sont pas exploités au bon moment.
+
+- [ ] Catalogue des skills disponibles sur la machine (`~/.claude/skills/`)
+- [ ] Statut par skill : installé / non installé / obsolète
+- [ ] Statistiques d'usage (`~/.gstack/analytics/skill-usage.jsonl`)
+- [ ] Recommandations contextuelles basées sur projets actifs
+- [ ] Association skills × workflows ATHOS (trigger → skill → quand)
+- [ ] Page dashboard `/dashboard/skills` — Skills & Capabilities
+- [ ] Intégration dans le capability_graph (nœuds skills, statut, coût, risque)
+- [ ] Recommandation automatique dans la Room selon contexte
 
 ---
 

@@ -606,6 +606,106 @@ export function SocialChannelPill({
   );
 }
 
+// ── Room — ActorStatusPill ─────────────────────────────────────────────────────
+
+type ActorOnlineStatus = "actif" | "récent" | "silencieux" | "absent";
+
+function resolveActorStatus(lastTs?: string): ActorOnlineStatus {
+  if (!lastTs) return "absent";
+  const s = (Date.now() - new Date(lastTs).getTime()) / 1000;
+  if (s < 300)  return "actif";
+  if (s < 3600) return "récent";
+  return "silencieux";
+}
+
+const ACTOR_STATUS_COLOR: Record<ActorOnlineStatus, string> = {
+  actif:      "var(--green)",
+  récent:     "var(--yellow)",
+  silencieux: "var(--border)",
+  absent:     "var(--border)",
+};
+
+export function ActorStatusPill({
+  actor,
+  label,
+  color,
+  lastTs,
+  compact = false,
+}: {
+  actor: string;
+  label?: string;
+  color?: string;
+  lastTs?: string;
+  compact?: boolean;
+}) {
+  const status = resolveActorStatus(lastTs);
+  const statusColor = ACTOR_STATUS_COLOR[status];
+  const displayLabel = label ?? actor;
+  const actorColor = color ?? "var(--muted)";
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: compact ? 4 : 6,
+        padding: compact ? "2px 7px" : "3px 9px",
+        borderRadius: 20,
+        fontSize: 11,
+        background: `color-mix(in srgb, ${actorColor} 10%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${actorColor} 22%, transparent)`,
+        color: actorColor,
+      }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: statusColor, boxShadow: status === "actif" ? `0 0 4px ${statusColor}` : "none", flexShrink: 0, display: "inline-block" }} />
+      {displayLabel}
+      {!compact && (
+        <span style={{ fontSize: 9, color: statusColor, opacity: 0.9 }}>{status}</span>
+      )}
+    </span>
+  );
+}
+
+// ── Room — BlockerCallout ──────────────────────────────────────────────────────
+
+export function BlockerCallout({
+  message,
+  actor,
+  ts,
+  compact = false,
+}: {
+  message: string;
+  actor?: string;
+  ts?: string;
+  compact?: boolean;
+}) {
+  const formattedTs = ts ? (() => {
+    try { return new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); } catch { return ts; }
+  })() : undefined;
+
+  return (
+    <div style={{
+      padding: compact ? "7px 12px" : "10px 14px",
+      background: "rgba(255,69,58,0.06)",
+      borderLeft: "3px solid var(--red)",
+      borderRadius: compact ? 4 : 0,
+      border: compact ? "1px solid rgba(255,69,58,0.25)" : undefined,
+      borderLeftWidth: 3,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: compact ? 3 : 5 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--red)", letterSpacing: 0.8, textTransform: "uppercase" }}>
+          ⚠ {compact ? "Erreur" : "Erreur · blocage"}
+        </span>
+        {formattedTs && <span style={{ fontSize: 9, color: "var(--border)" }}>{formattedTs}</span>}
+        {actor && <span style={{ fontSize: 9, color: "var(--muted)", marginLeft: "auto" }}>{actor}</span>}
+      </div>
+      <div style={{ fontSize: compact ? 11 : 12, color: "var(--red)", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+        {message}
+      </div>
+    </div>
+  );
+}
+
 // ── PCC — ProjectSection ──────────────────────────────────────────────────────
 
 export function ProjectSection({
