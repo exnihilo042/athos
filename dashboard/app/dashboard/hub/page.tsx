@@ -1,4 +1,5 @@
 import { athosPost } from "@/lib/athos";
+import RefreshButton from "@/components/RefreshButton";
 
 interface StatusPayload {
   engine?: string;
@@ -116,10 +117,15 @@ export default async function HubPage() {
 
   return (
     <div style={{ maxWidth: 1100 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Vue Centrale</h1>
-      <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24 }}>
-        État temps réel — rafraîchi à chaque chargement
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Vue Centrale</h1>
+          <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
+            État temps réel — rafraîchi à chaque chargement
+          </p>
+        </div>
+        <RefreshButton />
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
         <Card title="Moteur">

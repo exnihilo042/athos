@@ -15,7 +15,7 @@
 
 §cognition:austere|mode=local_only_no_network_no_new_engine
 §cognition:austere|actions[compress_context,reason_first_principles,simulate_before_mutate,queue_network_work]
-§cognition:austere|austere_mode_ready=false|blocker=memory_files_missing+no_available_engine_in_graph
+§cognition:austere|austere_mode_ready=true|resolved_2026-05-20=memory_files_created+claude_engine_restored
 
 §cognition:epistemic|rules[no_flatter,separate_fact_inference_uncertainty,challenge_weak_beliefs]
 §cognition:epistemic|rules[name_cognitive_bias,prefer_calibrated_bad_news_over_false_confidence]
