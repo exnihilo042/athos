@@ -460,4 +460,66 @@ Réponse :
 | /api/crm | livré en extraction partielle depuis mémoire projet ; pipeline réel encore absent | `CrmPayload`, `CrmClient` | branchable partiel |
 | /api/commandes | Shopify orders | `CommandesPayload`, `Order` | P2 |
 
+---
+
+## Skills Registry API (scope Codex P3)
+
+Le catalogue de skills actuel est statique (`dashboard/lib/skill-registry.ts`).
+L'orchestration réelle viendra en P3. Contrats prévus :
+
+```typescript
+// GET /api/skills/registry
+interface SkillRegistryResponse {
+  skills: SkillRecord[];
+  total: number;
+  last_updated: string;
+}
+
+interface SkillRecord {
+  id: string;
+  name: string;
+  slash: string;
+  categories: string[];
+  maturity: "available_now" | "strategic" | "future_athos_integration";
+  athos_integration: boolean;
+  last_used?: string;       // ISO date
+  call_count?: number;
+  available: boolean;        // skill installé sur la machine
+}
+
+// POST /api/skills/recommend
+interface SkillRecommendRequest {
+  context: string;           // description tâche courante
+  phase?: string;            // lifecycle phase
+  agent?: string;            // athos agent actif
+}
+interface SkillRecommendResponse {
+  recommendations: { skill_id: string; score: number; reason: string }[];
+}
+
+// POST /api/skills/execute
+interface SkillExecuteRequest {
+  skill_id: string;
+  params?: Record<string, unknown>;
+  agent?: string;
+}
+interface SkillExecuteResponse {
+  status: "queued" | "running" | "done" | "error";
+  task_id: string;
+  message?: string;
+}
+
+// POST /api/skills/log
+interface SkillLogRequest {
+  skill_id: string;
+  result: "success" | "partial" | "error";
+  duration_ms: number;
+  agent?: string;
+  context?: string;
+}
+```
+
+**Prérequis P3** : Room multi-IA collaborative + orchestrateur consensus + moteur proactivité watchtower.
+**Source spec** : `docs/SKILL_REGISTRY_SPEC.md` section 6.
+
 Toutes les interfaces TypeScript sont définies dans `dashboard/lib/types.ts`.

@@ -1,5 +1,5 @@
 import { athosPost } from "@/lib/athos";
-import { Card } from "@/components/ui";
+import { Card, PageHeader, Badge } from "@/components/ui";
 
 interface SettingsPayload {
   spend_policy?: {
@@ -78,12 +78,13 @@ export default async function SettingsPage() {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Paramètres</h1>
-        <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-          Configuration ATHOS — lecture seule · éditer via <code style={{ fontFamily: "monospace", fontSize: 11, color: "var(--accent)" }}>~/Sites/athos/.env</code>
-        </p>
-      </div>
+      <PageHeader
+        title="Paramètres"
+        subtitle="Configuration ATHOS — lecture seule"
+      >
+        <Badge label="RÉEL" variant="green" />
+        <span style={{ fontSize: 11, color: "var(--muted)", fontFamily: "monospace" }}>~/Sites/athos/.env</span>
+      </PageHeader>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 16, marginBottom: 16 }}>
         <Card title="Politique de dépense">

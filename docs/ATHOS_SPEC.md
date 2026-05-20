@@ -63,6 +63,12 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 | Dashboard CRM | 🔸 MOCK | /api/crm (Codex P2) |
 | Dashboard Commandes | 🔸 MOCK | Shopify Admin API (Codex P2) |
 
+### Statique — catalogue local
+
+| Module | Statut | Source |
+|--------|--------|--------|
+| Skills & Capacités | 📋 STATIQUE | `skill-registry.ts` — 47 skills, 11 catégories, 14 workflows, 10 agents |
+
 ---
 
 ## 3. Architecture réseau
@@ -120,7 +126,19 @@ Système local d'orchestration multi-IA conçu pour maximiser la production d'un
 
 ---
 
-## 6. Règles non négociables
+## 6. Skill Registry
+
+**Spec complète** : `docs/SKILL_REGISTRY_SPEC.md`
+
+- 47 skills documentés dans `dashboard/lib/skill-registry.ts`
+- Page `/dashboard/skills` : filtres, cards, matrice agents × skills, moteur de recommandation
+- Composants UI : `SkillCategoryBadge`, `SkillMaturityBadge` dans `components/ui/index.tsx`
+- Maturity levels : `available_now` | `strategic` | `future_athos_integration`
+- Orchestration réelle prévue P3 : `/api/skills/recommend`, `/api/skills/execute`, `/api/skills/log`
+
+---
+
+## 7. Règles non négociables
 
 1. Ne jamais committer sans demande explicite de Clément
 2. Ne jamais logger ou exposer ATHOS_ACCESS_TOKEN
