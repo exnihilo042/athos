@@ -96,4 +96,5 @@
 §proj:athos|done:SSE_api_events=POST_/api/events_tails_session_kernel_30s_heartbeat_status_snapshot
 §proj:athos|done:dashboard_mvp=Next.js16_App_Router_5_modules[hub,room,agents,automations,reports]_port_3333
 §proj:athos|todo:codex_responder=usage_limit_wait_reset|todo:austere_mode_ready=fix_remaining_gap
-§proj:athos|todo:dashboard_next[LiveEvents_SSE_consumer,CapabilityGraph_viz,Room_send_form]
+§proj:athos|done:dashboard_v2=RoomClient_send+poll_8s+CapabilityGraph_real_72nodes_by_kind+RefreshButton+austere_confirmed
+§proj:athos|todo:dashboard_next[LiveEvents_feed_hub,TopBar_real-time_SSE,mobile_responsive]
