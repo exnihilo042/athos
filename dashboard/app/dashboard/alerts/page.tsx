@@ -1,5 +1,5 @@
 import { athosPost } from "@/lib/athos";
-import { Badge, StatCard } from "@/components/ui";
+import { Badge, StatCard, PageHeader } from "@/components/ui";
 
 interface FailoverEvent {
   ts?: string;
@@ -77,12 +77,10 @@ export default async function AlertesPage() {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Alertes</h1>
-        <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-          Failovers, erreurs mémoire et anomalies système
-        </p>
-      </div>
+      <PageHeader
+        title="Alertes"
+        subtitle="Failovers, erreurs mémoire et anomalies système"
+      />
 
       <div className="grid-auto-4" style={{ marginBottom: 24 }}>
         <StatCard

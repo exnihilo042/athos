@@ -1,5 +1,6 @@
 import { athosPost } from "@/lib/athos";
 import { Card, StatCard, Badge, SectionLabel, PageHeader, DataRow } from "@/components/ui";
+import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -278,7 +279,11 @@ export default async function AutomationsPage() {
       {/* ── Skills ── */}
       <div>
         <SectionLabel count={skills.length}>
-          Skills — {installed.length} installés · {offline.length} offline-ready
+          Skills runtime — {installed.length} installés · {offline.length} offline-ready
+          {" "}
+          <Link href="/dashboard/skills" style={{ fontSize: 10, color: "var(--accent)", textDecoration: "none", marginLeft: 8 }}>
+            Voir catalogue complet →
+          </Link>
         </SectionLabel>
         {skills.length === 0 ? (
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "24px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>

@@ -31,6 +31,7 @@
 
 ## P2 — Système Distribué
 
+- Skill Registry robuste: permissions, dépendances, tests, offline status, compatibilité appareil (voir `docs/SKILL_REGISTRY_SPEC.md` — catalogue P3 fondé sur la base v8 actuelle).
 - Edge agents autorisés: Mac, téléphone, serveur privé, TV si scope explicite.
 - Token, permissions, heartbeat, logs, queue offline par appareil.
 - PWA mobile stable + accès sécurisé distant.

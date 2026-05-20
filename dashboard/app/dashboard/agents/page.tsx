@@ -1,4 +1,6 @@
 import { athosPost } from "@/lib/athos";
+import { StatCard, SectionLabel, PageHeader, EngineBadge, Badge } from "@/components/ui";
+import Link from "next/link";
 
 interface GraphNode {
   id: string;
@@ -132,33 +134,48 @@ export default async function AgentsPage() {
 
   return (
     <div style={{ maxWidth: 1100 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Agents IA</h1>
-      <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24 }}>
-        Graphe de capacités — {nodes.length} nœuds · {summary?.edges ?? "?"} edges
-      </p>
+      <PageHeader
+        title="Agents IA"
+        subtitle={`Graphe de capacités ATHOS — ${nodes.length} nœuds · ${summary?.edges ?? "?"} edges`}
+      >
+        <Badge label="RÉEL" variant="green" />
+      </PageHeader>
 
-      <div className="grid-auto-4" style={{ marginBottom: 28 }}>
-        {[
-          { label: "Disponibles", value: available, color: "var(--green)" },
-          { label: "Total nœuds", value: nodes.length, color: "var(--text)" },
-          { label: "Offline-ready", value: summary?.offline_ready_nodes, color: "var(--blue)" },
-          { label: "Engines actifs", value: (summary?.available_engines ?? []).length, color: "var(--accent)" },
-          { label: "Austere OK", value: summary?.austere_mode_ready ? "✓" : "✗", color: summary?.austere_mode_ready ? "var(--green)" : "var(--red)" },
-          { label: "Score graph", value: summary?.interconnection_score?.toFixed(2), color: "var(--muted)" },
-        ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "12px 14px" }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color }}>{value ?? "—"}</div>
-            <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2 }}>{label}</div>
-          </div>
-        ))}
+      {/* ── KPIs ── */}
+      <div className="grid-auto-4" style={{ marginBottom: 20 }}>
+        <StatCard
+          label="Nœuds disponibles"
+          value={available}
+          sub={`${unavailable} indisponibles`}
+          color={available > 0 ? "var(--green)" : "var(--red)"}
+          size="lg"
+        />
+        <StatCard
+          label="Total nœuds"
+          value={nodes.length}
+          sub={`${summary?.edges ?? "?"} edges`}
+          color="var(--text)"
+        />
+        <StatCard
+          label="Offline-ready"
+          value={summary?.offline_ready_nodes ?? "—"}
+          sub="sans réseau"
+          color="var(--blue)"
+        />
+        <StatCard
+          label="Score graphe"
+          value={summary?.interconnection_score?.toFixed(2) ?? "—"}
+          sub={summary?.austere_mode_ready ? "austere mode OK" : "austere mode KO"}
+          color={summary?.austere_mode_ready ? "var(--green)" : "var(--red)"}
+        />
       </div>
 
+      {/* ── Engines disponibles ── */}
       {(summary?.available_engines ?? []).length > 0 && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "var(--muted)", marginRight: 4 }}>Engines actifs</span>
           {(summary!.available_engines!).map((e) => (
-            <span key={e} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: "rgba(120,60,255,0.15)", color: "var(--accent)", border: "1px solid rgba(120,60,255,0.3)" }}>
-              {e}
-            </span>
+            <EngineBadge key={e} engine={e} />
           ))}
         </div>
       )}
@@ -168,12 +185,10 @@ export default async function AgentsPage() {
         const kindAvail = kindNodes.filter((n) => STATUS_AVAILABLE.has(n.status)).length;
         return (
           <div key={kind} style={{ marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <span style={{ fontSize: 11, letterSpacing: 1.2, color: "var(--muted)", textTransform: "uppercase", fontWeight: 600 }}>
-                {KIND_ICON[kind] ?? "◻"} {kind.replace("_", " ")}
-              </span>
-              <span style={{ fontSize: 10, color: "var(--border)" }}>{kindAvail}/{kindNodes.length}</span>
-            </div>
+            <SectionLabel count={kindNodes.length}>
+              {KIND_ICON[kind] ?? "◻"} {kind.replace(/_/g, " ")}
+              <span style={{ color: "var(--green)", fontSize: 10, marginLeft: 4 }}>{kindAvail} OK</span>
+            </SectionLabel>
             <div className="grid-nodes">
               {kindNodes.map((node) => <NodeCard key={node.id} node={node} />)}
             </div>
@@ -183,14 +198,43 @@ export default async function AgentsPage() {
 
       {Object.keys(byKind).filter((k) => !KIND_ORDER.includes(k)).map((kind) => (
         <div key={kind} style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, letterSpacing: 1.2, color: "var(--muted)", textTransform: "uppercase", marginBottom: 10 }}>
-            {kind}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+          <SectionLabel count={byKind[kind].length}>{kind.replace(/_/g, " ")}</SectionLabel>
+          <div className="grid-nodes">
             {byKind[kind].map((node) => <NodeCard key={node.id} node={node} />)}
           </div>
         </div>
       ))}
+
+      {/* ── Skills catalogue link ── */}
+      <div style={{ marginTop: 8, marginBottom: 24 }}>
+        <SectionLabel>Skills opérationnels</SectionLabel>
+        <Link href="/dashboard/skills" style={{ textDecoration: "none" }}>
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderLeft: "3px solid var(--accent)",
+              borderRadius: 8,
+              padding: "14px 18px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              cursor: "pointer",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>
+                ⬡ Skills & Capacités — Catalogue ATHOS
+              </div>
+              <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                47 skills documentés · 11 catégories · matrice agents × skills · moteur de recommandation
+              </div>
+            </div>
+            <Badge label="VOIR →" variant="accent" />
+          </div>
+        </Link>
+      </div>
     </div>
   );
 }

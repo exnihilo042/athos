@@ -373,13 +373,15 @@ export default async function HubPage() {
       <div style={{ marginBottom: 20 }}>
         <SectionLabel>Modules dashboard</SectionLabel>
         <div className="grid-auto-4" style={{ gap: 10 }}>
-          <ModuleCard href="/dashboard/projects"   icon="◱" label="Sites & Projets"  stat="source : athos_projects.mem" badge="green" />
+          <ModuleCard href="/dashboard/projects"     icon="◱" label="Sites & Projets"  stat="Project Control Center · P2"  badge="green" />
+          <ModuleCard href="/dashboard/projects/new" icon="◈" label="Nouveau projet"   stat="Wizard 7 étapes · prototype"  badge="yellow" />
           <ModuleCard href="/dashboard/roadmap"    icon="◪" label="Roadmap"          stat="15 items P0–P4"              badge="green" />
           <ModuleCard href="/dashboard/performance" icon="◳" label="Performance"     stat="santé système + Lighthouse"  badge="yellow" />
           <ModuleCard href="/dashboard/crm"        icon="◾" label="CRM / Clients"   stat="4 clients — MOCK"            badge="yellow" />
           <ModuleCard href="/dashboard/finances"   icon="◻" label="Finances"         stat="budget réel + CA mock"       badge="yellow" />
-          <ModuleCard href="/dashboard/seo"        icon="◲" label="SEO Analytics"    stat="données MOCK"                badge="muted" />
-          <ModuleCard href="/dashboard/commandes"  icon="◼" label="Commandes"        stat="pipeline agence — MOCK"      badge="muted" />
+          <ModuleCard href="/dashboard/seo"        icon="◲" label="SEO Analytics"    stat="MOCK · 5 actions IA P0-P2"   badge="muted" />
+          <ModuleCard href="/dashboard/commandes"  icon="◼" label="Commandes"        stat="pipeline agence — MOCK"       badge="muted" />
+          <ModuleCard href="/dashboard/skills"     icon="⬡" label="Skills & Capacités" stat="47 skills — catalogue local" badge="green" />
           <ModuleCard href="/dashboard/alerts"     icon="⚠" label="Alertes"
             stat={failoverCount > 0 ? `${failoverCount} failover(s)` : "système propre"}
             statColor={failoverCount > 0 ? "var(--yellow)" : "var(--green)"}
@@ -401,7 +403,9 @@ export default async function HubPage() {
           <ProductRow icon="◉" page="Room"                 status="real"   source="/api/conversation, /api/message" />
           <ProductRow icon="⬡" page="Agents IA"            status="real"   source="/api/capability_graph" />
           <ProductRow icon="⚠" page="Alertes"              status="real"   source="/api/observability" />
-          <ProductRow icon="◱" page="Sites & Projets"      status="real"   source="/api/projects" />
+          <ProductRow icon="◱" page="Sites & Projets"      status="real"   source="/api/projects" dep="PCC liste enrichie" />
+          <ProductRow icon="◈" page="PCC — Nouveau projet" status="static" source="prototype frontend" dep="/api/projects/create (Codex P2)" />
+          <ProductRow icon="◈" page="PCC — Détail projet"  status="static" source="prototype frontend" dep="/api/projects/detail (Codex P2)" />
           <ProductRow icon="⊙" page="Paramètres"           status="real"   source="/api/settings" />
           <ProductRow icon="⟳" page="Automations"          status="real"   source="/api/loop, /api/skills" />
           <ProductRow icon="◫" page="Rapports"             status="real"   source="/api/report" dep="endpoint à enrichir" />
@@ -411,6 +415,7 @@ export default async function HubPage() {
           <ProductRow icon="◼" page="Commandes"            status="mock"   source="données MOCK" dep="Décision source (Clément)" />
           <ProductRow icon="◾" page="CRM / Clients"        status="mock"   source="données MOCK" dep="/api/crm (Codex)" />
           <ProductRow icon="◪" page="Roadmap"              status="static" source="données statiques 2026-05-20" dep="mise à jour manuelle" />
+          <ProductRow icon="⬡" page="Skills & Capacités"  status="static" source="skill-registry.ts (local)" dep="API Codex P3" />
         </div>
       </div>
 

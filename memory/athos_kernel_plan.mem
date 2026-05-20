@@ -29,3 +29,7 @@
 §kernel:codex_runtime_2026-05-20|responders:claude_available+codex_usage_limit_blocked|tests:201_passed|scope:runtime_only_no_dashboard_touch
 §kernel:codex_runtime_2026-05-20_v2|done[/api_conversation_health_enriched,/api_report_summary,/api_autonomous_loop_pause_reset,/api_performance_real_snapshot,/api_crm_partial_from_mem,/api_tasks_http_error_codes]
 §kernel:codex_runtime_2026-05-20_v2|tests:203_passed|frontend_contracts:dashboard_v4_ready_partial|remaining[finances,seo,commandes,codex_responder_quota]
+§kernel:dashboard_v8_2026-05-20|done[Skills_module_complet_47skills_11cats+SkillsClient_filters_cards_matrix+SkillCategoryBadge+SkillMaturityBadge+Hub_intégré+Agents_intégré+Automations_intégré+SKILL_REGISTRY_SPEC+docs_5_mis_à_jour+memory_updated]|build:21routes_0TS|commit:a931a19
+§kernel:integration_2026-05-20|merged:ai/claude-dashboard-v5@a931a19+main@029c6de|branch:integrate/claude-dashboard-v8-runtime|conflicts_resolved[memory_kernel+memory_projects]
+§kernel:next_claude=branch_pages_on_codex_endpoints+polish+suppression_mocks_progressifs
+§kernel:next_codex=skills_P3[/api/skills/registry+/api/skills/recommend+/api/skills/execute+/api/skills/log]+finances+seo+commandes

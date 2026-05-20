@@ -1,6 +1,6 @@
 # ATHOS Dashboard — Frontend Handoff to Codex
 
-**Version** : 1.0 | **Date** : 2026-05-20
+**Version** : 1.1 | **Date** : 2026-05-20
 **Auteur** : Claude (dashboard scope)
 **Destinataire** : Codex (runtime/backend scope)
 
@@ -8,7 +8,7 @@
 
 ## Contexte
 
-Le dashboard ATHOS v4 est maintenant à jour côté frontend.
+Le dashboard ATHOS v5 est maintenant à jour côté frontend.
 Ce document liste tout ce que Codex doit implémenter ou valider pour que les pages passent de MOCK/STATIQUE à RÉEL.
 
 **Règle absolue de scope** : Claude ne touche pas `core/`, `voice/`, responders, router, workers, hooks, scripts.
@@ -218,6 +218,10 @@ Si cet endpoint n'existe pas encore, créer ou aliaser depuis `/api/status` (qui
 
 ## 6. Interfaces TypeScript de référence
 
+> **Note tracking** : `dashboard/lib/` était ignoré par un pattern `lib/` Python dans le root `.gitignore`.
+> Corrigé en v5 : ajout de `!dashboard/lib/` et `!dashboard/lib/**` à la fin du `.gitignore` racine.
+> `dashboard/lib/types.ts` et `dashboard/lib/athos.ts` sont désormais tracké dans git.
+
 Fichier : `dashboard/lib/types.ts`
 
 | Interface | Status | Page |
@@ -247,7 +251,24 @@ Fichier : `dashboard/lib/types.ts`
 
 ---
 
-## 8. Commande de vérification build
+## 8. Convention InsetNotice — endpoints non implémentés
+
+Chaque page attendant un endpoint Codex affiche maintenant un `<InsetNotice>` en haut de page.
+Format standardisé :
+```tsx
+<InsetNotice
+  icon="◱"
+  text="Endpoint /api/X non implémenté"
+  detail="Interface TypeScript : XPayload dans dashboard/lib/types.ts · Scope Codex P2"
+  variant="muted"
+/>
+```
+
+Supprimer l'`InsetNotice` et le `MockBanner` associés dès que l'endpoint est opérationnel, puis changer les données.
+
+---
+
+## 9. Commande de vérification build
 
 Après chaque implémentation Codex, vérifier que le dashboard compile :
 
@@ -255,4 +276,30 @@ Après chaque implémentation Codex, vérifier que le dashboard compile :
 cd ~/Sites/athos/dashboard && npx next build
 ```
 
-Résultat attendu : 19+ routes, 0 erreur TypeScript.
+Résultat attendu : 22+ routes, 0 erreur TypeScript.
+
+---
+
+## 11. Skills & Capacités — Statique, scope P3
+
+**Page** : `/dashboard/skills` — données 100% statiques depuis `dashboard/lib/skill-registry.ts`
+
+### Ce que Claude a fait (dashboard v8, scope Claude uniquement)
+- `dashboard/lib/skill-registry.ts` : types, 47 skills, SKILL_CATEGORIES, ATHO_AGENTS, SKILL_WORKFLOWS, SKILL_STATS
+- `dashboard/app/dashboard/skills/page.tsx` : server component, passe props à SkillsClient
+- `dashboard/components/SkillsClient.tsx` : filtres multi-critères, cards expand/collapse, RecommendationEngine, AgentSkillMatrix
+- `dashboard/components/ui/index.tsx` : `SkillCategoryBadge`, `SkillMaturityBadge` exportés
+- Navigation, Hub ModuleCard/ProductRow, Agents lien, Automations lien — tous intégrés
+
+### Ce que Codex devra faire en P3 (pas avant)
+
+```
+POST /api/skills/registry    → liste enrichie avec last_used, call_count, installed: boolean
+POST /api/skills/recommend   → recommandation contextuelle {context, phase, agent}
+POST /api/skills/execute     → déclenche un skill depuis ATHOS HUB
+POST /api/skills/log         → historique d'usage skill
+```
+
+**Voir** : `docs/SKILL_REGISTRY_SPEC.md` section 6 et `docs/API_CONTRACTS.md` section "Skills Registry API".
+
+**Important** : ne pas toucher `skill-registry.ts` ni `SkillsClient.tsx` tant que les endpoints P3 ne sont pas implémentés. Le frontend consommera les endpoints et remplacera les données statiques à ce moment-là.
