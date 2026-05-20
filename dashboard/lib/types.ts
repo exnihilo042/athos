@@ -439,20 +439,156 @@ export interface CommandesPayload {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Future Codex interfaces — Task UI  [CODEX]
-// These interfaces define the contract for UI components that will display
-// task queue state once Codex implements the runtime side.
+// Autonomous loop  [REAL]
+// Source: POST /api/autonomous_loop  (alias: /api/loop)
+// Actions: status | start | stop | pause | reset | events
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface LoopPolicy {
+  env_enabled: boolean;
+  default_tick: number;
+  skill_mutation_enabled: boolean;
+}
+
+export interface LoopEvent {
+  type: string;
+  ts: string;
+  data?: unknown;
+}
+
+export interface AutonomousLoopPayload {
+  ok?: boolean;
+  running: boolean;
+  iterations: number;
+  idle_ticks: number;
+  policy: LoopPolicy;
+  last_event: LoopEvent | null;
+  events?: LoopEvent[];
+  requires_confirmation?: boolean;
+  msg?: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Task queue (runtime)  [REAL]
+// Source: POST /api/tasks { action: "list" | "pause" | "resume" | "retry" | "cancel" }
+// Shape differs from frontend Task — uses task_id, status is backend STATUSES set
+// ────────────────────────────────────────────────────────────────────────────
+
+export type BackendTaskStatus =
+  | "queued" | "running" | "paused" | "blocked"
+  | "completed" | "failed" | "cancelled" | "stale";
+
+export interface BackendTask {
+  id: string;
+  task_id: string;
+  title: string;
+  content?: string;
+  source?: string;
+  kind?: string;
+  priority?: number;
+  status: BackendTaskStatus;
+  created_at: string;
+  updated_at?: string;
+  started_at?: string;
+  completed_at?: string;
+  blocked_reason?: string;
+  retry_count?: number;
+  meta?: Record<string, unknown>;
+}
+
+export interface BackendTaskSummary {
+  total: number;
+  active: number;
+  counts: Record<string, number>;
+  recent?: BackendTask[];
+}
+
+export interface TaskListPayload {
+  ok: boolean;
+  tasks: BackendTask[];
+  summary: BackendTaskSummary;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Performance runtime  [REAL — obs + latency · Lighthouse not configured]
+// Source: POST /api/performance
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface PerformanceSystem {
+  uptime_seconds: number;
+  listening_ports: number;
+  memory_ok: boolean;
+  attached_engines: number;
+  loop_running: boolean;
+  server_pid?: number;
+}
+
+export interface LatencySample {
+  endpoint: string;
+  p50: number;
+  p95: number;
+  ok: boolean;
+  error?: string;
+}
+
+export interface PerformanceCapabilities {
+  system_metrics: boolean;
+  latency_sampling: boolean;
+  lighthouse_configured: boolean;
+}
+
+export interface PerformanceRuntimePayload {
+  ok: boolean;
+  source: string;
+  system: PerformanceSystem;
+  api_latencies: LatencySample[];
+  lighthouse: never[];
+  capabilities: PerformanceCapabilities;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CRM runtime  [REAL PARTIAL — source: athos_projects.mem]
+// Source: POST /api/crm
+// data_quality: "partial" always — no dedicated CRM tool connected
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface CrmClientRuntime {
+  id: string;
+  name: string;
+  status: string;
+  attention: string;
+  project?: string;
+  monthly_value?: number | null;
+  next_action?: string;
+  tags?: string[];
+  blocked?: boolean;
+  data_quality?: string;
+}
+
+export interface CrmRuntimePayload {
+  ok: boolean;
+  source: string;
+  data_quality: string;
+  clients: CrmClientRuntime[];
+  active: number;
+  urgent: number;
+  blocked: number;
+  pipeline_total: null;
+  missing_sources?: string[];
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Task UI props  [REAL — backed by /api/tasks]
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface TaskCardProps {
-  task: Task;
-  onCancel?: (id: string) => void;
-  onRetry?: (id: string) => void;
-  onPause?: (id: string) => void;
+  task: BackendTask;
+  onAction?: (taskId: string, action: "cancel" | "retry" | "pause" | "resume") => Promise<void>;
 }
 
 export interface TaskQueueViewProps {
-  queue: TaskQueue;
+  tasks: BackendTask[];
+  summary: BackendTaskSummary;
   onAction: (taskId: string, action: "cancel" | "retry" | "pause" | "resume") => Promise<void>;
 }
 

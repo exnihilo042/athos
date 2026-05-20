@@ -1,6 +1,6 @@
 # ATHOS Dashboard — Frontend Handoff to Codex
 
-**Version** : 1.1 | **Date** : 2026-05-20
+**Version** : 1.2 | **Date** : 2026-05-21
 **Auteur** : Claude (dashboard scope)
 **Destinataire** : Codex (runtime/backend scope)
 
@@ -8,83 +8,66 @@
 
 ## Contexte
 
-Le dashboard ATHOS v5 est maintenant à jour côté frontend.
-Ce document liste tout ce que Codex doit implémenter ou valider pour que les pages passent de MOCK/STATIQUE à RÉEL.
+Le dashboard ATHOS v9 (runtime binding) est branché sur les endpoints Codex livrés.
+Ce document liste l'état actuel de chaque endpoint — livré ou encore à faire.
 
 **Règle absolue de scope** : Claude ne touche pas `core/`, `voice/`, responders, router, workers, hooks, scripts.
 Codex ne touche pas `dashboard/`, `docs/` (sauf ce backlog).
 
 ---
 
-## 1. Endpoints manquants — P1 (bloquants visuellement)
+## ✅ Endpoints Codex livrés — consommés par le dashboard
 
-### /api/performance
-
-Page : `/dashboard/performance`
-Status actuel : Lighthouse et latences affichés en MOCK
-
-**Contrat attendu** :
-```
-POST /api/performance
-Body: {}
-```
-
-Réponse attendue :
-```json
-{
-  "lighthouse": [
-    { "site": "ex-nihilo.agency", "perf": 74, "a11y": 89, "seo": 92, "bp": 83, "mobile": 62 }
-  ],
-  "api_latencies": [
-    { "endpoint": "/api/status", "p50": 45, "p95": 120, "ok": true }
-  ]
-}
-```
-
-Interface TypeScript : `PerformancePayload` dans `dashboard/lib/types.ts`
-
-Sources suggérées : Lighthouse CLI (`lighthouse --output json`), mesures internes du HUB.
+| Endpoint | Page | Statut frontend |
+|----------|------|-----------------|
+| `POST /api/autonomous_loop` | Automations | RÉEL — contrôles start/stop/pause/reset actifs |
+| `POST /api/tasks` | Automations | RÉEL — liste + contrôles pause/resume/retry/cancel |
+| `POST /api/conversation { action: "health" }` | Reports | RÉEL — session health, task summary |
+| `POST /api/report { type: "daily" }` | Reports | RÉEL — brief, sections, summary |
+| `POST /api/performance` | Performance | RÉEL — latences mesurées, Lighthouse vide (non configuré) |
+| `POST /api/crm` | CRM | RÉEL PARTIEL — extraction athos_projects.mem |
 
 ---
 
-## 2. Endpoints manquants — P2
+## 1. Lighthouse — P1 (bloquant visuel)
 
-### /api/crm
+### /api/performance → lighthouse
+
+Page : `/dashboard/performance`
+Status actuel : `capabilities.lighthouse_configured=false` → section vide propre
+
+**Ce que Codex doit faire** :
+Quand Lighthouse CLI est installé, peupler le champ `lighthouse[]` dans `performance_payload()`.
+
+```python
+# core/dashboard_runtime.py
+def performance_payload():
+    ...
+    "lighthouse": run_lighthouse_cli(sites=["ex-nihilo.agency", ...]),  # à implémenter
+    "capabilities": { ..., "lighthouse_configured": True },
+```
+
+Interface TypeScript : `LighthouseResult` dans `dashboard/lib/types.ts`
+
+Le frontend affichera automatiquement les scores quand le champ est non-vide.
+
+---
+
+## 2. Endpoints encore à faire — P2
+
+### /api/crm → enrichissement
 
 Page : `/dashboard/crm`
-Status actuel : 100% MOCK (4 clients hardcodés)
+Status actuel : **RÉEL PARTIEL** — extraction athos_projects.mem · `data_quality: "partial"`
 
-**Contrat attendu** :
-```
-POST /api/crm
-Body: {}
-```
+Données manquantes selon le backend :
+- `monthly_value` par client
+- `historique relationnel structuré`
+- `CRM dédié`
 
-Réponse :
-```json
-{
-  "clients": [
-    {
-      "id": "uuid",
-      "name": "Rouge Pivoine",
-      "status": "active",
-      "attention": "high",
-      "project": "Shopify theme",
-      "monthly_value": 1200,
-      "next_action": "...",
-      "tags": ["shopify", "e-commerce"]
-    }
-  ],
-  "pipeline_total": 7800,
-  "active": 2,
-  "urgent": 1,
-  "blocked": 1
-}
-```
+Pour enrichir, ajouter ces infos dans `core/dashboard_runtime.py → _project_to_client()` ou connecter un outil CRM.
 
-Interface TypeScript : `CrmPayload`, `CrmClient` dans `dashboard/lib/types.ts`
-
-Source suggérée : `athos_projects.mem` (parsing §-format) ou base CRM future.
+Interface TypeScript : `CrmRuntimePayload`, `CrmClientRuntime` dans `dashboard/lib/types.ts`
 
 ---
 
@@ -142,51 +125,26 @@ Body: { "action": "start|stop|pause|reset" }
 
 `start` : exige `ATHOS_AUTONOMOUS_LOOP_ENABLED=true`
 `stop` : idempotent
-`pause` : new — non implémenté côté loop
-`reset` : remet `iterations` et `idle_ticks` à 0
+`pause` : livré côté backend ✅
+`reset` : remet `iterations` et `idle_ticks` à 0 ✅
+
+**Status 2026-05-21** : ✅ LIVRÉ — contrôles actifs dans `AutomationControlsClient.tsx`
 
 ---
 
 ### Contrôles tâches
 
 Page : `/dashboard/automations` (section Task Queue)
-UI existante : Zone "pause / retry / cancel / resume" — CodexPendingZone
-
-**Endpoint requis** :
-```
-POST /api/tasks
-Body: { "action": "pause|retry|cancel|resume", "task_id": "uuid" }
-```
-
-Transitions valides déjà documentées dans `API_CONTRACTS.md`.
+**Status 2026-05-21** : ✅ LIVRÉ — `/api/tasks { action, task_id }` consommé. Boutons pause/resume/retry/cancel actifs par tâche.
 
 ---
 
-## 4. Rapport daily — enrichissement
+## 4. Rapport daily — ✅ LIVRÉ
 
 Page : `/dashboard/reports`
-Status actuel : `/api/report { type: "daily" }` répond souvent vide
+**Status 2026-05-21** : ✅ RÉEL — brief, sections, summary depuis `/api/report { type: "daily" }`
 
-**Sections attendues dans la réponse** :
-```json
-{
-  "brief": "Rapport ATHOS — 2026-05-20\n...",
-  "date": "2026-05-20T08:00:00",
-  "sections": [
-    { "title": "Session", "content": "..." },
-    { "title": "Task queue", "content": "..." },
-    { "title": "Failover", "content": "..." }
-  ],
-  "summary": {
-    "total_sessions": 3,
-    "total_messages": 47,
-    "failovers": 0,
-    "actions": 12
-  }
-}
-```
-
-**Nouveaux types de rapport en attente** :
+**Types de rapport encore à implémenter (Codex P3)** :
 ```
 POST /api/report { "type": "actions" }    → liste actions autonomes par session
 POST /api/report { "type": "weekly" }     → agrégat 7 jours
@@ -196,23 +154,10 @@ POST /api/report { "type": "export", "format": "md|json" }
 
 ---
 
-## 5. Session health — champs manquants
+## 5. Session health — ✅ LIVRÉ
 
 Page : `/dashboard/reports`
-Endpoint utilisé : `POST /api/conversation { "action": "health" }`
-
-**Champs actuellement manquants dans la réponse** :
-```json
-{
-  "active_sessions": 2,
-  "total_messages": 47,
-  "summary": {
-    "total": 5, "running": 1, "done": 3, "blocked": 1, "pending": 0
-  }
-}
-```
-
-Si cet endpoint n'existe pas encore, créer ou aliaser depuis `/api/status` (qui expose `session.events`, `session.exchanges`).
+**Status 2026-05-21** : ✅ RÉEL — `/api/conversation { action: "health" }` retourne `active_sessions`, `total_messages`, `summary` (task counts).
 
 ---
 
@@ -232,9 +177,10 @@ Fichier : `dashboard/lib/types.ts`
 | `RoomEntry`, `RoomThread` | RÉEL | Room |
 | `AthosSettings` | RÉEL | Paramètres |
 | `Project` | RÉEL | Sites & Projets |
-| `Task`, `TaskQueue` | RÉEL (Codex runtime) | Automations |
-| `PerformancePayload` | **CODEX P1** | Performance |
-| `CrmPayload`, `CrmClient` | **CODEX P2** | CRM |
+| `AutonomousLoopPayload` | ✅ RÉEL (v9) | Automations |
+| `BackendTask`, `TaskListPayload` | ✅ RÉEL (v9) | Automations |
+| `PerformanceRuntimePayload` | ✅ RÉEL (v9) | Performance |
+| `CrmRuntimePayload`, `CrmClientRuntime` | ✅ RÉEL PARTIEL (v9) | CRM |
 | `CommandesPayload`, `Order` | **CODEX P2** | Commandes |
 | `FinancesSummary` | **CODEX P2** | Finances |
 | `SeoSite`, `SeoPosition` | **CODEX P2** | SEO |
