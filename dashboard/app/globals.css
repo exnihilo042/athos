@@ -13,6 +13,8 @@
   --red: #ff453a;
   --blue: #4a9eff;
   --yellow: #ffd60a;
+  --sidebar-w: 220px;
+  --topbar-h: 44px;
 }
 
 @theme inline {
@@ -22,7 +24,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
 
 body {
   background: var(--bg);
@@ -31,7 +35,89 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── Dashboard shell ────────────────────────────────── */
+.ds-root   { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.ds-body   { display: flex; flex: 1; overflow: hidden; position: relative; }
+.ds-main   { flex: 1; overflow-y: auto; background: var(--bg); padding: 24px; min-width: 0; }
+
+/* ── Sidebar ────────────────────────────────────────── */
+.ds-sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+  z-index: 40;
+}
+
+/* ── Mobile hamburger button ────────────────────────── */
+.ds-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 18px;
+  line-height: 1;
+  margin-right: 8px;
+}
+
+/* ── Drawer backdrop ────────────────────────────────── */
+.ds-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 39;
+}
+
+/* ── Responsive grids ───────────────────────────────── */
+.grid-auto-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.grid-auto-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.grid-auto-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.grid-nodes  { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+
+/* ── Mobile breakpoint (≤ 768px) ────────────────────── */
+@media (max-width: 768px) {
+  .ds-main { padding: 16px 14px; }
+  .ds-hamburger { display: flex; align-items: center; }
+  .hide-mobile { display: none; }
+
+  .ds-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    z-index: 40;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+  }
+  .ds-sidebar.open { transform: translateX(0); }
+  .ds-backdrop.open { display: block; }
+
+  .grid-auto-2 { grid-template-columns: 1fr; }
+  .grid-auto-3 { grid-template-columns: 1fr; }
+  .grid-auto-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-nodes  { grid-template-columns: 1fr; }
+}
+
+/* ── Utility ────────────────────────────────────────── */
+.hide-mobile { display: inline; }
+
+/* ── Tablet breakpoint (769-1024px) ─────────────────── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root { --sidebar-w: 190px; }
+  .ds-main { padding: 20px 18px; }
+  .grid-auto-4 { grid-template-columns: repeat(3, 1fr); }
+  .grid-nodes  { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+}

@@ -1,5 +1,6 @@
 import { athosPost } from "@/lib/athos";
 import RefreshButton from "@/components/RefreshButton";
+import LiveFeed from "@/components/LiveFeed";
 
 interface StatusPayload {
   engine?: string;
@@ -127,7 +128,7 @@ export default async function HubPage() {
         <RefreshButton />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="grid-auto-2" style={{ marginBottom: 24 }}>
         <Card title="Moteur">
           <div style={{ fontSize: 20, fontWeight: 700, color: "var(--accent)", marginBottom: 8 }}>
             {status.engine ?? "—"}
@@ -183,7 +184,7 @@ export default async function HubPage() {
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div className="grid-auto-2" style={{ marginBottom: 24 }}>
         <Card title="Capability Graph">
           {graphSummary ? (
             <>
@@ -268,6 +269,8 @@ export default async function HubPage() {
           </div>
         </Card>
       )}
+
+      <LiveFeed />
     </div>
   );
 }

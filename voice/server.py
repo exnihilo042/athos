@@ -763,6 +763,15 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/memory/status":
             self._json(memory_status.status()); return
 
+        if p == "/api/memory/note":
+            body = self._body()
+            note = str(body.get("note") or body.get("content") or "").strip()
+            if not note:
+                self._json({"ok": False, "error": "note requis"}, 400); return
+            from memory_manager import write_session
+            write_session(note)
+            self._json({"ok": True, "written": len(note)}); return
+
         if p == "/api/memory/summary":
             body = self._body()
             if body.get("write", False):
@@ -1293,6 +1302,45 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"events": recent_events(limit=int(body.get("limit", 20))), "status": loop_status()}); return
             self._json(loop_status()); return
 
+        if p == "/api/settings":
+            import ast
+            env_path = config.ROOT / ".env"
+            env_keys: dict[str, str] = {}
+            if env_path.exists():
+                for raw_line in env_path.read_text().splitlines():
+                    raw_line = raw_line.strip()
+                    if raw_line and not raw_line.startswith("#") and "=" in raw_line:
+                        k, _, v = raw_line.partition("=")
+                        env_keys[k.strip()] = v.strip()
+            MASK = {"ATHOS_ACCESS_TOKEN", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROK_API_KEY"}
+            visible = {k: ("***" if k in MASK and v else v) for k, v in env_keys.items()}
+            self._json({
+                "spend_policy": config.spend_policy(),
+                "security_policy": config.server_security_policy(),
+                "engine_order": config.ATHOS_ENGINE_ORDER,
+                "env": visible,
+            }); return
+
+        if p == "/api/projects":
+            mem_path = Path(config.DRIVE) / "athos_projects.mem"
+            projects: dict[str, dict] = {}
+            if mem_path.exists():
+                for raw_line in mem_path.read_text().splitlines():
+                    raw_line = raw_line.strip()
+                    if not raw_line.startswith("§proj:"):
+                        continue
+                    rest = raw_line[len("§proj:"):]
+                    name, _, fields_str = rest.partition("|")
+                    if not name:
+                        continue
+                    if name not in projects:
+                        projects[name] = {"name": name}
+                    for field in fields_str.split("|"):
+                        if ":" in field:
+                            fk, _, fv = field.partition(":")
+                            projects[name][fk] = fv
+            self._json({"projects": list(projects.values())}); return
+
         # ── SSE live events (dashboard tail) ────────────────────────────────────
         if p == "/api/events":
             import time as _time
@@ -1319,8 +1367,12 @@ class Handler(BaseHTTPRequestHandler):
 
             # seed: send current status snapshot
             try:
-                import observability as _obs
-                _sse_write("status", _obs.get_status())
+                s = _router.status()
+                _sse_write("status", {
+                    **s,
+                    "session": session_kernel.status(),
+                    "capability_graph": capability_graph.compact_summary(available_engines=_router.available()),
+                })
             except Exception:
                 pass
 

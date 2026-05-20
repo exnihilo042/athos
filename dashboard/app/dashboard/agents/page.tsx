@@ -137,7 +137,7 @@ export default async function AgentsPage() {
         Graphe de capacités — {nodes.length} nœuds · {summary?.edges ?? "?"} edges
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 28 }}>
+      <div className="grid-auto-4" style={{ marginBottom: 28 }}>
         {[
           { label: "Disponibles", value: available, color: "var(--green)" },
           { label: "Total nœuds", value: nodes.length, color: "var(--text)" },
@@ -174,7 +174,7 @@ export default async function AgentsPage() {
               </span>
               <span style={{ fontSize: 10, color: "var(--border)" }}>{kindAvail}/{kindNodes.length}</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+            <div className="grid-nodes">
               {kindNodes.map((node) => <NodeCard key={node.id} node={node} />)}
             </div>
           </div>

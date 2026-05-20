@@ -97,4 +97,8 @@
 §proj:athos|done:dashboard_mvp=Next.js16_App_Router_5_modules[hub,room,agents,automations,reports]_port_3333
 §proj:athos|todo:codex_responder=usage_limit_wait_reset|todo:austere_mode_ready=fix_remaining_gap
 §proj:athos|done:dashboard_v2=RoomClient_send+poll_8s+CapabilityGraph_real_72nodes_by_kind+RefreshButton+austere_confirmed
-§proj:athos|todo:dashboard_next[LiveEvents_feed_hub,TopBar_real-time_SSE,mobile_responsive]
+§proj:athos|done:dashboard_v3=LOT1_responsive[DashboardShell_hamburger+drawer+CSS_classes_grid]+LOT2_alertes[real_page_failover_events_memory_status]+LOT3_SSE[/api/athos-events_proxy+LiveFeed_client+TopBar_SSE_replace_30s_poll]
+§proj:athos|done:SSE_e2e=HUB_status_seed_fixed_uses_router.status+session_kernel+proxy_verified_2273bytes_streaming
+§proj:athos|done:dashboard_v4=Paramètres[/api/settings_spend+security+env]+Projets[/api/projects_parse_§proj_mem]+nav_unwired_soon_badges+tests_194_passed
+§proj:athos|todo:codex_responder=usage_limit_wait_reset
+§proj:athos|todo:session_writer_e2e=requires_Codex_CLI_to_call_/api/memory/note

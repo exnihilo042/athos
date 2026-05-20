@@ -1,7 +1,7 @@
 §v:0.1|created:2026-05-20|src:claude-audit
 
 §kernel:server|file:voice/server.py|port:7474|pid_last_known:92008|managed_by:launchd_agency.athos.hub
-§kernel:server|type:BaseHTTP_single_threaded|debt=ThreadingMixIn_needed_for_concurrent_dashboard_polls
+§kernel:server|type:ThreadingHTTPServer(ThreadingMixIn+HTTPServer)|daemon_threads=True|concurrent_requests=ok
 §kernel:server|start_cmd:launchctl bootout/bootstrap gui/$(id -u) agency.athos.hub
 
 §kernel:services|:7474=voice/server.py(HUB)|:8765=agentmemory_server.py|:20128=9router(Next.js)
@@ -22,6 +22,6 @@
 §kernel:memory|session_writer.py=stop_hook→routing_par_§préfixe→Drive
 §kernel:memory|missing_resolved_2026-05-20[athos_cognition.mem,athos_kernel_plan.mem,athos_session_summary.mem]
 
-§kernel:roadmap|P0_next[ThreadingMixIn_server,SSE_/api/events,dashboard_scaffold]
+§kernel:roadmap|P0_done[ThreadingMixIn_server=ok,SSE_/api/events=ok,dashboard_scaffold=ok]
 §kernel:roadmap|P1_next[module_hub,module_room_migré,module_agents_graph,module_automations]
 §kernel:roadmap|defer[Finances,Commandes,CRM=pas_de_core_module_ni_data_source]
