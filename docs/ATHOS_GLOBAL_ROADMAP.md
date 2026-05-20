@@ -19,6 +19,10 @@
 
 - Routing situationnel: simple local, code lourd via ChatGPT Plus/Claude Code, API seulement si explicitement autorisée, Ollama en dernier secours.
 - Routing par graphe: réutiliser les capacités existantes et leurs relations avant d'ajouter une règle spéciale.
+- HUD command center: noyau central, agents actifs, metriques projet, actions en cours, blocages, health runtime et Room compacte.
+- Crew ATHOS: sous-agents roles visibles (Operator, Dev, Growth, Support, Analyst, Archivist) sous identite unique ATHOS.
+- Project telemetry registry: projets suivis avec sources, metriques, seuils, risques, routines et prochaine action.
+- Protocoles metier executables: `ATHOS_GROWTH_REVIEW`, `ATHOS_CLIENT_DAILY`, `ATHOS_CREATIVE_PIPELINE`, `ATHOS_DEV_HANDOFF`, `ATHOS_SUPPORT_TRIAGE`.
 - Sync manager Drive/GitHub/serveur privé avec outbox offline.
 - Mémoire long terme opérable: résumé session, checkpoint, récupération crash, nettoyage conflits.
 - Voix meilleure: moteur local gratuit si possible, service externe seulement opt-in.
@@ -72,6 +76,7 @@
 
 Sources de référence produit:
 
+- videos locales `jarvis 1.mp4` a `jarvis 4.mp4` dans Downloads; analyse: `docs/JARVIS_VIDEO_ANALYSIS_2026-05-20.md`
 - https://www.marvel.com/characters/iron-man-tony-stark/on-screen
 - https://www.marvel.com/articles/games/marvels-iron-man-vr-tony-stark-top-tech
 - https://marvelcinematicuniverse.fandom.com/wiki/J.A.R.V.I.S.

@@ -22,3 +22,5 @@
 §proj:athos|done:operator_room_check_script=scripts/check_athos_room.sh|tests:191_passed|live:room_healthy_responders_blocked_claude_invalid_codex_usage_limit
 
 §proj:athos|docs:room_operator_check_documented=ATHOS_ATTACH_PROMPT+ATHOS_INTEGRATION|tests:191_passed
+
+§proj:athos|source:jarvis_videos_20260520=Downloads_jarvis_1_2_3_4|analysis:command_center+business_telemetry+named_agents+named_protocols+controlled_proactivity|doc:docs/JARVIS_VIDEO_ANALYSIS_2026-05-20.md|roadmap:P1_HUD_command_center+crew_athos+project_telemetry+business_protocols
