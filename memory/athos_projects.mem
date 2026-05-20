@@ -111,3 +111,4 @@
 §proj:athos|done:dashboard_v7=Room_War_Room_enrichie[search_filters_sidebar_war_room_actor_roster_project_context]+ActorStatusPill+BlockerCallout+page_1400px|build:21routes_0TS|commit:e45fde5
 §proj:athos|done:dashboard_v8=Skills_module[skill-registry.ts_47skills_11cats+/dashboard/skills+SkillsClient+SkillCategoryBadge+SkillMaturityBadge+RecommendationEngine+AgentSkillMatrix+Hub+Agents+Automations_intégrés+SKILL_REGISTRY_SPEC.md+docs_5mis_à_jour]|build:21routes_0TS|commit:a931a19
 §proj:athos|done:integration_2026-05-20=merge_ai/claude-dashboard-v5_into_main_Codex_runtime|branch:integrate/claude-dashboard-v8-runtime|conflicts:2_memoires_résolues
+§proj:athos|done:dashboard_v9=runtime_binding[automations+performance+crm]+AutomationControlsClient[loop_start_stop_pause_reset+task_list_pause_resume_retry_cancel]+/api/performance_real_latencies+/api/crm_partial_mem|branch:feature/dashboard-runtime-binding|mocks_restants[finances,seo,commandes,lighthouse]
