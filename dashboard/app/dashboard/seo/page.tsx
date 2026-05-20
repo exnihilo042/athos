@@ -1,4 +1,4 @@
-import { Card, StatCard, MockBanner, Gauge, DataRow, SectionLabel, Badge } from "@/components/ui";
+import { Card, StatCard, MockBanner, Gauge, SectionLabel, Badge, PageHeader, InsetNotice } from "@/components/ui";
 
 // ── Mock data — clearly identified ────────────────────────────────────────────
 // All data below is MOCK. Sources à brancher :
@@ -69,14 +69,19 @@ export default function SeoPage() {
 
   return (
     <div style={{ maxWidth: 1100 }}>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>SEO Analytics</h1>
-        <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-          Visibilité organique — Ex-Nihilo Agency & clients
-        </p>
-      </div>
+      <PageHeader
+        title="SEO Analytics"
+        subtitle="Visibilité organique — Ex-Nihilo Agency & clients"
+      />
 
       <MockBanner message="Données de démonstration. Brancher Google Search Console API + PageSpeed Insights pour les vraies métriques." />
+
+      <InsetNotice
+        icon="◱"
+        text="Endpoint /api/seo non implémenté"
+        detail="Interfaces : SeoSite, SeoPosition, CoreWebVital dans dashboard/lib/types.ts · Sources : GSC API, PageSpeed · Scope Codex P2"
+        variant="muted"
+      />
 
       {/* ── KPI globaux ── */}
       <div className="grid-auto-4" style={{ marginBottom: 16 }}>
@@ -348,6 +353,44 @@ export default function SeoPage() {
           ⚠ MOCK — Connecter Google Search Console API pour les positions réelles
         </div>
       </Card>
+
+      {/* ── Actions prioritaires — ATHOS ── */}
+      <div style={{ marginTop: 16 }}>
+        <SectionLabel>Actions SEO prioritaires — MOCK · Hiérarchie IA</SectionLabel>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {[
+            { priority: "P0", label: "Corriger les 4xx — 7 pages introuvables", impact: "critique", detail: "Redirections manquantes sur rouge-pivoine.fr · perte de jus SEO" },
+            { priority: "P1", label: "Optimiser vitesse mobile — 2 pages < 50", impact: "élevé",    detail: "Score mobile critique — nuit au ranking Google · Lighthouse < 50" },
+            { priority: "P1", label: "Alt text sur 23 images produit",           impact: "élevé",    detail: "Rouge Pivoine — images produits sans attribut alt" },
+            { priority: "P2", label: "Dédupliquer les balises title — 4 pages",  impact: "moyen",    detail: "Collections et tags Shopify génèrent des titres identiques" },
+            { priority: "P2", label: "Améliorer CLS (0.12 > cible 0.1)",         impact: "moyen",    detail: "Layout shift visible — probable image sans dimensions déclarées" },
+          ].map((action, i) => {
+            const col = action.impact === "critique" ? "var(--red)" : action.impact === "élevé" ? "var(--yellow)" : "var(--muted)";
+            return (
+              <div
+                key={i}
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  borderLeft: `3px solid ${col}`,
+                  borderRadius: 6,
+                  padding: "10px 14px",
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "flex-start",
+                }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 700, color: col, minWidth: 20, marginTop: 2 }}>{action.priority}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>{action.label}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{action.detail}</div>
+                </div>
+                <Badge label={action.impact} variant={action.impact === "critique" ? "red" : action.impact === "élevé" ? "yellow" : "muted"} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

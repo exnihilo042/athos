@@ -73,3 +73,8 @@ voice/*_alert.json
 skills/
 # Mais core/skills/ est versionné (manifest, architects)
 !core/skills/
+
+# dashboard/lib/ est du code frontend TypeScript — PAS Python
+# lib/ ci-dessus cible les virtualenvs Python uniquement
+!dashboard/lib/
+!dashboard/lib/**

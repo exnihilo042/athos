@@ -179,6 +179,21 @@
 - `label` obligatoire, `detail` optionnel
 - Surface + border + radius 8px + padding 32px + centré
 
+### InsetNotice
+```tsx
+<InsetNotice
+  icon="◱"
+  text="Endpoint /api/finances non implémenté"
+  detail="Interface TypeScript : FinancesSummary dans dashboard/lib/types.ts · Scope Codex P2"
+  variant="muted"
+/>
+```
+- Notice intégrée dans le flux de page (pas un banner pleine largeur)
+- `variant` : `"muted"` (défaut) | `"yellow"` | `"blue"` | `"green"` | `"red"`
+- Couleur du fond et de la bordure dérivée du variant via `color-mix`
+- Utiliser systématiquement pour signaler un endpoint backend non encore implémenté
+- `detail` optionnel — typiquement l'interface TypeScript + scope Codex
+
 ---
 
 ## 5. Layout system
@@ -266,26 +281,26 @@ ATHOS utilise les caractères Unicode géométriques comme icônes. Pas d'emoji,
 
 ---
 
-## 10. Dashboard v4 — État produit (2026-05-20)
+## 10. Dashboard v5 — État produit (2026-05-20)
 
 ### Pages et statut source de données
 
-| Page | Route | Données | Composants clés | Notes |
-|------|-------|---------|----------------|-------|
-| Vue Centrale | /dashboard/hub | MIXTE | ModuleCard, ProductRow, StatCard | KPIs réels + modules nav |
-| Room | /dashboard/room | RÉEL | RoomClient (client), SSE | UX polish v4, zéro logique runtime |
-| Agents IA | /dashboard/agents | RÉEL | StatCard, Badge, BarChart | /api/capability_graph |
-| Automations | /dashboard/automations | RÉEL | CodexPendingZone, Card, SectionLabel | Controls désactivés → Codex |
-| Rapports | /dashboard/reports | RÉEL | CodexPendingZone, DataRow | 4 sections CODEX en attente |
-| Alertes | /dashboard/alerts | RÉEL | Badge, StatCard | /api/observability |
-| Sites & Projets | /dashboard/projects | RÉEL | Card, DataRow | /api/projects |
-| SEO Analytics | /dashboard/seo | MOCK | MockBanner, BarChart, Gauge | Google Search Console à connecter |
-| Performance | /dashboard/performance | MIXTE | Gauge, StatusDot, MockBanner | Score santé RÉEL, Lighthouse MOCK |
-| Finances | /dashboard/finances | MOCK | MockBanner, BarChart, StatCard | Stripe / Shopify à connecter |
-| Commandes | /dashboard/commandes | MOCK | MockBanner | Shopify Admin API à connecter |
-| CRM / Clients | /dashboard/crm | MOCK | ClientCard | ERP ATHOS — Codex scope |
-| Roadmap | /dashboard/roadmap | STATIQUE | Card | Markdown statique |
-| Paramètres | /dashboard/settings | RÉEL | Card, DataRow | /api/settings, /api/security |
+| Page | Route | Données | Composants clés | Notes v5 |
+|------|-------|---------|----------------|----------|
+| Vue Centrale | /dashboard/hub | MIXTE | ModuleCard, ProductRow, StatCard | PageHeader, module cards mis à jour |
+| Room | /dashboard/room | RÉEL | RoomClient (client), SSE | Stable — aucun changement v5 |
+| Agents IA | /dashboard/agents | RÉEL | StatCard, EngineBadge, SectionLabel | Refacto complet → composants UI |
+| Automations | /dashboard/automations | RÉEL | CodexPendingZone, Card, SectionLabel | Stable |
+| Rapports | /dashboard/reports | RÉEL | CodexPendingZone, DataRow | Stable |
+| Alertes | /dashboard/alerts | RÉEL | Badge, StatCard, PageHeader | PageHeader ajouté v5 |
+| Sites & Projets | /dashboard/projects | RÉEL | StatCard, SectionLabel, PageHeader, EmptyPanel | KPI grid + sections done/blocked v5 |
+| SEO Analytics | /dashboard/seo | MOCK | MockBanner, Gauge, PageHeader, InsetNotice | PageHeader + 5 actions IA prioritaires v5 |
+| Performance | /dashboard/performance | MIXTE | Gauge, StatusDot, MockBanner | Stable |
+| Finances | /dashboard/finances | MIXTE | MockBanner, BarChart, StatCard, PageHeader, InsetNotice | Budget RÉEL + CA MOCK ; restructuré v5 |
+| Commandes | /dashboard/commandes | MOCK | MockBanner, PageHeader, InsetNotice | PageHeader + InsetNotice ajoutés v5 |
+| CRM / Clients | /dashboard/crm | MOCK | ClientCard | Stable |
+| Roadmap | /dashboard/roadmap | STATIQUE | Card, PageHeader | PageHeader ajouté v5 |
+| Paramètres | /dashboard/settings | RÉEL | Card, Toggle, PageHeader, Badge | PageHeader RÉEL badge v5 |
 
 ### Convention annotations source
 
@@ -293,3 +308,4 @@ Chaque section ou Card doit être étiquetée par son niveau de réalité.
 Utiliser `<RealityBadge level="..." />` dans les titres de section ou en `<SectionLabel>`.
 Utiliser `<CodexPendingZone>` pour les fonctionnalités qui attendent une implémentation Codex.
 Utiliser `<MockBanner>` en haut de toute page ou section dont les données sont entièrement fictives.
+Utiliser `<InsetNotice>` pour signaler un endpoint backend non encore implémenté (Codex scope).

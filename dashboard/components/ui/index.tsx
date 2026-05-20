@@ -396,6 +396,48 @@ export function EmptyPanel({
   );
 }
 
+// ── InsetNotice ───────────────────────────────────────────────────────────────
+
+export function InsetNotice({
+  icon = "◱",
+  text,
+  detail,
+  variant = "muted",
+}: {
+  icon?: string;
+  text: string;
+  detail?: string;
+  variant?: "muted" | "yellow" | "blue" | "green" | "red";
+}) {
+  const color = variant === "yellow" ? "var(--yellow)"
+    : variant === "blue" ? "var(--blue)"
+    : variant === "green" ? "var(--green)"
+    : variant === "red" ? "var(--red)"
+    : "var(--muted)";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 8,
+        padding: "8px 12px",
+        borderRadius: 5,
+        background: `color-mix(in srgb, ${color} 8%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 20%, transparent)`,
+        marginBottom: 12,
+      }}
+    >
+      <span style={{ fontSize: 12, color, flexShrink: 0, marginTop: 1 }}>{icon}</span>
+      <div>
+        <span style={{ fontSize: 12, color }}>{text}</span>
+        {detail && (
+          <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 6 }}>{detail}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── StatusDot ─────────────────────────────────────────────────────────────────
 
 export function StatusDot({ ok, label }: { ok: boolean; label: string }) {

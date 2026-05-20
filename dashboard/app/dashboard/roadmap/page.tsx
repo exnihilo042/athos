@@ -1,4 +1,4 @@
-import { Card, Badge, SectionLabel } from "@/components/ui";
+import { Card, Badge, SectionLabel, PageHeader } from "@/components/ui";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -305,11 +305,10 @@ export default function RoadmapPage() {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Roadmap ATHOS</h1>
-        <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 16px" }}>
-          État réel au 2026-05-20 · Source : athos_kernel_plan.mem + audit sessions
-        </p>
+      <PageHeader
+        title="Roadmap ATHOS"
+        subtitle="État réel au 2026-05-20 · Source : athos_kernel_plan.mem + audit sessions"
+      />
 
         {/* Summary stats */}
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -325,7 +324,6 @@ export default function RoadmapPage() {
             </div>
           ))}
         </div>
-      </div>
 
       {/* Legend */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>

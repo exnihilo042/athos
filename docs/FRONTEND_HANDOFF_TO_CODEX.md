@@ -1,6 +1,6 @@
 # ATHOS Dashboard — Frontend Handoff to Codex
 
-**Version** : 1.0 | **Date** : 2026-05-20
+**Version** : 1.1 | **Date** : 2026-05-20
 **Auteur** : Claude (dashboard scope)
 **Destinataire** : Codex (runtime/backend scope)
 
@@ -8,7 +8,7 @@
 
 ## Contexte
 
-Le dashboard ATHOS v4 est maintenant à jour côté frontend.
+Le dashboard ATHOS v5 est maintenant à jour côté frontend.
 Ce document liste tout ce que Codex doit implémenter ou valider pour que les pages passent de MOCK/STATIQUE à RÉEL.
 
 **Règle absolue de scope** : Claude ne touche pas `core/`, `voice/`, responders, router, workers, hooks, scripts.
@@ -218,6 +218,10 @@ Si cet endpoint n'existe pas encore, créer ou aliaser depuis `/api/status` (qui
 
 ## 6. Interfaces TypeScript de référence
 
+> **Note tracking** : `dashboard/lib/` était ignoré par un pattern `lib/` Python dans le root `.gitignore`.
+> Corrigé en v5 : ajout de `!dashboard/lib/` et `!dashboard/lib/**` à la fin du `.gitignore` racine.
+> `dashboard/lib/types.ts` et `dashboard/lib/athos.ts` sont désormais tracké dans git.
+
 Fichier : `dashboard/lib/types.ts`
 
 | Interface | Status | Page |
@@ -247,7 +251,24 @@ Fichier : `dashboard/lib/types.ts`
 
 ---
 
-## 8. Commande de vérification build
+## 8. Convention InsetNotice — endpoints non implémentés
+
+Chaque page attendant un endpoint Codex affiche maintenant un `<InsetNotice>` en haut de page.
+Format standardisé :
+```tsx
+<InsetNotice
+  icon="◱"
+  text="Endpoint /api/X non implémenté"
+  detail="Interface TypeScript : XPayload dans dashboard/lib/types.ts · Scope Codex P2"
+  variant="muted"
+/>
+```
+
+Supprimer l'`InsetNotice` et le `MockBanner` associés dès que l'endpoint est opérationnel, puis changer les données.
+
+---
+
+## 9. Commande de vérification build
 
 Après chaque implémentation Codex, vérifier que le dashboard compile :
 

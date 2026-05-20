@@ -1,4 +1,4 @@
-import { MockBanner, SectionLabel, Badge, StatCard } from "@/components/ui";
+import { MockBanner, SectionLabel, Badge, StatCard, PageHeader, InsetNotice } from "@/components/ui";
 
 // ── Mock data — clearly identified ────────────────────────────────────────────
 // Source future attendue : Shopify Admin API (orders) ou outil CRM/facturation.
@@ -227,14 +227,19 @@ export default function CommandesPage() {
 
   return (
     <div style={{ maxWidth: 1000 }}>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Commandes</h1>
-        <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-          Pipeline projets agence — Ex-Nihilo Agency
-        </p>
-      </div>
+      <PageHeader
+        title="Commandes"
+        subtitle="Pipeline projets agence — Ex-Nihilo Agency"
+      />
 
       <MockBanner message="Données de démonstration. Connecter Shopify Admin API ou outil CRM pour les vraies commandes." />
+
+      <InsetNotice
+        icon="◱"
+        text="Endpoint /api/commandes non implémenté"
+        detail="Interface TypeScript : CommandesPayload dans dashboard/lib/types.ts · Source : Shopify Admin API · Scope Codex P2"
+        variant="muted"
+      />
 
       {/* KPI */}
       <div className="grid-auto-4" style={{ marginBottom: 20 }}>
