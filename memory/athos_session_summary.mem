@@ -1,0 +1,8 @@
+§v:0.1|created:2026-05-20|src:claude-audit|type:bootstrap
+
+§session:2026-05-20|engine:claude-sonnet-4-6|type:audit_architectural
+§session:2026-05-20|head_start:ade4b33|head_end:b265ddf|tests:191_passed
+§session:2026-05-20|work[audit_10_livrables,fix_claude_responder,create_missing_mem_files]
+§session:2026-05-20|fixed[claude_responder=token_refreshed_available,memory_ok=3_files_created]
+§session:2026-05-20|pending[ThreadingMixIn_server,SSE_route,dashboard_Next.js]
+§session:2026-05-20|codex:blocked_usage_limit_non_résolu

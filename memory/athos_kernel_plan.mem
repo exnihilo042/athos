@@ -1,0 +1,27 @@
+§v:0.1|created:2026-05-20|src:claude-audit
+
+§kernel:server|file:voice/server.py|port:7474|pid_last_known:92008|managed_by:launchd_agency.athos.hub
+§kernel:server|type:BaseHTTP_single_threaded|debt=ThreadingMixIn_needed_for_concurrent_dashboard_polls
+§kernel:server|start_cmd:launchctl bootout/bootstrap gui/$(id -u) agency.athos.hub
+
+§kernel:services|:7474=voice/server.py(HUB)|:8765=agentmemory_server.py|:20128=9router(Next.js)
+§kernel:services|all_3_UP_as_of_2026-05-20
+
+§kernel:ui|current:voice/index.html(3288_lines)|type:voice-first_single_page_dark
+§kernel:ui|panels[transcript,terminal,orb_vocal,TH_journal,OBS,AGI(goals/beliefs/skills/sites)]
+§kernel:ui|target:dashboard_Next.js_14_modules_JARVIS_cockpit|status:not_started
+
+§kernel:responders|claude:available_2026-05-20_token_refreshed_keychain|token_file:~/.athos/claude_token
+§kernel:responders|codex:blocked_usage_limit|retry_indicated:5:14AM_2026-05-20
+§kernel:responders|fix_claude=install_claude_room_token_from_keychain.py+force_Room_test
+
+§kernel:failover|history[claude_code→chatgpt_plus(code1)×3,chatgpt_plus→claude_code(usage_limit)]
+§kernel:failover|current_primary:chatgpt_plus(LLM_calls)|room_responder_primary:claude(CLI)
+
+§kernel:memory|canonical:~/Sites/athos/memory/|format:§-compressé_jamais_prose
+§kernel:memory|session_writer.py=stop_hook→routing_par_§préfixe→Drive
+§kernel:memory|missing_resolved_2026-05-20[athos_cognition.mem,athos_kernel_plan.mem,athos_session_summary.mem]
+
+§kernel:roadmap|P0_next[ThreadingMixIn_server,SSE_/api/events,dashboard_scaffold]
+§kernel:roadmap|P1_next[module_hub,module_room_migré,module_agents_graph,module_automations]
+§kernel:roadmap|defer[Finances,Commandes,CRM=pas_de_core_module_ni_data_source]

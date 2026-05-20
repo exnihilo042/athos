@@ -3,7 +3,7 @@
 §proj:athos|status:building|priority:0
 §proj:athos|identity:ATHOS_canonical|legacy:JARVIS=supprimé_runtime
 §proj:athos|sources[github:exnihilo042/athos@main,local:~/Sites/athos,drive:Mon_Drive/CLAUDE_AI/memory]
-§proj:athos|head:0e45720|tests:147_passed|server:port_7474|github:synced|commits_depuis_v0.4:+50
+§proj:athos|head:b265ddf|tests:191_passed|server:port_7474|github:synced|last_audit:2026-05-20
 
 §proj:athos|arch:2026-05-18|pattern:un_module_une_responsabilite
 §proj:athos|arch:core/athos_memory.py=historique+contexte_Drive+echanges+budget+alertes

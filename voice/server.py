@@ -1293,6 +1293,67 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"events": recent_events(limit=int(body.get("limit", 20))), "status": loop_status()}); return
             self._json(loop_status()); return
 
+        # ── SSE live events (dashboard tail) ────────────────────────────────────
+        if p == "/api/events":
+            import time as _time
+            kernel_file = Path(config.DRIVE) / "athos_session_kernel.jsonl"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Accel-Buffering", "no")
+            self.cors(); self.end_headers()
+            stream_ok = True
+
+            def _sse_write(event: str, data: dict) -> bool:
+                nonlocal stream_ok
+                if not stream_ok:
+                    return False
+                try:
+                    payload = f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+                    self.wfile.write(payload.encode())
+                    self.wfile.flush()
+                    return True
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    stream_ok = False
+                    return False
+
+            # seed: send current status snapshot
+            try:
+                import observability as _obs
+                _sse_write("status", _obs.get_status())
+            except Exception:
+                pass
+
+            # tail session_kernel.jsonl for new events + heartbeat
+            pos = kernel_file.stat().st_size if kernel_file.exists() else 0
+            last_heartbeat = _time.time()
+            try:
+                while stream_ok:
+                    if kernel_file.exists():
+                        new_size = kernel_file.stat().st_size
+                        if new_size > pos:
+                            with open(kernel_file, "r", encoding="utf-8", errors="ignore") as f:
+                                f.seek(pos)
+                                for line in f:
+                                    line = line.strip()
+                                    if not line:
+                                        continue
+                                    try:
+                                        event_data = json.loads(line)
+                                        if not _sse_write("session_event", event_data):
+                                            break
+                                    except json.JSONDecodeError:
+                                        pass
+                            pos = new_size
+                    now = _time.time()
+                    if now - last_heartbeat >= 30:
+                        _sse_write("heartbeat", {"ts": now, "server": "athos"})
+                        last_heartbeat = now
+                    _time.sleep(1)
+            except Exception:
+                pass
+            return
+
         self.send_response(404); self.end_headers()
 
 
