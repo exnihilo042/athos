@@ -3,7 +3,7 @@
 §proj:athos|status:building|priority:0
 §proj:athos|identity:ATHOS_canonical|legacy:JARVIS=supprimé_runtime
 §proj:athos|sources[github:exnihilo042/athos@main,local:~/Sites/athos,drive:Mon_Drive/CLAUDE_AI/memory]
-§proj:athos|head:b265ddf|tests:191_passed|server:port_7474|github:synced|last_audit:2026-05-20
+§proj:athos|head:43a0ac1|tests:194_passed|server:port_7474|github:synced|last_audit:2026-05-20
 
 §proj:athos|arch:2026-05-18|pattern:un_module_une_responsabilite
 §proj:athos|arch:core/athos_memory.py=historique+contexte_Drive+echanges+budget+alertes
@@ -90,3 +90,10 @@
 §proj:athos|fix:room_responders_oauth_token_extraction=resolve_via_security_cli_pass_as_ANTHROPIC_API_KEY+venv_OK+launchd_hub_KO_pending_infra
 §proj:athos|fix:agency_hub_plist=SessionCreate_true+LimitLoadToSessionType_Aqua+HOME+USER_added
 §proj:athos|done:room_ui_rich_rendering=markdown_marked+hljs+thinking_collapsible+tool_call_cards+type_badges+status_pills+meta_fold+files_cards
+§proj:athos|done:audit_architectural_2026-05-20=10_livrables+diagnostic+roadmap+codex_brief+acceptance_checklist
+§proj:athos|done:fix_claude_responder=token_refreshed_keychain+force_room_test_OK
+§proj:athos|done:memory_ok=athos_cognition+athos_kernel_plan+athos_session_summary_created
+§proj:athos|done:SSE_api_events=POST_/api/events_tails_session_kernel_30s_heartbeat_status_snapshot
+§proj:athos|done:dashboard_mvp=Next.js16_App_Router_5_modules[hub,room,agents,automations,reports]_port_3333
+§proj:athos|todo:codex_responder=usage_limit_wait_reset|todo:austere_mode_ready=fix_remaining_gap
+§proj:athos|todo:dashboard_next[LiveEvents_SSE_consumer,CapabilityGraph_viz,Room_send_form]

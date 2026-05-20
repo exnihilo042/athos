@@ -1,8 +1,17 @@
-§v:0.1|created:2026-05-20|src:claude-audit|type:bootstrap
+§v:0.2|updated:2026-05-20|src:claude-audit
 
-§session:2026-05-20|engine:claude-sonnet-4-6|type:audit_architectural
-§session:2026-05-20|head_start:ade4b33|head_end:b265ddf|tests:191_passed
-§session:2026-05-20|work[audit_10_livrables,fix_claude_responder,create_missing_mem_files]
-§session:2026-05-20|fixed[claude_responder=token_refreshed_available,memory_ok=3_files_created]
-§session:2026-05-20|pending[ThreadingMixIn_server,SSE_route,dashboard_Next.js]
-§session:2026-05-20|codex:blocked_usage_limit_non_résolu
+§session:2026-05-20|engine:claude-sonnet-4-6|type:audit_architectural_puis_implementation
+§session:2026-05-20|head_start:ade4b33|head_end:43a0ac1|tests:194_passed
+§session:2026-05-20|commits[331f783_SSE_events,43a0ac1_dashboard_mvp]
+
+§session:2026-05-20|audit_deliverables_done[diagnostic,architecture_cible,roadmap,claude_codex_separation,codex_brief,acceptance_checklist,risks,simplification,aesthetic_validation,dashboard_structure]
+
+§session:2026-05-20|implementations_done:
+§session:2026-05-20|  fix=claude_responder_token_refreshed_keychain_available:true
+§session:2026-05-20|  fix=memory_ok_3_files_created[athos_cognition,athos_kernel_plan,athos_session_summary]
+§session:2026-05-20|  fix=athos_projects_mem_head_synced
+§session:2026-05-20|  feat=SSE_POST_/api/events_tail_session_kernel_heartbeat_30s
+§session:2026-05-20|  feat=dashboard_Next.js16[hub,room,agents,automations,reports]_port_3333_build_OK_5/5_routes_200
+
+§session:2026-05-20|blocked=codex_responder_usage_limit_non_resolvable_code
+§session:2026-05-20|pending[dashboard_live_events_SSE,capability_graph_viz,room_send_form,austere_mode_gap]
