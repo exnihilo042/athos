@@ -30,6 +30,7 @@ def _load_server(tmp_path, monkeypatch):
         "athos_room",
         "attach_protocol",
         "dashboard_runtime",
+        "project_registry",
         "autonomous_loop",
         "server",
     ):

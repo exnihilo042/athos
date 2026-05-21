@@ -670,6 +670,19 @@ class Handler(BaseHTTPRequestHandler):
     def _body(self) -> dict:
         return json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
 
+    def _body_checked(self):
+        try:
+            data = self._body()
+        except json.JSONDecodeError:
+            self._json({"ok": False, "error": "invalid_json"}, 400)
+            return None
+        if data is None:
+            return {}
+        if not isinstance(data, dict):
+            self._json({"ok": False, "error": "invalid_json"}, 400)
+            return None
+        return data
+
     def _json(self, data, status=200):
         body = json.dumps(data).encode("utf-8")
         self.send_response(status)
@@ -1336,6 +1349,30 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/crm":
             self._json(dashboard_runtime.crm_payload()); return
 
+        if p == "/api/finances":
+            self._json(dashboard_runtime.finances_payload()); return
+
+        if p == "/api/seo":
+            self._json(dashboard_runtime.seo_payload()); return
+
+        if p == "/api/commandes":
+            body = self._body_checked()
+            if body is None: return
+            payload, status = dashboard_runtime.commandes_payload(body)
+            self._json(payload, status); return
+
+        if p == "/api/skills/registry":
+            self._json(dashboard_runtime.skills_registry_payload()); return
+
+        if p == "/api/skills/engine-availability":
+            self._json(dashboard_runtime.skills_engine_availability_payload()); return
+
+        if p == "/api/skills/recommend":
+            body = self._body_checked()
+            if body is None: return
+            payload, status = dashboard_runtime.skills_recommend_payload(body)
+            self._json(payload, status); return
+
         if p == "/api/settings":
             import ast
             env_path = config.ROOT / ".env"
@@ -1356,24 +1393,29 @@ class Handler(BaseHTTPRequestHandler):
             }); return
 
         if p == "/api/projects":
-            mem_path = Path(config.DRIVE) / "athos_projects.mem"
-            projects: dict[str, dict] = {}
-            if mem_path.exists():
-                for raw_line in mem_path.read_text().splitlines():
-                    raw_line = raw_line.strip()
-                    if not raw_line.startswith("§proj:"):
-                        continue
-                    rest = raw_line[len("§proj:"):]
-                    name, _, fields_str = rest.partition("|")
-                    if not name:
-                        continue
-                    if name not in projects:
-                        projects[name] = {"name": name}
-                    for field in fields_str.split("|"):
-                        if ":" in field:
-                            fk, _, fv = field.partition(":")
-                            projects[name][fk] = fv
-            self._json({"projects": list(projects.values())}); return
+            from project_registry import list_projects
+            self._json(list_projects()); return
+
+        if p == "/api/projects/detail":
+            from project_registry import project_detail
+            body = self._body_checked()
+            if body is None: return
+            payload, status = project_detail(body.get("project_id", ""))
+            self._json(payload, status); return
+
+        if p == "/api/projects/create":
+            from project_registry import create_project
+            body = self._body_checked()
+            if body is None: return
+            payload, status = create_project(body.get("project"))
+            self._json(payload, status); return
+
+        if p == "/api/projects/update":
+            from project_registry import update_project
+            body = self._body_checked()
+            if body is None: return
+            payload, status = update_project(body.get("project_id", ""), body.get("patch"))
+            self._json(payload, status); return
 
         # ── SSE live events (dashboard tail) ────────────────────────────────────
         if p == "/api/events":

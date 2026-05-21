@@ -34,3 +34,5 @@
 §kernel:dashboard_v9_2026-05-21|done[runtime_binding_automations+performance+crm+AutomationControlsClient+real_latencies+crm_partial]|mocks_restants[finances,seo,commandes,lighthouse]|branch:feature/dashboard-runtime-binding
 §kernel:next_claude=polish_UX+hook_reports_summary+suppression_mocks_progressifs_si_endpoints_livrés
 §kernel:next_codex=skills_P3[/api/skills/registry+/api/skills/recommend+/api/skills/execute+/api/skills/log]+finances+seo+commandes+lighthouse_cli
+§kernel:codex_runtime_2026-05-21_v3|done[/api_projects_enriched,/api_projects_detail,/api_projects_create,/api_projects_update,/api_finances_partial,/api_seo_metadata_only,/api_commandes_empty_or_config_only,/api_skills_registry,/api_skills_engine_availability,/api_skills_recommend_static]
+§kernel:codex_runtime_2026-05-21_v3|tests:209_passed|storage:memory/athos_project_registry.json|remaining[real_stripe_shopify,reals_gsc_pagespeed,lighthouse_cli]
