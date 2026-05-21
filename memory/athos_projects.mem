@@ -112,3 +112,7 @@
 §proj:athos|done:dashboard_v8=Skills_module[skill-registry.ts_47skills_11cats+/dashboard/skills+SkillsClient+SkillCategoryBadge+SkillMaturityBadge+RecommendationEngine+AgentSkillMatrix+Hub+Agents+Automations_intégrés+SKILL_REGISTRY_SPEC.md+docs_5mis_à_jour]|build:21routes_0TS|commit:a931a19
 §proj:athos|done:integration_2026-05-20=merge_ai/claude-dashboard-v5_into_main_Codex_runtime|branch:integrate/claude-dashboard-v8-runtime|conflicts:2_memoires_résolues
 §proj:athos|done:dashboard_v9=runtime_binding[automations+performance+crm]+AutomationControlsClient[loop_start_stop_pause_reset+task_list_pause_resume_retry_cancel]+/api/performance_real_latencies+/api/crm_partial_mem|branch:feature/dashboard-runtime-binding|mocks_restants[finances,seo,commandes,lighthouse]
+§proj:athos|done:codex_pcc_backend_2026-05-21=/api_projects+/api_projects_detail+/api_projects_create+/api_projects_update+json_registry_overrides
+§proj:athos|done:codex_business_endpoints_2026-05-21=/api_finances_partial+/api_seo_metadata_only+/api_commandes_empty_or_config_only
+§proj:athos|done:codex_skills_backend_2026-05-21=/api_skills_registry+/api_skills_engine_availability+/api_skills_recommend_static_rules|tests:209_passed
+§proj:athos|needs_credentials[shopify_admin_orders,stripe_finances,gsc_seo,pagespeed_seo,lighthouse_cli]

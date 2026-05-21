@@ -282,37 +282,91 @@ Boutons Start/Stop dans la page Automations avec feedback SSE temps réel.
 ### CODEX-011 — Finances : endpoint /api/finances
 
 **Priorité** : P2
-**Statut** : Non implémenté — données MOCK côté dashboard
+**Statut** : ✅ Livré en mode partiel et honnête
 
-**Contexte** :
-La page `/dashboard/finances` affiche des données mock (MOCK_CA_MONTH, MOCK_VENTES_NETTES, etc.). Ces données doivent venir d'une source réelle.
+**Livré** :
+- `POST /api/finances`
+- budget ATHOS réel si disponible
+- détection prudente Stripe / Shopify / fichier manuel
+- aucun CA ou volume de ventes inventé
+- `data_quality=partial`
 
-**Candidates** :
-- Stripe API (abonnements, payments)
-- Shopify Admin API (orders, revenue)
-- Fichier CSV / Google Sheets
-
-**Ce que Codex doit faire** :
-1. Décider de la source de données avec Clément
-2. Implémenter l'endpoint `/api/finances` dans `voice/server.py`
-3. Retourner le schéma défini dans `dashboard/lib/types.ts` : `FinancesSummary`, `RevenueDataPoint`, `ProjectRevenue`
+**Reste** :
+- brancher une vraie source Stripe / Shopify / fichier financier
+- enrichir `projects[]` et `monthly[]` quand les sources existent
 
 ---
 
 ### CODEX-012 — SEO Analytics : endpoint /api/seo
 
 **Priorité** : P2
-**Statut** : Non implémenté — données MOCK côté dashboard
+**Statut** : ✅ Livré en mode metadata-only honnête
 
-**Contexte** :
-La page `/dashboard/seo` affiche des données mock. Sources attendues : Google Search Console API, PageSpeed Insights API.
+**Livré** :
+- `POST /api/seo`
+- extraction des domaines/sites depuis `athos_projects.mem`
+- détection prudente GSC / PageSpeed
+- métriques SEO réelles laissées à `null`
+- `data_quality=partial`
 
-**Schéma frontend prêt** dans `dashboard/lib/types.ts` : `SeoSite`, `CoreWebVital`, `SeoPosition`.
+**Reste** :
+- connecter Google Search Console
+- connecter PageSpeed Insights
+- peupler `issues`, `opportunities`, `core web vitals`
 
-**Ce que Codex doit faire** :
-1. Intégration GSC API (nécessite OAuth + credentials)
-2. Endpoint `/api/seo` dans `voice/server.py`
-3. Cache local (les données GSC ne changent pas toutes les heures)
+---
+
+### CODEX-013 — Commandes : endpoint /api/commandes
+
+**Priorité** : P2
+**Statut** : ✅ Livré en mode empty/config-only honnête
+
+**Livré** :
+- `POST /api/commandes`
+- validation `limit`
+- support optionnel `project_id`
+- aucune commande inventée
+- `data_quality=empty_no_source` ou `config_only`
+
+**Reste** :
+- brancher une vraie source Shopify/Stripe/fichier manuel
+
+---
+
+### CODEX-014 — Project Control Center backend
+
+**Priorité** : P1
+**Statut** : ✅ Livré en première version stable
+
+**Livré** :
+- `POST /api/projects`
+- `POST /api/projects/detail`
+- `POST /api/projects/create`
+- `POST /api/projects/update`
+- persistance sûre via `memory/athos_project_registry.json`
+- `athos_projects.mem` conservé comme mémoire canonique historique
+
+**Reste** :
+- enrichir activités, goals et intégrations si de nouvelles sources apparaissent
+
+---
+
+### CODEX-015 — Skills Registry backend multi-moteurs
+
+**Priorité** : P2
+**Statut** : ✅ Livré en version backend statique prudente
+
+**Livré** :
+- `POST /api/skills/registry`
+- `POST /api/skills/engine-availability`
+- `POST /api/skills/recommend`
+- registry backend indépendant du frontend local
+- availability observée via responders runtime
+
+**Reste** :
+- historique d'usage skills
+- exécution contrôlée
+- recommandation contextuelle plus fine
 
 ---
 
